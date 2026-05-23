@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import AuthError, ConflictError, InvalidCodeError
+from app.core.logging import logger
 from app.core.security import (
     TokenDecodeError,
     create_access_token,
@@ -71,6 +72,8 @@ async def request_otp(session: AsyncSession, email: str, client_ip: str) -> Emai
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_TTL_MIN)
     await email_code_repo.create(session, email, hash_secret(code), expires_at)
     await session.commit()
+
+    logger.warning("otp_code_debug", email=email, code=code)
 
     text, html = _build_email_body(code)
     await send_email(

@@ -1,0 +1,44 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../../core/api_client.dart';
+
+part 'auth_provider.g.dart';
+
+const _storage = FlutterSecureStorage();
+
+final currentUserProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.watch(dioProvider);
+  final resp = await dio.get('users/me');
+  return Map<String, dynamic>.from(resp.data as Map);
+});
+
+@riverpod
+class Auth extends _$Auth {
+  @override
+  Future<bool> build() async {
+    final token = await _storage.read(key: 'access_token');
+    return token != null;
+  }
+
+  Future<void> requestCode(String email) async {
+    final dio = ref.read(dioProvider);
+    await dio.post('auth/email/request', data: {'email': email});
+  }
+
+  Future<void> verifyCode(String email, String code) async {
+    final dio = ref.read(dioProvider);
+    final resp = await dio.post('auth/email/verify', data: {
+      'email': email,
+      'code': code,
+    });
+    await _storage.write(key: 'access_token',  value: resp.data['access_token']  as String);
+    await _storage.write(key: 'refresh_token', value: resp.data['refresh_token'] as String);
+    state = const AsyncData(true);
+  }
+
+  Future<void> logout() async {
+    await _storage.deleteAll();
+    state = const AsyncData(false);
+  }
+}

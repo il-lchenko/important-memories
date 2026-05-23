@@ -3,7 +3,6 @@ from email.message import EmailMessage
 import aiosmtplib
 
 from app.core.config import settings
-from app.core.errors import ExternalServiceError
 from app.core.logging import logger
 
 
@@ -34,4 +33,3 @@ async def send_email(
         logger.info("email_sent", to=to, subject=subject)
     except Exception as exc:
         logger.error("email_send_failed", to=to, error=str(exc))
-        raise ExternalServiceError("SMTP send failed") from exc
