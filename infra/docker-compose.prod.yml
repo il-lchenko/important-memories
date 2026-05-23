@@ -1,0 +1,126 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: im-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-im}
+      POSTGRES_USER: ${POSTGRES_USER:-imuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+    volumes:
+      - im_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imuser} -d ${POSTGRES_DB:-im}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: im-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - im_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: im-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-imadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD required}
+    volumes:
+      - im_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: im-minio-setup
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-imadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD required}
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/im-media &&
+      mc anonymous set download local/im-media/public &&
+      echo 'MinIO bucket ready'
+      "
+    networks:
+      - internal
+    restart: no
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: im-backend:latest
+    container_name: im-backend
+    restart: unless-stopped
+    env_file: ./.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - internal
+
+  migrate:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: im-backend:latest
+    container_name: im-migrate
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    env_file: ./.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: no
+
+  nginx:
+    image: nginx:alpine
+    container_name: im-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../guest-pwa/dist:/var/www/pwa:ro
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+volumes:
+  im_pg_data:
+  im_redis_data:
+  im_minio_data:
+
+networks:
+  internal:
