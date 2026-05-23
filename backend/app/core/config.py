@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "Important Memories"
 
     S3_ENDPOINT: str = "http://localhost:9000"
+    S3_PUBLIC_URL: str = ""
     S3_REGION: str = "ru-central1"
     S3_BUCKET: str = "im-media"
     S3_ACCESS_KEY: str = "minioadmin"

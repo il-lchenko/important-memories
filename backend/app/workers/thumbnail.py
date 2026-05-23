@@ -76,5 +76,6 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
         thumb_key = _thumbnail_key(frame.s3_key)
         s3_client.upload_bytes(thumb_key, thumb_bytes, "image/jpeg")
         frame.thumbnail_url = thumb_key
+        frame.status = FrameStatus.UPLOADED
         await session.commit()
         logger.info("thumbnail_created", frame_id=frame_id, fmt=photo_format, size=len(thumb_bytes))

@@ -18,9 +18,15 @@ def get_s3_client():
     )
 
 
+def _to_public(url: str) -> str:
+    if settings.S3_PUBLIC_URL:
+        return url.replace(settings.S3_ENDPOINT, settings.S3_PUBLIC_URL, 1)
+    return url
+
+
 def presign_put(key: str, content_type: str, expires_in: int | None = None) -> str:
     expires = expires_in or settings.S3_PRESIGN_TTL_SEC
-    return get_s3_client().generate_presigned_url(
+    url = get_s3_client().generate_presigned_url(
         "put_object",
         Params={
             "Bucket": settings.S3_BUCKET,
@@ -30,14 +36,16 @@ def presign_put(key: str, content_type: str, expires_in: int | None = None) -> s
         ExpiresIn=expires,
         HttpMethod="PUT",
     )
+    return _to_public(url)
 
 
 def presign_get(key: str, expires_in: int = 3600) -> str:
-    return get_s3_client().generate_presigned_url(
+    url = get_s3_client().generate_presigned_url(
         "get_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": key},
         ExpiresIn=expires_in,
     )
+    return _to_public(url)
 
 
 def download_bytes(key: str) -> bytes:

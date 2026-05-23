@@ -88,6 +88,25 @@ services:
     networks:
       - internal
 
+  worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: im-backend:latest
+    container_name: im-worker
+    restart: unless-stopped
+    command: ["uv", "run", "python", "-m", "app.workers.main"]
+    env_file: ./.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - internal
+
   migrate:
     build:
       context: ../backend
