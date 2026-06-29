@@ -500,20 +500,20 @@ class _HeaderCamBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 54,
+        height: 54,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: AppColors.amber,
           boxShadow: [
             BoxShadow(
-              color: AppColors.amber.withValues(alpha: 0.35),
-              blurRadius: 12,
+              color: AppColors.amber.withValues(alpha: 0.4),
+              blurRadius: 14,
               spreadRadius: -2,
             ),
             const BoxShadow(
               color: Color(0x33000000),
-              blurRadius: 8,
+              blurRadius: 10,
               offset: Offset(0, 4),
             ),
           ],
@@ -521,10 +521,10 @@ class _HeaderCamBtn extends StatelessWidget {
         child: loading
             ? const Center(
                 child: SizedBox(
-                  width: 18,
-                  height: 18,
+                  width: 22,
+                  height: 22,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
+                    strokeWidth: 2.2,
                     color: Colors.white,
                   ),
                 ),
@@ -534,22 +534,22 @@ class _HeaderCamBtn extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.camera_alt_outlined,
-                    size: 22,
+                    size: 28,
                     color: Colors.white,
                   ),
                   Positioned(
-                    right: 8,
-                    bottom: 8,
+                    right: 10,
+                    bottom: 10,
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 15,
+                      height: 15,
                       decoration: const BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white,
                       ),
                       child: const Icon(
                         Icons.add,
-                        size: 10,
+                        size: 12,
                         color: AppColors.amber,
                       ),
                     ),
