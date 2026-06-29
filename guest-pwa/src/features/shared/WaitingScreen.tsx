@@ -31,6 +31,7 @@ export default function WaitingScreen() {
   const [remaining, setRemaining] = useState(() =>
     revealAt ? Math.max(0, revealAt.getTime() - Date.now()) : 0
   )
+  const [framesLeft, setFramesLeft] = useState<number | null>(null)
   const navigatedRef = useRef(false)
 
   const goToAlbum = () => {
@@ -39,15 +40,37 @@ export default function WaitingScreen() {
     navigate(`/g/${shortCode}/album`, { replace: true })
   }
 
-  // Countdown tick
+  // Countdown tick — also recalculates on tab focus to handle mobile background freezing
   useEffect(() => {
+    const calc = () => revealAt ? Math.max(0, revealAt.getTime() - Date.now()) : 0
+
     const tick = setInterval(() => {
-      const ms = revealAt ? Math.max(0, revealAt.getTime() - Date.now()) : 0
+      const ms = calc()
       setRemaining(ms)
-      if (ms === 0) goToAlbum()
+      if (revealAt && ms === 0) goToAlbum()
     }, 1000)
-    return () => clearInterval(tick)
+
+    const onVisibility = () => {
+      if (!document.hidden) {
+        const ms = calc()
+        setRemaining(ms)
+        if (revealAt && ms === 0) goToAlbum()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      clearInterval(tick)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [revealAt]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch frames remaining once on mount
+  useEffect(() => {
+    guestApi.getSession().then(({ data }) => {
+      setFramesLeft(data.frames_remaining)
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Poll backend every 30s for manual host reveal
   useEffect(() => {
@@ -63,7 +86,9 @@ export default function WaitingScreen() {
   const totalSec = Math.floor(remaining / 1000)
   const hours = Math.floor(totalSec / 3600)
   const mins = Math.floor((totalSec % 3600) / 60)
-  const revealed = remaining === 0
+  const secs = totalSec % 60
+  // revealed only when there WAS a timer and it reached zero (not when revealAt is null)
+  const revealed = revealAt !== null && remaining === 0
 
   return (
     <div className="darkroom" style={{ minHeight: '100dvh', position: 'relative' }}>
@@ -81,26 +106,27 @@ export default function WaitingScreen() {
               Плёнка проявилась!
             </h1>
             <div style={{ flex: 1 }} />
-            <a href={`/g/${shortCode}/album`} className="btn-dark-amber" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+            <button className="btn-dark-amber" onClick={goToAlbum} style={{ width: '100%' }}>
               Открыть альбом
-            </a>
+            </button>
           </>
         ) : (
           // ── Waiting state ──
           <>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
-              Альбом проявляется
+              {revealAt ? 'Скоро открытие' : 'Альбом ещё закрыт'}
             </div>
             <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 280 }}>
-              Подождите —<br />осталось немного.
+              {revealAt ? <>Подождите —<br />осталось немного.</> : <>Альбом откроет<br />организатор.</>}
             </h1>
 
             {/* Clock grid */}
             {revealAt && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 {[
-                  { num: pad(hours), label: 'часа' },
-                  { num: pad(mins), label: 'минуты' },
+                  { num: pad(hours), label: 'часов' },
+                  { num: pad(mins), label: 'минут' },
+                  { num: pad(secs), label: 'секунд' },
                 ].map(({ num, label }) => (
                   <div key={label} style={{
                     aspectRatio: '1/1', borderRadius: 20,
@@ -108,7 +134,7 @@ export default function WaitingScreen() {
                     border: '1px solid rgba(255,179,71,.18)',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 72, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em' }}>
+                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 56, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em' }}>
                       {num}
                     </div>
                     <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.2em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
@@ -135,8 +161,22 @@ export default function WaitingScreen() {
               fontSize: 17, lineHeight: 1.4, color: 'var(--dr-text)',
             }}>
               <span style={{ fontSize: 36, lineHeight: 0, color: 'var(--dr-amber)', marginRight: 4, verticalAlign: -16 }}>"</span>
-              Хорошие плёнки не листают сразу. Хорошее утро ждёт.
+              Классные плёнки смотрят на следующее утро. Вашу — уже скоро.
             </div>
+
+            {/* Back to camera if frames remain */}
+            {framesLeft !== null && framesLeft > 0 && (
+              <button
+                className="btn-dark-amber"
+                onClick={() => navigate(`/g/${shortCode}/camera`)}
+                style={{ width: '100%', marginBottom: 10 }}
+              >
+                Вернуться к камере
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/>
+                </svg>
+              </button>
+            )}
 
             {/* Meta */}
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.45)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', paddingBottom: 14 }}>

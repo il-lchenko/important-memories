@@ -46,11 +46,11 @@ export default function DoneScreen() {
           fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em',
           margin: 0, textAlign: 'center', color: 'var(--dr-text)',
         }}>
-          Ваша плёнка<br />окончена.
+          Ваша плёнка<br />закончилась
         </h1>
         <p style={{ fontSize: 14, color: 'rgba(240,230,210,.55)', textAlign: 'center', lineHeight: 1.5, maxWidth: 280 }}>
-          Кадры увидите в общем альбоме после проявки.
-          {revealLabel && ` До неё — в ${revealLabel}.`}
+          Кадры появятся в общем альбоме, когда организатор откроет плёнку.
+          {revealLabel && ` Откроется в ${revealLabel}.`}
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export default function DoneScreen() {
           className="btn-dark-amber"
           onClick={() => navigate(`/g/${shortCode}/waiting`)}
         >
-          Ждать проявки
+          Ждать открытия
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 8a6 6 0 0 1 12 0v5l2 2H4l2-2V8z"/><path d="M10 19a2 2 0 0 0 4 0"/>
           </svg>
@@ -69,7 +69,7 @@ export default function DoneScreen() {
           className="btn-ghost-dark btn-sm"
           onClick={() => navigate(`/g/${shortCode}/album`)}
         >
-          К альбому{revealLabel ? ` · доступен ${revealLabel}` : ''}
+          К альбому{revealLabel ? ` · откроется ${revealLabel}` : ''}
         </button>
       </div>
     </div>

@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     ForeignKey,
@@ -141,11 +142,17 @@ class Guest(Base):
     __tablename__ = "guests"
     __table_args__ = (
         UniqueConstraint("event_id", "fingerprint", name="uq_guest_event_fp"),
+        Index("ix_guests_user_id", "user_id"),
     )
 
     id: Mapped[UUID] = _uuid_pk()
     event_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False
+    )
+    # Если гость зарегистрирован — связан с User. Иначе NULL (анонимный гость).
+    # Заполняется автоматически при regist­рации (backfill по fingerprint) или при join с Bearer.
+    user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     guest_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
@@ -162,6 +169,7 @@ class Frame(Base):
     __table_args__ = (
         Index("ix_frames_event_captured", "event_id", "captured_at"),
         Index("ix_frames_guest_status", "guest_id", "status"),
+        CheckConstraint("rotation IN (0, 90, 180, 270)", name="ck_frames_rotation_valid"),
     )
 
     id: Mapped[UUID] = _uuid_pk()
@@ -182,6 +190,12 @@ class Frame(Base):
     captured_at: Mapped[datetime] = _ts()
     uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    caption: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    voice_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    voice_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    voice_peaks: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
+    rotation: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
     event: Mapped[Event] = relationship(back_populates="frames")
     guest: Mapped[Guest] = relationship(back_populates="frames")

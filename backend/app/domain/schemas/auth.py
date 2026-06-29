@@ -15,6 +15,9 @@ class EmailRequestOut(BaseModel):
 class EmailVerifyIn(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    # Опционально: fingerprint текущего устройства. Если передан — все анонимные
+    # guest-записи с этим fingerprint будут привязаны к создаваемому/найденному User.
+    fingerprint: str | None = Field(default=None, max_length=128)
 
 
 class RefreshIn(BaseModel):

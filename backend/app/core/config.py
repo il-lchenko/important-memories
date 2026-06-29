@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     JWT_SECRET: SecretStr = SecretStr("change-me-in-prod")
     JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TTL_MIN: int = 15
+    JWT_ACCESS_TTL_MIN: int = 60
     JWT_REFRESH_TTL_DAYS: int = 30
 
     OTP_TTL_MIN: int = 15

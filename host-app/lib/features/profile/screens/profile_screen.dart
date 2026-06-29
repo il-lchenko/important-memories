@@ -51,8 +51,7 @@ class ProfileScreen extends ConsumerWidget {
 
             Text(
               'Профиль',
-              style: GoogleFonts.fraunces(
-                fontStyle: FontStyle.italic,
+              style: GoogleFonts.playfairDisplay(
                 fontWeight: FontWeight.w500,
                 fontSize: 32,
                 letterSpacing: -0.02 * 32,
@@ -157,8 +156,7 @@ class _UserCard extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               initial,
-              style: GoogleFonts.fraunces(
-                fontStyle: FontStyle.italic,
+              style: GoogleFonts.playfairDisplay(
                 fontSize: 24,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
@@ -172,8 +170,7 @@ class _UserCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.fraunces(
-                    fontStyle: FontStyle.italic,
+                  style: GoogleFonts.playfairDisplay(
                     fontWeight: FontWeight.w500,
                     fontSize: 20,
                     color: AppColors.ink,
@@ -404,8 +401,8 @@ class _EditNameSheetState extends ConsumerState<_EditNameSheet> {
           const SizedBox(height: 20),
           Text(
             'Имя профиля',
-            style: GoogleFonts.fraunces(
-              fontSize: 22, fontStyle: FontStyle.italic,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 22,
               fontWeight: FontWeight.w500, color: AppColors.ink,
             ),
           ),

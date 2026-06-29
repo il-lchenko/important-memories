@@ -22,14 +22,17 @@ from app.domain.schemas.events import (
     EventOut,
     EventSettingsOut,
     EventSettingsUpdateIn,
+    EventUpdateIn,
 )
-from app.infra import fcm_client, queue, rate_limiter
+from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo
 
 _PLAN_LIMITS: dict[Plan, int] = {
     Plan.FREE: 5,
     Plan.P10: 10,
+    Plan.P25: 25,
     Plan.P50: 50,
+    Plan.P100: 100,
     Plan.P150: 150,
     Plan.UNLIMITED: 10_000,
 }
@@ -52,7 +55,26 @@ async def _load_owned(session: AsyncSession, event_id: UUID, user_id: UUID) -> E
     return event
 
 
-def _to_out(event: Event) -> EventOut:
+def _resolve_cover_url(stored: str | None) -> str | None:
+    """cover_url хранится либо как S3-ключ (новый формат), либо как готовый
+    presigned URL (легаси). В обоих случаях возвращаем свежий короткоживущий
+    presigned URL, чтобы клиенты не упирались в просроченный legacy-линк."""
+    if not stored:
+        return None
+    if stored.startswith("http"):
+        # Legacy: '<host>/<bucket>/<key>?...'. Вытаскиваем ключ.
+        bare = stored.split("?", 1)[0]
+        marker = f"/{settings.S3_BUCKET}/"
+        idx = bare.find(marker)
+        if idx == -1:
+            return stored
+        key = bare[idx + len(marker):]
+    else:
+        key = stored
+    return s3_client.presign_get(key, expires_in=86400)
+
+
+def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> EventOut:
     s = event.settings
     return EventOut(
         id=event.id,
@@ -62,7 +84,7 @@ def _to_out(event: Event) -> EventOut:
         end_at=event.end_at,
         event_type=event.event_type,
         status=event.status,
-        cover_url=event.cover_url,
+        cover_url=_resolve_cover_url(event.cover_url),
         created_at=event.created_at,
         updated_at=event.updated_at,
         settings=EventSettingsOut(
@@ -75,6 +97,8 @@ def _to_out(event: Event) -> EventOut:
             sound_enabled=s.sound_enabled,
             photo_format=s.photo_format,
         ),
+        guests_count=guests_count,
+        frames_count=frames_count,
     )
 
 
@@ -98,6 +122,7 @@ async def create_event(
         max_guests=_PLAN_LIMITS[payload.plan],
         frames_per_guest=payload.frames_per_guest,
         reveal_mode=payload.reveal_mode,
+        reveal_at=payload.reveal_at,
         lut_preset=payload.lut_preset or LutPreset.PORTRA400,
         plan=payload.plan,
         photo_format=payload.photo_format,
@@ -108,13 +133,40 @@ async def create_event(
 
 
 async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
+    from sqlalchemy import func, select
+    from app.domain.models import Frame, Guest
+
     events = await event_repo.list_for_user(session, user_id)
-    return [_to_out(e) for e in events]
+    if not events:
+        return []
+    event_ids = [e.id for e in events]
+    g_rows = await session.execute(
+        select(Guest.event_id, func.count(Guest.id))
+        .where(Guest.event_id.in_(event_ids))
+        .group_by(Guest.event_id)
+    )
+    f_rows = await session.execute(
+        select(Frame.event_id, func.count(Frame.id))
+        .where(Frame.event_id.in_(event_ids))
+        .group_by(Frame.event_id)
+    )
+    guests_map = {r[0]: r[1] for r in g_rows}
+    frames_map = {r[0]: r[1] for r in f_rows}
+    return [_to_out(e, guests_map.get(e.id, 0), frames_map.get(e.id, 0)) for e in events]
 
 
 async def get_event(session: AsyncSession, user_id: UUID, event_id: UUID) -> EventOut:
+    from sqlalchemy import func, select
+    from app.domain.models import Frame, Guest
+
     event = await _load_owned(session, event_id, user_id)
-    return _to_out(event)
+    g = (await session.execute(
+        select(func.count(Guest.id)).where(Guest.event_id == event_id)
+    )).scalar_one()
+    f = (await session.execute(
+        select(func.count(Frame.id)).where(Frame.event_id == event_id)
+    )).scalar_one()
+    return _to_out(event, int(g), int(f))
 
 
 async def update_settings(
@@ -233,8 +285,75 @@ def build_qr_png(short_code: str) -> tuple[str, bytes]:
     return short_url, buf.getvalue()
 
 
+async def rename_event(
+    session: AsyncSession, user_id: UUID, event_id: UUID, title: str
+) -> EventOut:
+    event = await _load_owned(session, event_id, user_id)
+    event.title = title
+    await session.commit()
+    return _to_out(event)
+
+
+async def update_event(
+    session: AsyncSession,
+    user_id: UUID,
+    event_id: UUID,
+    payload: EventUpdateIn,
+) -> EventOut:
+    event = await _load_owned(session, event_id, user_id)
+    if payload.title is not None:
+        event.title = payload.title
+    if payload.event_type is not None:
+        event.event_type = payload.event_type
+    if payload.start_at is not None:
+        if event.status != EventStatus.DRAFT:
+            raise ConflictError(
+                "Нельзя изменить время начала активного события",
+                details={"status": event.status.value},
+            )
+        event.start_at = payload.start_at
+    await session.commit()
+    return _to_out(event)
+
+
+async def cancel_event(
+    session: AsyncSession, user_id: UUID, event_id: UUID
+) -> None:
+    event = await _load_owned(session, event_id, user_id)
+    if event.status == EventStatus.ACTIVE:
+        raise ConflictError(
+            "Нельзя удалить активное событие",
+            details={"status": event.status.value},
+        )
+    event.status = EventStatus.CANCELLED
+    await session.commit()
+
+
 async def generate_qr(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> tuple[str, bytes]:
     event = await _load_owned(session, event_id, user_id)
     return build_qr_png(event.short_code)
+
+
+async def upload_cover(
+    session: AsyncSession,
+    user_id: UUID,
+    event_id: UUID,
+    data: bytes,
+    content_type: str,
+) -> EventOut:
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise ConflictError("Unsupported image type; use JPEG, PNG, or WebP")
+    if len(data) > 10 * 1024 * 1024:
+        raise ConflictError("Cover image too large", details={"max_bytes": 10 * 1024 * 1024})
+
+    ext = {"image/png": "png", "image/webp": "webp"}.get(content_type, "jpg")
+    key = f"events/{event_id}/cover.{ext}"
+    s3_client.upload_bytes(key, data, content_type)
+
+    # Храним только S3-ключ — клиенту отдадим свежий presign в _to_out.
+    event = await _load_owned(session, event_id, user_id)
+    event.cover_url = key
+    await session.commit()
+    return _to_out(event)

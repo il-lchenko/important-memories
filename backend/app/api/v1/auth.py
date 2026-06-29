@@ -34,7 +34,9 @@ async def verify_email_otp(
     payload: EmailVerifyIn,
     session: SessionDep,
 ) -> TokenOut:
-    return await auth_service.verify_otp(session, payload.email, payload.code)
+    return await auth_service.verify_otp(
+        session, payload.email, payload.code, fingerprint=payload.fingerprint
+    )
 
 
 @router.post("/refresh", response_model=TokenOut)

@@ -6,8 +6,10 @@ interface EventPreview {
   title: string
   frames_per_guest: number
   reveal_at: string | null
+  start_at?: string | null
   lut_preset: string
   status: string
+  cover_url?: string | null
 }
 
 function filmLabel(lut: string): string {
@@ -25,17 +27,26 @@ function revealLabel(revealAt: string | null): string {
 }
 
 // ── Film hero gradient (shared across screens) ──────────────────────────────
-function FilmHero({ children }: { children?: React.ReactNode }) {
+function FilmHero({ children, coverUrl }: { children?: React.ReactNode; coverUrl?: string | null }) {
   return (
     <div style={{ position: 'relative', overflow: 'hidden', height: '100%', width: '100%' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 40%, #f3cda0 0%, #c97e4a 50%, #6a3520 90%, #1f1208 100%)' }} />
-      <div style={{ position: 'absolute', left: '38%', top: '30%', width: '24%', height: '55%', background: 'radial-gradient(ellipse at center, rgba(245,225,195,.7) 0%, transparent 70%)' }} />
-      <div className="film-leak-tl" />
-      <div className="film-leak-br" />
-      <div className="film-vignette" />
-      <svg className="film-grain" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
-        <rect width="100%" height="100%" filter="url(#grain)" />
-      </svg>
+      {coverUrl ? (
+        <>
+          <img src={coverUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.18) 0%, rgba(0,0,0,.52) 100%)' }} />
+        </>
+      ) : (
+        <>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% 40%, #f3cda0 0%, #c97e4a 50%, #6a3520 90%, #1f1208 100%)' }} />
+          <div style={{ position: 'absolute', left: '38%', top: '30%', width: '24%', height: '55%', background: 'radial-gradient(ellipse at center, rgba(245,225,195,.7) 0%, transparent 70%)' }} />
+          <div className="film-leak-tl" />
+          <div className="film-leak-br" />
+          <div className="film-vignette" />
+          <svg className="film-grain" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0 }}>
+            <rect width="100%" height="100%" filter="url(#grain)" />
+          </svg>
+        </>
+      )}
       {children}
     </div>
   )
@@ -43,11 +54,14 @@ function FilmHero({ children }: { children?: React.ReactNode }) {
 
 // ── Step 1: Landing ──────────────────────────────────────────────────────────
 function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext: () => void }) {
+  const isDraft = preview?.status === 'draft'
+  const isCompleted = preview?.status === 'completed' || preview?.status === 'cancelled'
+
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {/* Hero */}
       <div style={{ height: 320, margin: '12px 16px 0', borderRadius: 24, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-        <FilmHero>
+        <FilmHero coverUrl={preview?.cover_url}>
           {preview?.status === 'active' && (
             <div style={{
               position: 'absolute', left: 16, top: 14,
@@ -61,31 +75,43 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
               ИДЁТ
             </div>
           )}
+          {isCompleted && (
+            <div style={{
+              position: 'absolute', left: 16, top: 14,
+              height: 26, padding: '0 10px',
+              background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(8px)',
+              color: 'rgba(240,230,210,.7)', borderRadius: 999,
+              fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+              letterSpacing: '.12em', display: 'inline-flex', alignItems: 'center', gap: 6,
+            }}>
+              ЗАВЕРШЕНО
+            </div>
+          )}
         </FilmHero>
       </div>
 
       {/* Copy */}
       <div style={{ padding: '18px 24px 0' }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
-          Вас пригласили
+          {isCompleted ? 'Мероприятие завершено' : 'Вас пригласили'}
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 38, lineHeight: 1, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           {preview?.title ?? '...'}
         </h1>
-        {preview?.reveal_at && (
+        {preview?.reveal_at && !isCompleted && (
           <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '.08em', color: 'var(--ink-3)', marginBottom: 18 }}>
-            ПРОЯВКА В {revealLabel(preview.reveal_at)}
+            ОТКРОЕТСЯ В {revealLabel(preview.reveal_at)}
           </div>
         )}
 
         {/* Meta grid */}
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-          borderRadius: 16, background: 'var(--paper-2)', padding: '14px 0', marginTop: preview?.reveal_at ? 0 : 18,
+          borderRadius: 16, background: 'var(--paper-2)', padding: '14px 0', marginTop: preview?.reveal_at && !isCompleted ? 0 : 18,
         }}>
           {[
             { v: preview ? String(preview.frames_per_guest) : '—', l: 'Кадра' },
-            { v: revealLabel(preview?.reveal_at ?? null), l: 'Проявка' },
+            { v: revealLabel(preview?.reveal_at ?? null), l: 'Откроется' },
             { v: preview ? filmLabel(preview.lut_preset) : '—', l: 'Плёнка' },
           ].map((item, i) => (
             <div key={i} style={{ textAlign: 'center', position: 'relative' }}>
@@ -99,13 +125,22 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
 
       {/* CTA */}
       <div className="footer-gradient">
-        {preview?.status === 'draft' ? (
+        {isCompleted ? (
+          <div style={{ textAlign: 'center', padding: '0 24px' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+              АЛЬБОМ ЗАКРЫТ
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+              Съёмка завершена. Если вы участвовали — попросите организатора прислать ссылку на альбом.
+            </div>
+          </div>
+        ) : isDraft ? (
           <div style={{ textAlign: 'center', padding: '0 24px' }}>
             <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 8 }}>
               СКОРО
             </div>
             <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-              Ивент ещё не начался. Хост откроет плёнку немного позже.
+              Мероприятие ещё не началось. Организатор откроет альбом немного позже.
             </div>
           </div>
         ) : (
@@ -165,7 +200,7 @@ function NameStep({
         {error && <p style={{ color: 'var(--shutter)', fontSize: 13, marginTop: 8 }}>{error}</p>}
 
         <p style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 14, lineHeight: 1.5 }}>
-          Гостю не нужен аккаунт. Имя видят только хост и&nbsp;участники этой плёнки.
+          Гостю не нужен аккаунт. Имя видят только организатор и&nbsp;участники.
         </p>
       </div>
 
@@ -207,7 +242,7 @@ function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
             </svg>
           </div>
           <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 22, margin: '0 0 10px', letterSpacing: '-.01em' }}>
-            Только на этот ивент
+            Только для этого мероприятия
           </h3>
           <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
             Браузер спросит разрешение. Доступ выключается, как только вы закроете эту вкладку.
@@ -239,6 +274,31 @@ function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
   )
 }
 
+function saveSession(shortCode: string, token: string, guestId: string, guestName: string, event: unknown) {
+  const ev = JSON.stringify(event)
+  sessionStorage.setItem('guest_token', token)
+  sessionStorage.setItem('guest_id', guestId)
+  sessionStorage.setItem('guest_name', guestName)
+  sessionStorage.setItem('event', ev)
+  localStorage.setItem(`gt_${shortCode}`, token)
+  localStorage.setItem(`gi_${shortCode}`, guestId)
+  localStorage.setItem(`gn_${shortCode}`, guestName)
+  localStorage.setItem(`ge_${shortCode}`, ev)
+}
+
+function restoreSession(shortCode: string): boolean {
+  const token = localStorage.getItem(`gt_${shortCode}`)
+  if (!token) return false
+  sessionStorage.setItem('guest_token', token)
+  const id = localStorage.getItem(`gi_${shortCode}`)
+  const name = localStorage.getItem(`gn_${shortCode}`)
+  const ev = localStorage.getItem(`ge_${shortCode}`)
+  if (id) sessionStorage.setItem('guest_id', id)
+  if (name) sessionStorage.setItem('guest_name', name)
+  if (ev) sessionStorage.setItem('event', ev)
+  return true
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 export default function LandingScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
@@ -251,10 +311,26 @@ export default function LandingScreen() {
 
   useEffect(() => {
     if (!shortCode) return
+    // Returning guest: restore session from localStorage and auto-redirect
+    if (restoreSession(shortCode)) {
+      api.get<EventPreview>(`/guest/events/${shortCode}`)
+        .then(({ data }) => {
+          if (data.status === 'completed' || data.status === 'cancelled') {
+            navigate(`/g/${shortCode}/album`, { replace: true })
+          } else if (data.start_at && new Date(data.start_at) > new Date()) {
+            navigate(`/g/${shortCode}/not-started`, { replace: true })
+          } else {
+            navigate(`/g/${shortCode}/camera`, { replace: true })
+          }
+        })
+        .catch(() => navigate(`/g/${shortCode}/camera`, { replace: true }))
+      return
+    }
+    // First-time guest: fetch event preview for landing page
     api.get<EventPreview>(`/guest/events/${shortCode}`)
       .then(({ data }) => setPreview(data))
       .catch(() => {})
-  }, [shortCode])
+  }, [shortCode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleJoin = async () => {
     if (!name.trim() || !shortCode) return
@@ -262,14 +338,22 @@ export default function LandingScreen() {
     setError(null)
     try {
       const { data } = await guestApi.createSession(shortCode, name.trim())
-      sessionStorage.setItem('guest_token', data.guest_token)
-      sessionStorage.setItem('guest_id', data.guest_id)
-      sessionStorage.setItem('guest_name', name.trim())
-      sessionStorage.setItem('event', JSON.stringify(data.event))
+      saveSession(shortCode, data.guest_token, data.guest_id, name.trim(), data.event)
       setStep('permission')
     } catch (err: unknown) {
-      const d = (err as { response?: { data?: { error?: { message?: string }; detail?: string } } })?.response?.data
-      const msg = d?.error?.message ?? d?.detail ?? 'Не удалось войти. Попробуйте ещё раз.'
+      const e = err as { response?: { status?: number; data?: { error?: { message?: string }; detail?: string } } }
+      const status = e?.response?.status
+      // Event completed/cancelled — backend rejects new sessions. Refetch preview and bounce back.
+      if (status === 409) {
+        try {
+          const { data: fresh } = await api.get<EventPreview>(`/guest/events/${shortCode}`)
+          setPreview(fresh)
+        } catch {}
+        setStep('landing')
+        setLoading(false)
+        return
+      }
+      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.detail ?? 'Не удалось войти. Попробуйте ещё раз.'
       setError(msg)
     } finally {
       setLoading(false)
@@ -291,7 +375,16 @@ export default function LandingScreen() {
       eventTitle={preview?.title ?? ''}
       guestName={name}
       onBack={() => setStep('name')}
-      onAllow={() => navigate(`/g/${shortCode}/camera`)}
+      onAllow={() => {
+        try {
+          const ev = JSON.parse(sessionStorage.getItem('event') ?? '{}')
+          if (ev.start_at && new Date(ev.start_at) > new Date()) {
+            navigate(`/g/${shortCode}/not-started`)
+            return
+          }
+        } catch {}
+        navigate(`/g/${shortCode}/camera`)
+      }}
     />
   )
 }

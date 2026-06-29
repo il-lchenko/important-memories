@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Film Simulation Preview v3 — HaldCLUT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #16100c; color: #f6f2e8; font-family: 'Courier New', monospace; padding: 20px; }
+  h1 { font-size: 13px; letter-spacing: .18em; color: #c9881e; margin-bottom: 4px; text-transform: uppercase; }
+  .sub { font-size: 11px; color: rgba(246,242,232,.4); margin-bottom: 16px; line-height: 1.7; }
+  .upload { margin-bottom: 24px; }
+  .upload label { display: inline-block; padding: 10px 20px; background: rgba(201,136,30,.12);
+    border: 1px solid rgba(201,136,30,.4); border-radius: 8px; cursor: pointer;
+    font-size: 12px; letter-spacing: .08em; color: #c9881e; }
+  .upload input { display: none; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .card { min-width: 130px; flex: 1; max-width: 240px; }
+  .card canvas { display: block; width: 100%; border-radius: 5px; cursor: pointer; }
+  .lbl { font-size: 9px; letter-spacing: .1em; color: rgba(246,242,232,.45);
+    margin-top: 6px; text-align: center; text-transform: uppercase; }
+  .film-name { font-size: 11px; letter-spacing: .2em; color: rgba(246,242,232,.55);
+    margin-bottom: 10px; text-transform: uppercase; }
+  hr { border: none; border-top: 1px solid rgba(246,242,232,.07); margin: 24px 0; }
+  .status { font-size: 11px; color: rgba(246,242,232,.5); margin-bottom: 16px; padding: 8px 12px;
+    background: rgba(201,136,30,.08); border-radius: 6px; }
+  .status.err { background: rgba(213,75,61,.15); color: #ff8a7a; }
+  .controls { margin-bottom: 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .toggle { font-size: 11px; color: rgba(246,242,232,.5); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toggle input { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>Film Simulation — HaldCLUT (3D LUT)</h1>
+<div class="sub">
+  По умолчанию: только чистый LUT (без зерна/виньетки) для оценки самой плёночной кривой.<br>
+  Слайдер "Сила LUT" смешивает оригинал ↔ результат (как opacity слоя в Photoshop).
+</div>
+
+<div id="status" class="status">Загрузка LUT файлов...</div>
+
+<div class="controls">
+  <label class="toggle"><input type="checkbox" id="tGrain"> Зерно</label>
+  <label class="toggle"><input type="checkbox" id="tHalation" checked> Галация (Cinestill)</label>
+  <label class="toggle"><input type="checkbox" id="tVignette"> Виньетка</label>
+  <label class="toggle">Сила LUT: <input type="range" id="tStrength" min="0" max="100" value="100" style="width:120px"><span id="tStrengthV">100%</span></label>
+</div>
+
+<div class="upload">
+  <label>Загрузить фото (можно несколько)
+    <input type="file" id="fileInput" accept="image/*" multiple>
+  </label>
+</div>
+
+<div id="output"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// HaldCLUT loader + applier with trilinear interpolation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadHaldCLUT(url) {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  await new Promise((resolve, reject) => {
+    img.onload = resolve
+    img.onerror = () => reject(new Error('Failed to load ' + url))
+    img.src = url
+  })
+  const c = document.createElement('canvas')
+  c.width = img.width; c.height = img.height
+  const ctx = c.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(img, 0, 0)
+  const data = ctx.getImageData(0, 0, img.width, img.height).data
+  // Hald level: image side = level^3
+  const level = Math.round(Math.cbrt(img.width))
+  const cubeSize = level * level   // e.g. 64 for level 8, 144 for level 12
+  return { data, level, cubeSize, imgW: img.width, imgH: img.height }
+}
+
+/**
+ * Apply HaldCLUT to canvas with trilinear interpolation.
+ * The HaldCLUT image is laid out as level×level blocks, each block is cubeSize×cubeSize.
+ * For colour (R,G,B) → image position:
+ *   bIdx = blue cube index (0..cubeSize-1)
+ *   block_x = bIdx % level   (one of level columns)
+ *   block_y = bIdx / level   (one of level rows)
+ *   px = block_x * cubeSize + rIdx
+ *   py = block_y * cubeSize + gIdx
+ */
+function applyHaldCLUT(srcData, dstData, len, lut) {
+  const { data: L, level, cubeSize, imgW } = lut
+  const maxIdx = cubeSize - 1
+
+  for (let i = 0; i < len; i += 4) {
+    const rf = srcData[i]   / 255 * maxIdx
+    const gf = srcData[i+1] / 255 * maxIdx
+    const bf = srcData[i+2] / 255 * maxIdx
+
+    const r0 = rf | 0, r1 = r0 < maxIdx ? r0 + 1 : r0, fr = rf - r0
+    const g0 = gf | 0, g1 = g0 < maxIdx ? g0 + 1 : g0, fg = gf - g0
+    const b0 = bf | 0, b1 = b0 < maxIdx ? b0 + 1 : b0, fb = bf - b0
+
+    // Compute the 8 cube vertex pixel indices in the HaldCLUT image
+    // p(r,g,b) = ((b%level)*cubeSize + r,  (b/level|0)*cubeSize + g)
+    // pi = (py * imgW + px) * 4
+    const b0px = (b0 % level) * cubeSize
+    const b0py = ((b0 / level) | 0) * cubeSize
+    const b1px = (b1 % level) * cubeSize
+    const b1py = ((b1 / level) | 0) * cubeSize
+
+    const i000 = ((b0py + g0) * imgW + b0px + r0) * 4
+    const i100 = ((b0py + g0) * imgW + b0px + r1) * 4
+    const i010 = ((b0py + g1) * imgW + b0px + r0) * 4
+    const i110 = ((b0py + g1) * imgW + b0px + r1) * 4
+    const i001 = ((b1py + g0) * imgW + b1px + r0) * 4
+    const i101 = ((b1py + g0) * imgW + b1px + r1) * 4
+    const i011 = ((b1py + g1) * imgW + b1px + r0) * 4
+    const i111 = ((b1py + g1) * imgW + b1px + r1) * 4
+
+    const fr1 = 1 - fr, fg1 = 1 - fg, fb1 = 1 - fb
+
+    // Trilinear weights
+    const w000 = fr1*fg1*fb1, w100 = fr*fg1*fb1
+    const w010 = fr1*fg *fb1, w110 = fr*fg *fb1
+    const w001 = fr1*fg1*fb , w101 = fr*fg1*fb
+    const w011 = fr1*fg *fb , w111 = fr*fg *fb
+
+    dstData[i]   = L[i000]   * w000 + L[i100]   * w100 + L[i010]   * w010 + L[i110]   * w110
+                 + L[i001]   * w001 + L[i101]   * w101 + L[i011]   * w011 + L[i111]   * w111
+    dstData[i+1] = L[i000+1] * w000 + L[i100+1] * w100 + L[i010+1] * w010 + L[i110+1] * w110
+                 + L[i001+1] * w001 + L[i101+1] * w101 + L[i011+1] * w011 + L[i111+1] * w111
+    dstData[i+2] = L[i000+2] * w000 + L[i100+2] * w100 + L[i010+2] * w010 + L[i110+2] * w110
+                 + L[i001+2] * w001 + L[i101+2] * w101 + L[i011+2] * w011 + L[i111+2] * w111
+    dstData[i+3] = srcData[i+3]
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Post-processing: halation, vignette, subtle grain
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const clamp = v => v < 0 ? 0 : v > 255 ? 255 : v | 0
+
+// Box blur (3 passes ≈ Gaussian) — for spatial halation
+function boxBlurPass(src, dst, w, h, r) {
+  const tmp = new Float32Array(w * h)
+  for (let y = 0; y < h; y++) {
+    let sum = 0, count = 0
+    for (let x = -r; x < w; x++) {
+      if (x + r < w) { sum += src[y * w + x + r]; count++ }
+      if (x - r - 1 >= 0) { sum -= src[y * w + x - r - 1]; count-- }
+      if (x >= 0) tmp[y * w + x] = sum / Math.max(1, count)
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let sum = 0, count = 0
+    for (let y = -r; y < h; y++) {
+      if (y + r < h) { sum += tmp[(y + r) * w + x]; count++ }
+      if (y - r - 1 >= 0) { sum -= tmp[(y - r - 1) * w + x]; count-- }
+      if (y >= 0) dst[y * w + x] = sum / Math.max(1, count)
+    }
+  }
+}
+
+function gaussianBlur(src, w, h, r) {
+  let a = new Float32Array(src)
+  const b = new Float32Array(w * h)
+  for (let pass = 0; pass < 3; pass++) {
+    boxBlurPass(a, b, w, h, r)
+    a = new Float32Array(b)
+  }
+  return a
+}
+
+/**
+ * Halation — physically what happens with Cinestill:
+ *   Light passes through emulsion → bounces off film base → returns through red layer
+ *   → creates red/orange glow around bright areas (no anti-halation remjet).
+ * Implementation:
+ *   1. Extract highlight mask (luminance > threshold)
+ *   2. Blur the mask spatially
+ *   3. Blend back as red/orange glow using screen blend
+ */
+function applyHalation(ctx, W, H, opts = {}) {
+  const radius = opts.radius ?? Math.max(W, H) * 0.03  // scale with image
+  const strength = opts.strength ?? 0.7
+  const threshold = opts.threshold ?? 0.55
+
+  const id = ctx.getImageData(0, 0, W, H)
+  const d = id.data
+
+  // Highlight mask weighted by red channel (halation is strongest where red is bright)
+  const mask = new Float32Array(W * H)
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (d[i] * 0.4 + d[i+1] * 0.35 + d[i+2] * 0.25) / 255  // red-weighted
+    if (lum > threshold) {
+      const t = (lum - threshold) / (1 - threshold)
+      mask[i >> 2] = Math.pow(t, 1.3) * strength
+    }
+  }
+
+  const blurred = gaussianBlur(mask, W, H, radius)
+
+  // Apply as red/orange screen-blend glow
+  for (let i = 0; i < d.length; i += 4) {
+    const gv = blurred[i >> 2]
+    if (gv > 0.005) {
+      const r = d[i]/255, g = d[i+1]/255, b = d[i+2]/255
+      d[i]   = clamp(Math.round((1 - (1-r) * (1-gv*1.00)) * 255))
+      d[i+1] = clamp(Math.round((1 - (1-g) * (1-gv*0.30)) * 255))
+      d[i+2] = clamp(Math.round((1 - (1-b) * (1-gv*0.05)) * 255))
+    }
+  }
+  ctx.putImageData(id, 0, 0)
+}
+
+/**
+ * Tungsten white balance shift — converts daylight scene toward tungsten lighting feel
+ * (warms reds, cools blues). Used on top of base LUT for Cinestill emulation.
+ */
+function applyTungstenShift(ctx, W, H, amount = 0.2) {
+  const id = ctx.getImageData(0, 0, W, H)
+  const d = id.data
+  const rMul = 1 + amount * 0.18      // warm reds slightly
+  const gMul = 1 + amount * 0.05      // tiny bump
+  const bMul = 1 - amount * 0.32      // cool blues more
+  for (let i = 0; i < d.length; i += 4) {
+    d[i]   = clamp(d[i]   * rMul)
+    d[i+1] = clamp(d[i+1] * gMul)
+    d[i+2] = clamp(d[i+2] * bMul)
+  }
+  ctx.putImageData(id, 0, 0)
+}
+
+/**
+ * Subtle film grain — uses pre-built spatially-correlated noise texture.
+ * Strength is SMALL (this isn't 1990s digital noise — film grain is very fine).
+ * Stronger in shadows.
+ */
+const GRAIN_SIZE = 256
+let grainTex = null
+function initGrain() {
+  if (grainTex) return
+  const t = new Float32Array(GRAIN_SIZE * GRAIN_SIZE)
+  for (let i = 0; i < t.length; i++) t[i] = (Math.random() - 0.5) * 2
+  // Light low-pass for subtle spatial correlation (real grain has structure)
+  for (let pass = 0; pass < 2; pass++) {
+    const tmp = new Float32Array(t.length)
+    for (let y = 0; y < GRAIN_SIZE; y++) {
+      for (let x = 0; x < GRAIN_SIZE; x++) {
+        const xm = (x - 1 + GRAIN_SIZE) & (GRAIN_SIZE - 1)
+        const xp = (x + 1) & (GRAIN_SIZE - 1)
+        tmp[y * GRAIN_SIZE + x] = (t[y * GRAIN_SIZE + xm] + t[y * GRAIN_SIZE + x] + t[y * GRAIN_SIZE + xp]) / 3
+      }
+    }
+    for (let y = 0; y < GRAIN_SIZE; y++) {
+      for (let x = 0; x < GRAIN_SIZE; x++) {
+        const ym = (y - 1 + GRAIN_SIZE) & (GRAIN_SIZE - 1)
+        const yp = (y + 1) & (GRAIN_SIZE - 1)
+        t[y * GRAIN_SIZE + x] = (tmp[ym * GRAIN_SIZE + x] + tmp[y * GRAIN_SIZE + x] + tmp[yp * GRAIN_SIZE + x]) / 3
+      }
+    }
+  }
+  let mx = 0
+  for (let i = 0; i < t.length; i++) mx = Math.max(mx, Math.abs(t[i]))
+  if (mx > 0) for (let i = 0; i < t.length; i++) t[i] /= mx
+  grainTex = t
+}
+
+function applyGrain(ctx, W, H, strength = 3) {
+  initGrain()
+  const id = ctx.getImageData(0, 0, W, H)
+  const d = id.data
+  const ox = (Math.random() * GRAIN_SIZE) | 0
+  const oy = (Math.random() * GRAIN_SIZE) | 0
+  for (let i = 0; i < d.length; i += 4) {
+    const pi = i >> 2
+    const px = pi % W, py = (pi / W) | 0
+    const gx = (px + ox) & (GRAIN_SIZE - 1)
+    const gy = (py + oy) & (GRAIN_SIZE - 1)
+    const lum = (d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114) / 255
+    // Shadow weighting: 2x in shadows, 0.5x in highlights
+    const shadowFactor = 1.5 - lum
+    const g = grainTex[gy * GRAIN_SIZE + gx] * strength * shadowFactor
+    d[i]   = clamp(d[i]   + g)
+    d[i+1] = clamp(d[i+1] + g)
+    d[i+2] = clamp(d[i+2] + g * 1.15)  // slightly more blue grain
+  }
+  ctx.putImageData(id, 0, 0)
+}
+
+function applyVignette(ctx, W, H, amount = 0.18) {
+  const cx = W/2, cy = H/2
+  const r = Math.sqrt(cx*cx + cy*cy)
+  const grad = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r * 1.05)
+  grad.addColorStop(0, 'rgba(0,0,0,0)')
+  grad.addColorStop(1, `rgba(0,0,0,${amount.toFixed(2)})`)
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, W, H)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Film stock definitions — LUT + post-processing
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const FILMS = {
+  portra400: {
+    name: 'Portra 400',
+    lutFile: 'luts/portra400.png',
+    grain: 2.5,
+    vignette: 0.16,
+  },
+  fuji400h: {
+    name: 'Fuji Pro 400H',
+    lutFile: 'luts/fuji400h.png',
+    grain: 2.0,
+    vignette: 0.10,
+  },
+  cinestill: {
+    name: 'Cinestill 800T',
+    lutFile: 'luts/portra800.png',  // base — Vision3-like character
+    tungstenShift: 0.4,                     // tungsten cast
+    halation: { strength: 0.85, threshold: 0.5, radius: null },  // big spatial glow
+    grain: 4.5,                              // ISO800 = more visible grain
+    vignette: 0.24,
+  },
+  ilford: {
+    name: 'Ilford HP5+',
+    lutFile: 'luts/ilford_hp5.png',
+    grain: 4.0,                              // classic B&W grain
+    vignette: 0.20,
+  },
+}
+
+const LUTS = {}
+
+async function loadAllLUTs() {
+  const status = document.getElementById('status')
+  try {
+    for (const [key, film] of Object.entries(FILMS)) {
+      status.textContent = `Загрузка ${film.name}...`
+      LUTS[key] = await loadHaldCLUT(film.lutFile)
+    }
+    status.textContent = `LUT загружены: ${Object.values(LUTS).map(l => `${l.imgW}×${l.imgH} (level ${l.level})`).join(', ')}`
+    setTimeout(() => status.style.display = 'none', 3000)
+    renderInitial()
+  } catch (e) {
+    status.className = 'status err'
+    status.textContent = 'Ошибка загрузки LUT: ' + e.message + ' — открой через локальный сервер (см. README)'
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pipeline
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function applyFilm(ctx, W, H, filmKey) {
+  const film = FILMS[filmKey]
+  const lut = LUTS[filmKey]
+  if (!lut) return
+
+  // 1. Apply HaldCLUT (the main film colour science) + optional strength blend
+  const strength = parseFloat(document.getElementById('tStrength').value) / 100
+  const id = ctx.getImageData(0, 0, W, H)
+  const src = new Uint8ClampedArray(id.data)  // copy original
+  const lutOut = new Uint8ClampedArray(id.data.length)
+  applyHaldCLUT(src, lutOut, id.data.length, lut)
+  // Blend original ↔ lut output by strength
+  for (let i = 0; i < id.data.length; i += 4) {
+    id.data[i]   = src[i]   * (1 - strength) + lutOut[i]   * strength
+    id.data[i+1] = src[i+1] * (1 - strength) + lutOut[i+1] * strength
+    id.data[i+2] = src[i+2] * (1 - strength) + lutOut[i+2] * strength
+  }
+  ctx.putImageData(id, 0, 0)
+
+  // 2. Tungsten WB shift (Cinestill)
+  if (film.tungstenShift) {
+    applyTungstenShift(ctx, W, H, film.tungstenShift)
+  }
+
+  // 3. Halation (Cinestill — physically real spatial glow)
+  if (film.halation && document.getElementById('tHalation').checked) {
+    const radius = film.halation.radius ?? Math.max(W, H) * 0.04
+    applyHalation(ctx, W, H, { ...film.halation, radius })
+  }
+
+  // 4. Subtle grain (film grain is fine — not heavy noise)
+  if (film.grain && document.getElementById('tGrain').checked) {
+    applyGrain(ctx, W, H, film.grain)
+  }
+
+  // 5. Subtle vignette
+  if (film.vignette && document.getElementById('tVignette').checked) {
+    applyVignette(ctx, W, H, film.vignette)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Test pattern (fallback when no photo loaded)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function drawPattern(ctx, W, H) {
+  const sky = ctx.createLinearGradient(0,0,W,0)
+  sky.addColorStop(0,'#4a8fd8'); sky.addColorStop(1,'#92c5ef')
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H*.32)
+  const gr = ctx.createLinearGradient(0,0,W,0)
+  gr.addColorStop(0,'#3d6b2e'); gr.addColorStop(1,'#7aab58')
+  ctx.fillStyle=gr; ctx.fillRect(0,H*.32,W,H*.13)
+  const sk = ctx.createLinearGradient(0,0,W,0)
+  sk.addColorStop(0,'#d88a62'); sk.addColorStop(.5,'#f0b88a'); sk.addColorStop(1,'#c87050')
+  ctx.fillStyle=sk; ctx.fillRect(0,H*.45,W,H*.22)
+  const sh = ctx.createLinearGradient(0,H*.67,0,H)
+  sh.addColorStop(0,'#1e1408'); sh.addColorStop(1,'#040201')
+  ctx.fillStyle=sh; ctx.fillRect(0,H*.67,W,H*.33)
+  const hl = ctx.createRadialGradient(W*.7,H*.16,1,W*.7,H*.16,W*.16)
+  hl.addColorStop(0,'rgba(255,255,240,1)'); hl.addColorStop(.5,'rgba(255,245,220,.5)'); hl.addColorStop(1,'rgba(255,245,220,0)')
+  ctx.fillStyle=hl; ctx.fillRect(0,0,W,H)
+  for (let i=0;i<8;i++){
+    const v=Math.round(i*255/7)
+    ctx.fillStyle=`rgb(${v},${v},${v})`
+    ctx.fillRect(0,H*.04+i*H*.115,W*.06,H*.115)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Rendering
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const STOCKS = [
+  { id:'portra400', name:'Portra 400' },
+  { id:'fuji400h',  name:'Fuji 400H' },
+  { id:'cinestill', name:'Cinestill 800T' },
+  { id:'ilford',    name:'Ilford HP5+' },
+]
+
+let loadedPhotos = []  // { img, filename }
+
+function makeCard(label, draw, CW, CH) {
+  const card = document.createElement('div')
+  card.className = 'card'
+  const canvas = document.createElement('canvas')
+  canvas.width = CW; canvas.height = CH
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  draw(ctx)
+  canvas.addEventListener('click', () => {
+    const w = window.open()
+    w.document.write(`<body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${canvas.toDataURL()}" style="max-width:100%;max-height:100vh;display:block"></body>`)
+  })
+  const lbl = document.createElement('div')
+  lbl.className = 'lbl'
+  lbl.textContent = label
+  card.appendChild(canvas)
+  card.appendChild(lbl)
+  return card
+}
+
+function renderPhotoRow(img, filename) {
+  const out = document.getElementById('output')
+
+  const header = document.createElement('div')
+  header.className = 'film-name'
+  header.textContent = filename
+  out.appendChild(header)
+
+  const isLandscape = img.naturalWidth > img.naturalHeight
+  const CW = isLandscape ? 280 : 200
+  const CH = isLandscape ? 200 : 280
+
+  const row = document.createElement('div')
+  row.className = 'row'
+
+  row.appendChild(makeCard('Оригинал', ctx => ctx.drawImage(img, 0, 0, CW, CH), CW, CH))
+
+  STOCKS.forEach(stock => {
+    row.appendChild(makeCard(stock.name, ctx => {
+      ctx.drawImage(img, 0, 0, CW, CH)
+      applyFilm(ctx, CW, CH, stock.id)
+    }, CW, CH))
+  })
+
+  out.appendChild(row)
+  const hr = document.createElement('hr')
+  out.appendChild(hr)
+}
+
+function renderAll() {
+  const out = document.getElementById('output')
+  out.innerHTML = ''
+  if (loadedPhotos.length === 0) {
+    // Show test pattern
+    const header = document.createElement('div')
+    header.className = 'film-name'
+    header.textContent = 'Тестовый паттерн (загрузи свои фото для реалистичного сравнения)'
+    out.appendChild(header)
+    const row = document.createElement('div')
+    row.className = 'row'
+    const CW = 200, CH = 280
+    row.appendChild(makeCard('Оригинал', ctx => drawPattern(ctx, CW, CH), CW, CH))
+    STOCKS.forEach(stock => {
+      row.appendChild(makeCard(stock.name, ctx => {
+        drawPattern(ctx, CW, CH)
+        applyFilm(ctx, CW, CH, stock.id)
+      }, CW, CH))
+    })
+    out.appendChild(row)
+    out.appendChild(document.createElement('hr'))
+  } else {
+    loadedPhotos.forEach(({ img, filename }) => renderPhotoRow(img, filename))
+  }
+}
+
+function renderInitial() {
+  renderAll()
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  loadedPhotos = []
+  const files = Array.from(e.target.files)
+  let pending = files.length
+  files.forEach(file => {
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const img = new Image()
+      img.onload = () => {
+        loadedPhotos.push({ img, filename: file.name })
+        pending--
+        if (pending === 0) renderAll()
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  })
+})
+
+;['tGrain','tHalation','tVignette'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderAll)
+})
+document.getElementById('tStrength').addEventListener('input', e => {
+  document.getElementById('tStrengthV').textContent = e.target.value + '%'
+  clearTimeout(window._renderTimer)
+  window._renderTimer = setTimeout(renderAll, 200)
+})
+
+// Start loading LUTs
+loadAllLUTs()
+</script>
+</body>
+</html>

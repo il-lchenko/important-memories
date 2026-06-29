@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,13 +26,13 @@ async def get_by_short_code(session: AsyncSession, short_code: str) -> Event | N
     stmt = (
         select(Event)
         .options(selectinload(Event.settings))
-        .where(Event.short_code == short_code)
+        .where(func.lower(Event.short_code) == short_code.lower())
     )
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
 async def short_code_exists(session: AsyncSession, short_code: str) -> bool:
-    stmt = select(Event.id).where(Event.short_code == short_code)
+    stmt = select(Event.id).where(func.lower(Event.short_code) == short_code.lower())
     return (await session.execute(stmt)).first() is not None
 
 

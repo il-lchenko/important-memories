@@ -1,4 +1,6 @@
-from fastapi import APIRouter
+from uuid import UUID
+
+from fastapi import APIRouter, Response
 
 from app.api.deps import CurrentGuest, SessionDep
 from app.domain.schemas.frames import (
@@ -6,6 +8,9 @@ from app.domain.schemas.frames import (
     FramePresignOut,
     FrameRegisterIn,
     FrameRegisterOut,
+    FrameUpdateIn,
+    FrameVoicePresignIn,
+    FrameVoicePresignOut,
 )
 from app.services import media_service
 
@@ -37,3 +42,26 @@ async def register_frame(
         width=payload.width,
         height=payload.height,
     )
+
+
+@router.post("/{frame_id}/voice-presign", response_model=FrameVoicePresignOut)
+async def presign_voice(
+    frame_id: UUID,
+    payload: FrameVoicePresignIn,
+    guest: CurrentGuest,
+    session: SessionDep,
+) -> FrameVoicePresignOut:
+    return await media_service.presign_voice(
+        session, guest, frame_id, payload.content_type, payload.size_bytes
+    )
+
+
+@router.patch("/{frame_id}", status_code=204)
+async def update_frame(
+    frame_id: UUID,
+    payload: FrameUpdateIn,
+    guest: CurrentGuest,
+    session: SessionDep,
+) -> Response:
+    await media_service.update_frame(session, guest, frame_id, payload)
+    return Response(status_code=204)

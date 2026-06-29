@@ -47,3 +47,37 @@ node_modules/
 .docker/
 *.zip
 .tmp/
+
+# Claude Code local config
+.claude/
+
+# Local session logs / planning docs
+SESSION-LOG-*.md
+CHECKLIST.md
+analysis/
+
+# Test APKs / competitor screenshots / local artifacts
+APK_app_test/
+Image Competitors/
+releases/
+
+# PowerShell helper scripts (local)
+build-release.ps1
+dev.ps1
+
+# Netlify / Cloudflare local build artifacts
+guest-pwa/.netlify/
+guest-pwa/.wrangler/
+
+# Flutter build outputs
+host-app/build/
+host-app/.flutter-plugins
+host-app/.flutter-plugins-dependencies
+
+# Claude local memory (mirrors ~/.claude/projects/.../memory/)
+memory/
+
+# Local working docs and rough drafts
+russian_text_review.*
+*.docx
+restart-tunnel.ps1

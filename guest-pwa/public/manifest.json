@@ -1,0 +1,20 @@
+{
+  "name": "Important Memories",
+  "short_name": "Impomento",
+  "description": "Одноразовая плёночная камера для событий",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#16100C",
+  "theme_color": "#16100C",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -71,3 +71,20 @@ async def get_current_actor(
 
 
 CurrentActor = Annotated[Actor, Depends(get_current_actor)]
+
+
+async def get_optional_user_id(
+    authorization: Annotated[str | None, Header()] = None,
+) -> UUID | None:
+    """Возвращает user_id если передан валидный Bearer токен, иначе None.
+    Не бросает 401 — для эндпоинтов которые работают и для гостей, и для авторизованных."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return None
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        return decode_token(token, expected_type="access")
+    except TokenDecodeError:
+        return None
+
+
+OptionalUserId = Annotated[UUID | None, Depends(get_optional_user_id)]

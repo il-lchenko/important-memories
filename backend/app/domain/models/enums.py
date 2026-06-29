@@ -7,6 +7,9 @@ class EventType(StrEnum):
     CORPORATE = "corporate"
     PARTY = "party"
     GRADUATION = "graduation"
+    TRAVEL = "travel"
+    VACATION = "vacation"
+    CONCERT = "concert"
     OTHER = "other"
 
 
@@ -25,7 +28,9 @@ class RevealMode(StrEnum):
 class Plan(StrEnum):
     FREE = "free"
     P10 = "p10"
+    P25 = "p25"
     P50 = "p50"
+    P100 = "p100"
     P150 = "p150"
     UNLIMITED = "unlimited"
 

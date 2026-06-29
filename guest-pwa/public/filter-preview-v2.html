@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Film Preview v4 — 2D curves + overlay</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #16100c; color: #f6f2e8; font-family: 'Courier New', monospace; padding: 20px; }
+  h1 { font-size: 13px; letter-spacing: .18em; color: #c9881e; margin-bottom: 4px; text-transform: uppercase; }
+  .sub { font-size: 11px; color: rgba(246,242,232,.45); margin-bottom: 16px; line-height: 1.7; }
+  .upload { margin-bottom: 24px; }
+  .upload label { display: inline-block; padding: 10px 20px; background: rgba(201,136,30,.12);
+    border: 1px solid rgba(201,136,30,.4); border-radius: 8px; cursor: pointer;
+    font-size: 12px; letter-spacing: .08em; color: #c9881e; }
+  .upload input { display: none; }
+  .group-title { font-size: 11px; letter-spacing: .2em; color: rgba(201,136,30,.7);
+    margin: 24px 0 12px; text-transform: uppercase; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+  .card { min-width: 160px; flex: 1; max-width: 260px; }
+  .card canvas { display: block; width: 100%; border-radius: 6px; cursor: pointer;
+    background: #0a0805; }
+  .lbl { font-size: 9px; letter-spacing: .12em; color: rgba(246,242,232,.55);
+    margin-top: 8px; text-align: center; text-transform: uppercase; }
+  .sub-lbl { font-size: 8px; color: rgba(246,242,232,.3); margin-top: 2px; text-align: center; }
+  .status { font-size: 11px; color: rgba(246,242,232,.5); margin-bottom: 16px; padding: 8px 12px;
+    background: rgba(201,136,30,.08); border-radius: 6px; }
+  .controls { margin-bottom: 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .toggle { font-size: 11px; color: rgba(246,242,232,.55); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .toggle input[type=range] { width: 110px; }
+</style>
+</head>
+<body>
+
+<h1>Film Preview v4 — Curves + Overlay</h1>
+<div class="sub">
+  Подход PhotoFunia: попиксельное преобразование (1D-кривые, tint, насыщенность) + наложение текстур.<br>
+  Без 3D-LUT интерполяции — никаких "галлюцинаций" на коже или ярких цветах.
+</div>
+
+<div class="controls">
+  <label class="toggle">Сила эффекта: <input type="range" id="tStrength" min="0" max="100" value="100"><span id="tStrengthV">100%</span></label>
+  <label class="toggle"><input type="checkbox" id="tGrain" checked> Зерно</label>
+  <label class="toggle"><input type="checkbox" id="tVignette" checked> Виньетка</label>
+  <label class="toggle"><input type="checkbox" id="tTexture" checked> Текстуры (царапины/пыль)</label>
+  <label class="toggle"><input type="checkbox" id="tArtifacts" checked> Артефакты плёнки</label>
+</div>
+
+<div class="upload">
+  <label>Загрузить фото
+    <input type="file" id="fileInput" accept="image/*" multiple>
+  </label>
+</div>
+
+<div id="status" class="status">Загрузи фото, чтобы увидеть пресеты.</div>
+
+<div class="group-title">— Клоны PhotoFunia (для сравнения с референсом) —</div>
+<div class="row" id="row-photofunia"></div>
+
+<div class="group-title">— Наши плёнки (тот же подход, разные параметры) —</div>
+<div class="row" id="row-films"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// Утилиты
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// Построение 1D кривой для канала: точки контроля → массив 256 значений (Catmull-Rom)
+function buildCurve(points) {
+  // points: [[x0,y0], [x1,y1], ...] нормализованные 0..1
+  const sorted = [...points].sort((a, b) => a[0] - b[0]);
+  const lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    const x = i / 255;
+    let j = 0;
+    while (j < sorted.length - 1 && sorted[j + 1][0] < x) j++;
+    if (j >= sorted.length - 1) { lut[i] = sorted[sorted.length - 1][1] * 255; continue; }
+    const [x0, y0] = sorted[j];
+    const [x1, y1] = sorted[j + 1];
+    const t = (x - x0) / (x1 - x0);
+    // smoothstep для мягкости
+    const ts = t * t * (3 - 2 * t);
+    lut[i] = clamp(lerp(y0, y1, ts) * 255, 0, 255);
+  }
+  return lut;
+}
+
+// Линейная кривая (identity)
+const IDENTITY_CURVE = (() => { const l = new Uint8ClampedArray(256); for (let i = 0; i < 256; i++) l[i] = i; return l; })();
+
+// Pre-generated noise tile (один раз, далее используем как паттерн)
+let _noiseTile = null;
+function getNoiseTile() {
+  if (_noiseTile) return _noiseTile;
+  const sz = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = sz;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(sz, sz);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 255;
+    img.data[i] = img.data[i+1] = img.data[i+2] = 128 + n;
+    img.data[i+3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  _noiseTile = c;
+  return c;
+}
+
+// Pre-generated dust/scratches tile
+let _dustTile = null;
+function getDustTile() {
+  if (_dustTile) return _dustTile;
+  const W = 800, H = 1000;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  // Пылинки (белые точки разного размера)
+  ctx.fillStyle = 'rgba(255,255,250,0.6)';
+  for (let i = 0; i < 400; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = Math.random() * 1.2 + 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Более крупные мутные пятна
+  ctx.fillStyle = 'rgba(245,240,220,0.35)';
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = Math.random() * 8 + 3;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Тонкие царапины
+  ctx.strokeStyle = 'rgba(255,250,240,0.45)';
+  ctx.lineWidth = 0.6;
+  for (let i = 0; i < 40; i++) {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * H;
+    const angle = Math.random() * Math.PI;
+    const len = Math.random() * 120 + 40;
+    const x2 = x1 + Math.cos(angle) * len;
+    const y2 = y1 + Math.sin(angle) * len;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    // лёгкое искривление
+    const mx = (x1 + x2) / 2 + (Math.random() - 0.5) * 20;
+    const my = (y1 + y2) / 2 + (Math.random() - 0.5) * 20;
+    ctx.quadraticCurveTo(mx, my, x2, y2);
+    ctx.stroke();
+  }
+
+  // Несколько тёмных царапин
+  ctx.strokeStyle = 'rgba(40,30,20,0.4)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 15; i++) {
+    const x1 = Math.random() * W;
+    const y1 = Math.random() * H;
+    const angle = Math.random() * Math.PI;
+    const len = Math.random() * 80 + 30;
+    const x2 = x1 + Math.cos(angle) * len;
+    const y2 = y1 + Math.sin(angle) * len;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  _dustTile = c;
+  return c;
+}
+
+function mulberry32(seed) {
+  return function() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Уникальные субтильные артефакты на каждый вызов (seed = случайный или фиксированный)
+function generateFilmArtifacts(W, H, seed) {
+  const rng = mulberry32(seed);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+
+  // Несколько пылинок
+  const nDust = Math.floor(rng() * 10) + 4;
+  for (let i = 0; i < nDust; i++) {
+    const x = rng() * W;
+    const y = rng() * H;
+    const r = rng() * 0.7 + 0.2;
+    ctx.globalAlpha = rng() * 0.13 + 0.05;
+    ctx.fillStyle = 'rgba(255,252,240,1)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 1-3 вертикальных царапины разной длины
+  const nScratches = Math.floor(rng() * 3) + 1;
+  for (let i = 0; i < nScratches; i++) {
+    const x = rng() * W;
+    const y1 = rng() * H * 0.6;
+    const len = (rng() * 0.35 + 0.08) * H;
+    const y2 = Math.min(H, y1 + len);
+    const alpha = rng() * 0.10 + 0.04;
+    const lw = rng() * 0.35 + 0.15;
+    const mx = x + (rng() - 0.5) * 3;
+    const my = (y1 + y2) / 2;
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = 'rgba(255,252,240,1)';
+    ctx.lineWidth = lw;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y1);
+    ctx.quadraticCurveTo(mx, my, x + (rng() - 0.5) * 2, y2);
+    ctx.stroke();
+  }
+
+  // Иногда — длинная едва заметная царапина через весь кадр (30% шанс)
+  if (rng() < 0.3) {
+    const x = rng() * W;
+    ctx.globalAlpha = rng() * 0.05 + 0.02;
+    ctx.strokeStyle = 'rgba(255,252,240,1)';
+    ctx.lineWidth = 0.25;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + (rng() - 0.5) * 5, H);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+  return c;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Применение пресета — единая функция
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function applyPreset(srcCanvas, preset, opts) {
+  const { strength, grain, vignette, texture } = opts;
+  const W = srcCanvas.width;
+  const H = srcCanvas.height;
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const octx = out.getContext('2d');
+  octx.drawImage(srcCanvas, 0, 0);
+
+  const img = octx.getImageData(0, 0, W, H);
+  const data = img.data;
+
+  // Сохраняем оригинал для смешивания
+  const origData = new Uint8ClampedArray(data);
+
+  // Кривые
+  const rCurve = preset.curves?.r || IDENTITY_CURVE;
+  const gCurve = preset.curves?.g || IDENTITY_CURVE;
+  const bCurve = preset.curves?.b || IDENTITY_CURVE;
+
+  const sat = preset.saturation ?? 1;
+  const fade = preset.fade ?? 0; // lift blacks (0..1)
+  const shadowTint = preset.shadowTint || [0, 0, 0];
+  const highlightTint = preset.highlightTint || [0, 0, 0];
+  const tempShift = preset.temperature ?? 0; // -100..100 warm/cool
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i], g = data[i + 1], b = data[i + 2];
+
+    // 1. Кривые на канал
+    r = rCurve[r];
+    g = gCurve[g];
+    b = bCurve[b];
+
+    // 2. Lift blacks (fade)
+    if (fade > 0) {
+      r = r + (255 - r) * fade * 0.18;
+      g = g + (255 - g) * fade * 0.18;
+      b = b + (255 - b) * fade * 0.18;
+    }
+
+    // 3. Tone-split tint (тени/блики)
+    const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255; // 0..1
+    const shadowW = (1 - lum) * (1 - lum);
+    const highW = lum * lum;
+    r += shadowTint[0] * shadowW + highlightTint[0] * highW;
+    g += shadowTint[1] * shadowW + highlightTint[1] * highW;
+    b += shadowTint[2] * shadowW + highlightTint[2] * highW;
+
+    // 4. Температура (простой сдвиг R/B)
+    if (tempShift !== 0) {
+      r += tempShift * 0.15;
+      b -= tempShift * 0.15;
+    }
+
+    // 5. Saturation (luminance-preserving)
+    if (sat !== 1) {
+      const ly = r * 0.299 + g * 0.587 + b * 0.114;
+      r = ly + (r - ly) * sat;
+      g = ly + (g - ly) * sat;
+      b = ly + (b - ly) * sat;
+    }
+
+    // 6. Смешивание с оригиналом по силе эффекта
+    if (strength < 1) {
+      r = lerp(origData[i], r, strength);
+      g = lerp(origData[i + 1], g, strength);
+      b = lerp(origData[i + 2], b, strength);
+    }
+
+    data[i] = clamp(r, 0, 255);
+    data[i + 1] = clamp(g, 0, 255);
+    data[i + 2] = clamp(b, 0, 255);
+  }
+
+  octx.putImageData(img, 0, 0);
+
+  // 7. Halation (Cinestill) — красное свечение ВОКРУГ ярких/красных областей
+  // Алгоритм: выделить маску ярких + красных пикселей, размыть, наложить
+  // как красное свечение через screen blend
+  if (preset.halation && preset.halation > 0) {
+    const halCanvas = document.createElement('canvas');
+    halCanvas.width = W; halCanvas.height = H;
+    const halCtx = halCanvas.getContext('2d');
+    // Маска: только яркие места, тонированные в красно-оранжевый
+    const maskImg = octx.getImageData(0, 0, W, H);
+    const mdata = maskImg.data;
+    for (let i = 0; i < mdata.length; i += 4) {
+      const r = mdata[i], g = mdata[i + 1], b = mdata[i + 2];
+      // luminance > 0.55 OR very red
+      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
+      const redness = clamp((r - Math.max(g, b)) / 80, 0, 1);
+      const mask = Math.max(
+        Math.max(0, lum - 0.55) / 0.45,
+        redness * 0.7
+      );
+      mdata[i] = mask * 230;     // R glow
+      mdata[i + 1] = mask * 60;  // tiny G
+      mdata[i + 2] = mask * 30;  // tiny B
+      mdata[i + 3] = mask * 255;
+    }
+    halCtx.putImageData(maskImg, 0, 0);
+    // Размываем маску свечения
+    const blurredCanvas = document.createElement('canvas');
+    blurredCanvas.width = W; blurredCanvas.height = H;
+    const bctx = blurredCanvas.getContext('2d');
+    bctx.filter = `blur(${Math.max(W, H) * 0.018}px)`;
+    bctx.drawImage(halCanvas, 0, 0);
+    // Накладываем на out через screen
+    octx.globalCompositeOperation = 'screen';
+    octx.globalAlpha = preset.halation * strength;
+    octx.drawImage(blurredCanvas, 0, 0);
+    octx.globalAlpha = 1;
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  // 8. Зерно
+  if (grain && preset.grainStrength > 0) {
+    const noiseCanvas = getNoiseTile();
+    octx.globalCompositeOperation = 'overlay';
+    octx.globalAlpha = preset.grainStrength * strength;
+    const tile = noiseCanvas.width;
+    const scale = preset.grainScale || 1;
+    for (let y = 0; y < H; y += tile * scale) {
+      for (let x = 0; x < W; x += tile * scale) {
+        octx.drawImage(noiseCanvas, x, y, tile * scale, tile * scale);
+      }
+    }
+    octx.globalAlpha = 1;
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  // 9. Виньетка
+  if (vignette && preset.vignetteStrength > 0) {
+    const grad = octx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3,
+                                            W / 2, H / 2, Math.max(W, H) * 0.72);
+    const v = preset.vignetteStrength * strength;
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, `rgba(0,0,0,${v})`);
+    octx.fillStyle = grad;
+    octx.fillRect(0, 0, W, H);
+  }
+
+  // 10. Текстуры (царапины/пыль)
+  if (texture && preset.textureStrength > 0) {
+    const dust = getDustTile();
+    octx.globalCompositeOperation = preset.textureMode || 'screen';
+    octx.globalAlpha = preset.textureStrength * strength;
+    // подгоняем под размер с лёгким повтором
+    octx.drawImage(dust, 0, 0, W, H);
+    octx.globalAlpha = 1;
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  // 11. Субтильные артефакты плёнки (царапины + пыль, уникальные для каждого фото)
+  if (opts.artifacts !== false) {
+    const seed = opts.artifactSeed != null ? opts.artifactSeed : (Math.random() * 0xFFFFFF | 0);
+    const art = generateFilmArtifacts(W, H, seed);
+    octx.globalCompositeOperation = 'screen';
+    octx.globalAlpha = 1;
+    octx.drawImage(art, 0, 0);
+    octx.globalAlpha = 1;
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  // 12. Скруглённые углы (только для polaroid)
+  if (preset.roundedCorners) {
+    const radius = Math.min(W, H) * 0.04;
+    const mask = document.createElement('canvas');
+    mask.width = W; mask.height = H;
+    const mctx = mask.getContext('2d');
+    mctx.fillStyle = '#000';
+    mctx.beginPath();
+    mctx.moveTo(radius, 0);
+    mctx.lineTo(W - radius, 0);
+    mctx.quadraticCurveTo(W, 0, W, radius);
+    mctx.lineTo(W, H - radius);
+    mctx.quadraticCurveTo(W, H, W - radius, H);
+    mctx.lineTo(radius, H);
+    mctx.quadraticCurveTo(0, H, 0, H - radius);
+    mctx.lineTo(0, radius);
+    mctx.quadraticCurveTo(0, 0, radius, 0);
+    mctx.closePath();
+    mctx.fill();
+    octx.globalCompositeOperation = 'destination-in';
+    octx.drawImage(mask, 0, 0);
+    octx.globalCompositeOperation = 'source-over';
+  }
+
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Пресеты
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PRESETS = {
+  // ─── PhotoFunia клоны ────────────────────────────────────────────────────
+  'pf-polaroid': {
+    name: 'Полароид (PF#1)',
+    desc: 'cool shadows + warm highlights',
+    curves: {
+      r: buildCurve([[0, 0.05], [0.25, 0.28], [0.6, 0.66], [1, 0.96]]),
+      g: buildCurve([[0, 0.06], [0.5, 0.52], [1, 0.94]]),
+      b: buildCurve([[0, 0.12], [0.25, 0.32], [0.6, 0.6], [1, 0.88]]),
+    },
+    saturation: 0.85,
+    fade: 0.18,
+    shadowTint: [-8, -2, 12],
+    highlightTint: [10, 6, -8],
+    temperature: -8,
+    grainStrength: 0.06,
+    vignetteStrength: 0.35,
+    textureStrength: 0,
+    roundedCorners: true,
+  },
+
+  'pf-oldpaper': {
+    name: 'Старая бумага (PF#2)',
+    desc: 'выцветание + царапины + пыль',
+    curves: {
+      r: buildCurve([[0, 0.12], [0.5, 0.55], [1, 0.92]]),
+      g: buildCurve([[0, 0.10], [0.5, 0.52], [1, 0.88]]),
+      b: buildCurve([[0, 0.10], [0.5, 0.48], [1, 0.80]]),
+    },
+    saturation: 0.62,
+    fade: 0.22,
+    shadowTint: [4, 2, -6],
+    highlightTint: [18, 12, -2],
+    temperature: 12,
+    grainStrength: 0.10,
+    vignetteStrength: 0.28,
+    textureStrength: 0.85,
+    textureMode: 'screen',
+  },
+
+  'pf-lomo': {
+    name: 'Lomo / Cross (PF#3)',
+    desc: 'глубокие синие тени, тёплые блики',
+    curves: {
+      r: buildCurve([[0, 0], [0.2, 0.12], [0.5, 0.55], [0.85, 0.95], [1, 1]]),
+      g: buildCurve([[0, 0.02], [0.3, 0.26], [0.6, 0.65], [1, 0.98]]),
+      b: buildCurve([[0, 0.16], [0.3, 0.4], [0.5, 0.5], [0.8, 0.6], [1, 0.7]]),
+    },
+    saturation: 1.25,
+    fade: 0.05,
+    shadowTint: [-12, -6, 18],
+    highlightTint: [14, 8, -10],
+    temperature: -4,
+    grainStrength: 0.16,
+    vignetteStrength: 0.62,
+    textureStrength: 0,
+  },
+
+  // ─── Наши плёнки (тот же подход, разные параметры) ──────────────────────
+
+  // PORTRA 400 (Kodak) — портретная плёнка с magenta-bias skin tones
+  // Источники: tonywodarck.com, casualphotophile, kelseysmith, decafjournal
+  // Ключевое: "skin tones bias to magenta", "creamy highlights", "soft blues",
+  //   "overexposing brings out magenta in highlights", "smooth highlight roll-off",
+  //   "warm greens, peachy skin"
+  // → R curve: лёгкий лифт теней + roll-off в светах (12-stop dynamic range)
+  // → G curve: подавлен в светах (создаёт magenta — R+B без G)
+  // → B curve: подавлен в светах ниже R (создаёт peach/cream)
+  // → Shadow tint: чуть тёплый, нейтральный
+  // → Highlight tint: cream-magenta (high R, low G, low B)
+  'portra400': {
+    name: 'Portra 400',
+    desc: 'magenta-кожа, cream highlights, peach',
+    curves: {
+      r: buildCurve([[0, 0.06], [0.20, 0.22], [0.5, 0.55], [0.82, 0.85], [1, 0.96]]),
+      g: buildCurve([[0, 0.05], [0.20, 0.20], [0.5, 0.51], [0.82, 0.80], [1, 0.91]]),
+      b: buildCurve([[0, 0.07], [0.20, 0.18], [0.5, 0.46], [0.82, 0.74], [1, 0.86]]),
+    },
+    saturation: 0.98,
+    fade: 0.09,
+    shadowTint: [3, 1, -1],
+    highlightTint: [16, 4, -2],
+    temperature: 4,
+    grainStrength: 0.035,
+    vignetteStrength: 0.12,
+    textureStrength: 0,
+  },
+
+  // FUJI 400H — пастель + MAGENTA shadows + blueshift в зелёном
+  // Источники: casualphotophile, shootitwithfilm, ramblingpolymath, fuji datasheet
+  // Ключевое: "magenta tones in the shadows" (не cool blue как я делал!),
+  //   "blueshift в green tones", "pastel при overexposure",
+  //   "4-й цветовой слой добавляет cyan", "clean and cast-free in highlights",
+  //   "more contrasty than expected"
+  // → R curve: чуть compress в светах (для пастельности)
+  // → G curve: подавлен в тенях → magenta появляется в тенях
+  // → B curve: lifted в тенях (с magenta = R+B)
+  // → Shadow tint: MAGENTA [+R, -G, +B]
+  // → Highlight tint: чистый, чуть cool (cyan от 4-го слоя)
+  // → Saturation 0.82 — pastel но не выжжено
+  // → Fade 0.18 — воздушные lifted blacks
+  'fuji400h': {
+    name: 'Fuji 400H',
+    desc: 'lavender тени, pastel, magenta-greens',
+    curves: {
+      r: buildCurve([[0, 0.10], [0.25, 0.26], [0.5, 0.50], [0.78, 0.78], [1, 0.90]]),
+      g: buildCurve([[0, 0.06], [0.25, 0.22], [0.5, 0.50], [0.78, 0.82], [1, 0.96]]),
+      b: buildCurve([[0, 0.15], [0.25, 0.34], [0.5, 0.57], [0.78, 0.83], [1, 0.95]]),
+    },
+    saturation: 0.82,
+    fade: 0.18,
+    shadowTint: [6, -3, 9],
+    highlightTint: [-3, 2, 6],
+    temperature: -5,
+    grainStrength: 0.028,
+    vignetteStrength: 0.08,
+    textureStrength: 0,
+  },
+
+  // CINESTILL 800T — tungsten balance (3200K) + halation
+  // Источники: cinestillfilm, kubusphoto, kelseysmith, daydreamfilm, gregoryowain
+  // Ключевое: "cold blue tungsten cast", "shadows pick up blue",
+  //   "reds stay saturated", "red-orange halation from removed remjet",
+  //   "warm-light-cool-shadow cinema aesthetic", "slight tendency to oversaturate reds",
+  //   "daylight renders very blue"
+  // → R curve: усилены midtones (саты в красных) + полная кривая в светах
+  // → G curve: нормальная, чуть compress
+  // → B curve: сильно lifted в тенях (cool shadows)
+  // → Shadow tint: deep cyan-blue [-R, -G, ++B]
+  // → Highlight tint: warm tungsten [+R, +G, --B] (для жёлтых ламп)
+  // → halation: 0.32 — заметное красное свечение
+  // → saturation 1.20 — для насыщенных красных
+  'cinestill800t': {
+    name: 'Cinestill 800T',
+    desc: 'tungsten cast + halation, киношный',
+    curves: {
+      r: buildCurve([[0, 0.04], [0.2, 0.20], [0.5, 0.50], [0.8, 0.84], [1, 0.97]]),
+      g: buildCurve([[0, 0.05], [0.2, 0.20], [0.5, 0.50], [0.8, 0.78], [1, 0.92]]),
+      b: buildCurve([[0, 0.18], [0.2, 0.36], [0.5, 0.58], [0.8, 0.74], [1, 0.84]]),
+    },
+    saturation: 1.04,
+    fade: 0.16,
+    shadowTint: [-14, -8, 22],
+    highlightTint: [12, 5, -10],
+    temperature: -14,
+    halation: 0.24,
+    grainStrength: 0.06,
+    vignetteStrength: 0.28,
+    textureStrength: 0,
+  },
+
+  // ILFORD HP5+ — ч/б, medium contrast, 12 stops dynamic range
+  // Источники: shopmoment, myfavouritelens, thedarkroom, timlaytonfineart, ilfordphoto
+  // Ключевое: "medium contrast" (не сильный!), "subtle smooth tones",
+  //   "pleasing fairly grainy", "grain noticeable in shadows",
+  //   "12 stops of usable dynamic range", "wide exposure latitude",
+  //   "traditional cubic grain", "gritty atmospheric character when pushed"
+  // → Curves: мягкий S — toe lift в тенях, плавный roll-off в светах
+  // → Saturation 0 (полный ч/б)
+  // → Grain 0.18 — заметнее (как описано "fairly grainy")
+  // → Toe lift побольше — для wide dynamic range feel
+  'ilford-hp5': {
+    name: 'Ilford HP5+',
+    desc: 'ч/б, medium contrast, classic grain',
+    curves: {
+      r: buildCurve([[0, 0.06], [0.22, 0.18], [0.5, 0.52], [0.78, 0.86], [1, 0.96]]),
+      g: buildCurve([[0, 0.06], [0.22, 0.18], [0.5, 0.52], [0.78, 0.86], [1, 0.96]]),
+      b: buildCurve([[0, 0.06], [0.22, 0.18], [0.5, 0.52], [0.78, 0.86], [1, 0.96]]),
+    },
+    saturation: 0,
+    fade: 0.10,
+    shadowTint: [0, 0, 0],
+    highlightTint: [0, 0, 0],
+    temperature: 0,
+    grainStrength: 0.09,
+    vignetteStrength: 0.16,
+    textureStrength: 0,
+  },
+};
+
+const PHOTOFUNIA_KEYS = ['pf-polaroid', 'pf-oldpaper', 'pf-lomo'];
+const FILM_KEYS = ['portra400', 'fuji400h', 'cinestill800t', 'ilford-hp5'];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const status = document.getElementById('status');
+const rowPF = document.getElementById('row-photofunia');
+const rowFilm = document.getElementById('row-films');
+const fileInput = document.getElementById('fileInput');
+const tStrength = document.getElementById('tStrength');
+const tStrengthV = document.getElementById('tStrengthV');
+const tGrain = document.getElementById('tGrain');
+const tVignette = document.getElementById('tVignette');
+const tTexture = document.getElementById('tTexture');
+
+let loadedImages = [];
+
+function makeCard(key, preset) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <canvas data-key="${key}"></canvas>
+    <div class="lbl">${preset.name}</div>
+    <div class="sub-lbl">${preset.desc}</div>
+  `;
+  return card;
+}
+
+function getOpts() {
+  return {
+    strength: tStrength.value / 100,
+    grain: tGrain.checked,
+    vignette: tVignette.checked,
+    texture: tTexture.checked,
+    artifacts: tArtifacts.checked,
+  };
+}
+
+function renderAll() {
+  if (!loadedImages.length) return;
+  status.textContent = 'Применение пресетов...';
+
+  // Очищаем
+  rowPF.innerHTML = '';
+  rowFilm.innerHTML = '';
+
+  // Оригинал
+  const origCard = document.createElement('div');
+  origCard.className = 'card';
+  origCard.innerHTML = `<canvas></canvas><div class="lbl">Оригинал</div><div class="sub-lbl">без обработки</div>`;
+  rowPF.appendChild(origCard);
+  const origCanvas = origCard.querySelector('canvas');
+  origCanvas.width = loadedImages[0].canvas.width;
+  origCanvas.height = loadedImages[0].canvas.height;
+  origCanvas.getContext('2d').drawImage(loadedImages[0].canvas, 0, 0);
+
+  const opts = getOpts();
+  const img = loadedImages[0].canvas;
+
+  for (const key of PHOTOFUNIA_KEYS) {
+    const card = makeCard(key, PRESETS[key]);
+    rowPF.appendChild(card);
+    const cnv = card.querySelector('canvas');
+    cnv.width = img.width; cnv.height = img.height;
+    const result = applyPreset(img, PRESETS[key], opts);
+    cnv.getContext('2d').drawImage(result, 0, 0);
+  }
+
+  for (const key of FILM_KEYS) {
+    const card = makeCard(key, PRESETS[key]);
+    rowFilm.appendChild(card);
+    const cnv = card.querySelector('canvas');
+    cnv.width = img.width; cnv.height = img.height;
+    const result = applyPreset(img, PRESETS[key], opts);
+    cnv.getContext('2d').drawImage(result, 0, 0);
+  }
+
+  status.textContent = `Готово. Размер: ${img.width}×${img.height}px. ${loadedImages.length} фото.`;
+}
+
+fileInput.addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  loadedImages = [];
+  for (const f of files) {
+    const url = URL.createObjectURL(f);
+    const img = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = url; });
+    // даунсайз для preview
+    const maxW = 480;
+    const scale = Math.min(1, maxW / img.width);
+    const c = document.createElement('canvas');
+    c.width = img.width * scale;
+    c.height = img.height * scale;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    loadedImages.push({ name: f.name, canvas: c });
+    URL.revokeObjectURL(url);
+  }
+  renderAll();
+});
+
+tStrength.addEventListener('input', () => {
+  tStrengthV.textContent = tStrength.value + '%';
+  renderAll();
+});
+tGrain.addEventListener('change', renderAll);
+tVignette.addEventListener('change', renderAll);
+tTexture.addEventListener('change', renderAll);
+</script>
+</body>
+</html>

@@ -16,7 +16,7 @@ function FilmReelIcon() {
 export default function EventEndedScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
   const event = getEventMeta()
-  const eventTitle: string = event.title ?? 'Ивент'
+  const eventTitle: string = event.title ?? 'Событие'
 
   return (
     <div style={{
@@ -40,11 +40,11 @@ export default function EventEndedScreen() {
         fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500,
         fontSize: 32, letterSpacing: '-.02em', lineHeight: 1.05,
       }}>
-        Этот ивент<br />уже завершён.
+        Мероприятие уже закончилось
       </h1>
 
       <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, maxWidth: 280 }}>
-        Плёнка проявилась. Альбом остался только у хоста и участников.
+        Плёнка проявилась. Все кадры доступны в альбоме мероприятия.
       </p>
 
       {eventTitle && (

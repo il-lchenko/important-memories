@@ -1,9 +1,14 @@
 from fastapi import APIRouter
 
-from app.api.deps import CurrentGuest, SessionDep
+from app.api.deps import CurrentGuest, OptionalUserId, SessionDep
 from app.core.errors import NotFoundError
 from app.domain.models import EventStatus
-from app.domain.schemas.guests import EventPreviewOut, GuestJoinIn, GuestSessionOut
+from app.domain.schemas.guests import (
+    EventPreviewOut,
+    GuestJoinIn,
+    GuestNameUpdateIn,
+    GuestSessionOut,
+)
 from app.repos import event_repo
 from app.services import guest_service
 
@@ -20,8 +25,10 @@ async def get_event_preview(short_code: str, session: SessionDep) -> EventPrevie
         title=event.title,
         frames_per_guest=s.frames_per_guest,
         reveal_at=s.reveal_at,
+        start_at=event.start_at,
         lut_preset=s.lut_preset.value,
         status=event.status.value,
+        cover_url=event.cover_url,
     )
 
 
@@ -29,12 +36,14 @@ async def get_event_preview(short_code: str, session: SessionDep) -> EventPrevie
 async def join_event(
     payload: GuestJoinIn,
     session: SessionDep,
+    user_id: OptionalUserId,
 ) -> GuestSessionOut:
     return await guest_service.join(
         session,
         short_code=payload.short_code,
         name=payload.name,
         fingerprint=payload.fingerprint,
+        actor_user_id=user_id,
     )
 
 
@@ -44,3 +53,12 @@ async def get_my_session(
     session: SessionDep,
 ) -> GuestSessionOut:
     return await guest_service.get_session_state(session, guest.guest_token)
+
+
+@router.patch("/sessions/me", response_model=GuestSessionOut)
+async def update_my_guest_name(
+    payload: GuestNameUpdateIn,
+    guest: CurrentGuest,
+    session: SessionDep,
+) -> GuestSessionOut:
+    return await guest_service.update_guest_name(session, guest.guest_token, payload.name)

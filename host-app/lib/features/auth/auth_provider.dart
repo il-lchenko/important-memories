@@ -1,7 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api_client.dart';
+import '../guest/guest_provider.dart' show getDeviceFingerprint;
 
 part 'auth_provider.g.dart';
 
@@ -28,12 +29,16 @@ class Auth extends _$Auth {
 
   Future<void> verifyCode(String email, String code) async {
     final dio = ref.read(dioProvider);
+    final fingerprint = await getDeviceFingerprint();
     final resp = await dio.post('auth/email/verify', data: {
       'email': email,
       'code': code,
+      'fingerprint': fingerprint,
     });
     await _storage.write(key: 'access_token',  value: resp.data['access_token']  as String);
     await _storage.write(key: 'refresh_token', value: resp.data['refresh_token'] as String);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('selected_role', 'host');
     state = const AsyncData(true);
   }
 

@@ -14,6 +14,11 @@ class AlbumFrameOut(BaseModel):
     width: int
     height: int
     is_mine: bool = False
+    caption: str | None = None
+    voice_url: str | None = None
+    voice_duration_ms: int | None = None
+    voice_peaks: list[float] | None = None
+    rotation: int = 0
 
 
 class AlbumOut(BaseModel):
@@ -21,3 +26,4 @@ class AlbumOut(BaseModel):
     next_cursor: str | None
     revealed: bool
     total_frames: int
+    is_admin_preview: bool = False

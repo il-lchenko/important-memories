@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Header, Query, UploadFile, File
 from fastapi.responses import Response
 
 from app.api.deps import CurrentActor, CurrentUserId, SessionDep
@@ -11,8 +11,13 @@ from app.domain.schemas.archives import ArchiveJobOut
 from app.domain.schemas.events import (
     EventCreateIn,
     EventOut,
+    EventRenameIn,
     EventSettingsUpdateIn,
+    EventUpdateIn,
 )
+from app.domain.schemas.frames import FrameRotationIn
+from app.domain.schemas.guests import InvitedEventOut
+from app.repos import guest_repo
 from app.domain.schemas.payments import CheckoutIn, CheckoutOut
 from app.infra import queue
 from app.services import album_service, event_service, media_service, payment_service
@@ -37,6 +42,28 @@ async def list_events(
     return await event_service.list_events(session, user_id)
 
 
+@router.get("/invited", response_model=list[InvitedEventOut])
+async def list_invited_events(
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> list[InvitedEventOut]:
+    """События где юзер был приглашён (invited guest), исключая собственные."""
+    rows = await guest_repo.list_invited_events_for_user(session, user_id, exclude_owned=True)
+    return [
+        InvitedEventOut(
+            id=event.id,
+            title=event.title,
+            status=event.status.value,
+            start_at=event.start_at,
+            end_at=event.end_at,
+            cover_url=event.cover_url,
+            my_frames_count=my_count,
+            total_frames=total_count,
+        )
+        for event, my_count, total_count in rows
+    ]
+
+
 @router.get("/{event_id}", response_model=EventOut)
 async def get_event(
     event_id: UUID,
@@ -44,6 +71,26 @@ async def get_event(
     session: SessionDep,
 ) -> EventOut:
     return await event_service.get_event(session, user_id, event_id)
+
+
+@router.patch("/{event_id}", response_model=EventOut)
+async def update_event(
+    event_id: UUID,
+    payload: EventUpdateIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> EventOut:
+    return await event_service.update_event(session, user_id, event_id, payload)
+
+
+@router.delete("/{event_id}", status_code=204)
+async def delete_event(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> Response:
+    await event_service.cancel_event(session, user_id, event_id)
+    return Response(status_code=204)
 
 
 @router.patch("/{event_id}/settings", response_model=EventOut)
@@ -141,6 +188,37 @@ async def delete_frame(
     return Response(status_code=204)
 
 
+@router.patch("/{event_id}/frames/{frame_id}/rotation", status_code=204)
+async def update_frame_rotation(
+    event_id: UUID,
+    frame_id: UUID,
+    payload: FrameRotationIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> Response:
+    await media_service.update_rotation(
+        session,
+        actor_user_id=user_id,
+        event_id=event_id,
+        frame_id=frame_id,
+        rotation=payload.rotation,
+    )
+    return Response(status_code=204)
+
+
+@router.post("/{event_id}/cover", response_model=EventOut)
+async def upload_cover(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+    file: UploadFile = File(...),
+) -> EventOut:
+    data = await file.read()
+    return await event_service.upload_cover(
+        session, user_id, event_id, data, file.content_type or "image/jpeg"
+    )
+
+
 @router.post("/{event_id}/download", response_model=ArchiveJobOut, status_code=202)
 async def request_download(
     event_id: UUID,
@@ -164,6 +242,8 @@ async def download_status(
     info = await queue.get_job_status(job_id)
     if info is None:
         raise NotFoundError("Archive job not found")
+    if info.get("status") == "failed":
+        return ArchiveJobOut(job_id=job_id, status="failed")
     result = info.get("result") or {}
     if isinstance(result, dict) and result.get("status") in {"ready", "empty"}:
         return ArchiveJobOut(

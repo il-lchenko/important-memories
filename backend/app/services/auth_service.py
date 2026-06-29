@@ -4,7 +4,7 @@ from secrets import randbelow
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.errors import AuthError, ConflictError, InvalidCodeError
+from app.core.errors import AuthError, ConflictError, ExternalServiceError, InvalidCodeError
 from app.core.logging import logger
 from app.core.security import (
     TokenDecodeError,
@@ -17,7 +17,7 @@ from app.core.security import (
 from app.domain.schemas.auth import EmailRequestOut, TokenOut
 from app.infra import rate_limiter
 from app.infra.smtp_client import send_email
-from app.repos import email_code_repo, user_repo
+from app.repos import email_code_repo, guest_repo, user_repo
 
 
 def _generate_code() -> str:
@@ -73,20 +73,27 @@ async def request_otp(session: AsyncSession, email: str, client_ip: str) -> Emai
     await email_code_repo.create(session, email, hash_secret(code), expires_at)
     await session.commit()
 
-    logger.warning("otp_code_debug", email=email, code=code)
-
     text, html = _build_email_body(code)
-    await send_email(
-        to=email,
-        subject=f"Код входа в Important Memories: {code}",
-        text=text,
-        html=html,
-    )
+    try:
+        await send_email(
+            to=email,
+            subject=f"Код входа в Important Memories: {code}",
+            text=text,
+            html=html,
+        )
+    except Exception as exc:
+        logger.warning("email_delivery_failed_otp_fallback", to=email, otp_code=code, error=str(exc))
 
     return EmailRequestOut(expires_in=settings.OTP_TTL_MIN * 60)
 
 
-async def verify_otp(session: AsyncSession, email: str, code: str) -> TokenOut:
+async def verify_otp(
+    session: AsyncSession,
+    email: str,
+    code: str,
+    *,
+    fingerprint: str | None = None,
+) -> TokenOut:
     email = email.lower().strip()
     active = await email_code_repo.find_active(session, email)
     if active is None:
@@ -101,9 +108,21 @@ async def verify_otp(session: AsyncSession, email: str, code: str) -> TokenOut:
         raise InvalidCodeError("Неверный код")
 
     await email_code_repo.consume(session, active)
-    user, _is_new = await user_repo.get_or_create(session, email)
+    user, is_new = await user_repo.get_or_create(session, email)
     await user_repo.touch_last_login(session, user)
+
+    # Ретроактивная привязка: если юзер уже был анонимным гостем на этом устройстве —
+    # связываем его прошлые guest-записи с новым/найденным аккаунтом.
+    linked = 0
+    if fingerprint:
+        linked = await guest_repo.backfill_user_id_by_fingerprint(
+            session, fingerprint=fingerprint, user_id=user.id
+        )
+
     await session.commit()
+
+    if linked:
+        logger.info("guest_records_linked_to_user", user_id=str(user.id), count=linked, is_new=is_new)
 
     return TokenOut(
         access_token=create_access_token(user.id),

@@ -45,7 +45,9 @@ async def schedule_reveal(event_id: UUID, when: datetime) -> None:
 
 
 async def build_zip(event_id: UUID, job_id: str) -> None:
-    await enqueue("build_zip", str(event_id), job_id)
+    pool = await get_pool()
+    # Use job_id as ARQ's own key so get_job_status(job_id) can find it
+    await pool.enqueue_job("build_zip", str(event_id), job_id, _job_id=job_id)
 
 
 async def get_job_status(job_id: str) -> dict[str, Any] | None:
@@ -56,8 +58,12 @@ async def get_job_status(job_id: str) -> dict[str, Any] | None:
     info = await job.info()
     if info is None:
         return None
-    try:
-        result = await job.result(timeout=0.1)
-    except Exception:
-        result = None
-    return {"status": str(info.status) if hasattr(info, "status") else "queued", "result": result}
+    status_str = str(info.status) if hasattr(info, "status") else "queued"
+    result = None
+    failed = False
+    if status_str == "complete":
+        try:
+            result = await job.result(timeout=0.5)
+        except Exception:
+            failed = True
+    return {"status": "failed" if failed else status_str, "result": result}

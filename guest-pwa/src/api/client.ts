@@ -15,6 +15,28 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// On 401 — guest token is missing or invalid. Drop everything and bounce to landing.
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    if (err?.response?.status === 401) {
+      const path = window.location.pathname
+      const match = path.match(/^\/g\/([^/]+)/)
+      const shortCode = match?.[1]
+      // Already on landing — don't loop
+      if (shortCode && path !== `/g/${shortCode}`) {
+        sessionStorage.removeItem('guest_token')
+        sessionStorage.removeItem('guest_id')
+        sessionStorage.removeItem('guest_name')
+        sessionStorage.removeItem('event')
+        // Don't touch localStorage `gt_*` — LandingScreen will restore from it if still valid
+        window.location.replace(`/g/${shortCode}`)
+      }
+    }
+    return Promise.reject(err)
+  },
+)
+
 function generateFingerprint(): string {
   const raw = [
     navigator.userAgent,
@@ -44,12 +66,14 @@ export interface GuestEventSettings {
 export interface GuestSessionResponse {
   guest_token: string
   guest_id: string
+  name?: string
   frames_used: number
   frames_remaining: number
   event: {
     id: string
     title: string
     status: string
+    start_at: string | null
     end_at: string
     settings: GuestEventSettings
   }
@@ -65,6 +89,21 @@ export interface RegisterFrameResponse {
   id: string
   status: string
   frames_remaining: number
+}
+
+export interface VoicePresignResponse {
+  voice_s3_key: string
+  upload_url: string
+  expires_in: number
+}
+
+export interface FrameUpdatePayload {
+  caption?: string | null
+  voice_s3_key?: string | null
+  voice_duration_ms?: number | null
+  voice_peaks?: number[] | null
+  clear_caption?: boolean
+  clear_voice?: boolean
 }
 
 export const guestApi = {
@@ -91,5 +130,14 @@ export const guestApi = {
       width,
       height,
     })
+  },
+  voicePresign(frameId: string, sizeBytes: number, contentType = 'audio/webm') {
+    return api.post<VoicePresignResponse>(`/guest/frames/${frameId}/voice-presign`, {
+      size_bytes: sizeBytes,
+      content_type: contentType,
+    })
+  },
+  updateFrame(frameId: string, payload: FrameUpdatePayload) {
+    return api.patch<void>(`/guest/frames/${frameId}`, payload)
   },
 }

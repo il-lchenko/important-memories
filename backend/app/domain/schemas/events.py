@@ -40,6 +40,8 @@ class EventOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     settings: EventSettingsOut
+    guests_count: int = 0
+    frames_count: int = 0
 
 
 class EventCreateIn(BaseModel):
@@ -52,6 +54,7 @@ class EventCreateIn(BaseModel):
     # Optional settings — set immediately on creation if provided
     frames_per_guest: int = Field(default=24, ge=1, le=100)
     reveal_mode: RevealMode = RevealMode.INSTANT
+    reveal_at: datetime | None = None
     film: LutPreset | None = None   # Flutter alias for lut_preset
     lut_preset: LutPreset | None = None
     plan: Plan = Plan.FREE
@@ -75,6 +78,12 @@ class EventCreateIn(BaseModel):
         # film → lut_preset alias
         if self.lut_preset is None and self.film is not None:
             self.lut_preset = self.film
+        # delayed reveal requires reveal_at in the future
+        if self.reveal_mode == RevealMode.DELAYED:
+            if self.reveal_at is None:
+                raise ValueError("reveal_at is required when reveal_mode is 'delayed'")
+            if self.reveal_at <= datetime.now(timezone.utc):
+                raise ValueError("reveal_at must be in the future")
         return self
 
 
@@ -91,6 +100,16 @@ class EventSettingsUpdateIn(BaseModel):
     @classmethod
     def _check_frames(cls, v: int | None) -> int | None:
         return v
+
+
+class EventRenameIn(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+
+
+class EventUpdateIn(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=80)
+    event_type: EventType | None = None
+    start_at: datetime | None = None
 
 
 class QRCodeOut(BaseModel):

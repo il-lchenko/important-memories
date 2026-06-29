@@ -1,13 +1,14 @@
 from io import BytesIO
 from uuid import UUID
 
+import numpy as np
 from PIL import Image
 from sqlalchemy import select
 
 from app.core.db import SessionLocal
 from app.core.logging import logger
 from app.domain.models import Frame, FrameStatus
-from app.domain.models.enums import PhotoFormat
+from app.domain.models.enums import LutPreset, PhotoFormat
 from app.domain.models.models import EventSettings
 from app.infra import s3_client
 
@@ -20,6 +21,132 @@ _THUMB_RATIOS: dict[PhotoFormat, float] = {
     PhotoFormat.PORTRAIT_34:  3 / 4,
     PhotoFormat.LANDSCAPE_43: 4 / 3,
 }
+
+# Film presets — same parameters as filmLut.ts (color pipeline only, no grain/halation)
+_FILM_PRESETS: dict[str, dict] = {
+    "portra400": {
+        "r": [(0, 0.06), (0.20, 0.22), (0.5, 0.55), (0.82, 0.85), (1, 0.96)],
+        "g": [(0, 0.05), (0.20, 0.20), (0.5, 0.51), (0.82, 0.80), (1, 0.91)],
+        "b": [(0, 0.07), (0.20, 0.18), (0.5, 0.46), (0.82, 0.74), (1, 0.86)],
+        "saturation": 0.98, "fade": 0.09,
+        "shadow_tint": (3, 1, -1), "highlight_tint": (16, 4, -2), "temperature": 4,
+    },
+    "fuji400h": {
+        "r": [(0, 0.10), (0.25, 0.26), (0.5, 0.50), (0.78, 0.78), (1, 0.90)],
+        "g": [(0, 0.06), (0.25, 0.22), (0.5, 0.50), (0.78, 0.82), (1, 0.96)],
+        "b": [(0, 0.15), (0.25, 0.34), (0.5, 0.57), (0.78, 0.83), (1, 0.95)],
+        "saturation": 0.82, "fade": 0.18,
+        "shadow_tint": (6, -3, 9), "highlight_tint": (-3, 2, 6), "temperature": -5,
+    },
+    "cinestill": {
+        "r": [(0, 0.04), (0.2, 0.20), (0.5, 0.50), (0.8, 0.84), (1, 0.97)],
+        "g": [(0, 0.05), (0.2, 0.20), (0.5, 0.50), (0.8, 0.78), (1, 0.92)],
+        "b": [(0, 0.18), (0.2, 0.36), (0.5, 0.58), (0.8, 0.74), (1, 0.84)],
+        "saturation": 1.04, "fade": 0.16,
+        "shadow_tint": (-14, -8, 22), "highlight_tint": (12, 5, -10), "temperature": -14,
+    },
+    "ilford": {
+        "r": [(0, 0.06), (0.22, 0.18), (0.5, 0.52), (0.78, 0.86), (1, 0.96)],
+        "g": [(0, 0.06), (0.22, 0.18), (0.5, 0.52), (0.78, 0.86), (1, 0.96)],
+        "b": [(0, 0.06), (0.22, 0.18), (0.5, 0.52), (0.78, 0.86), (1, 0.96)],
+        "saturation": 0.0, "fade": 0.10,
+        "shadow_tint": (0, 0, 0), "highlight_tint": (0, 0, 0), "temperature": 0,
+        "bw": True,
+    },
+}
+
+_lut_cache: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+
+
+def _build_lut(points: list[tuple[float, float]]) -> np.ndarray:
+    """Build 256-entry 1D LUT from control points using smoothstep interpolation."""
+    pts = sorted(points, key=lambda p: p[0])
+    lut = np.zeros(256, dtype=np.float32)
+    for i in range(256):
+        x = i / 255.0
+        j = 0
+        while j < len(pts) - 1 and pts[j + 1][0] < x:
+            j += 1
+        if j >= len(pts) - 1:
+            lut[i] = pts[-1][1]
+            continue
+        x0, y0 = pts[j]
+        x1, y1 = pts[j + 1]
+        t = (x - x0) / (x1 - x0)
+        ts = t * t * (3 - 2 * t)  # smoothstep
+        lut[i] = y0 + (y1 - y0) * ts
+    return np.clip(lut * 255, 0, 255).astype(np.uint8)
+
+
+def _get_luts(key: str) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    if key in _lut_cache:
+        return _lut_cache[key]
+    f = _FILM_PRESETS.get(key)
+    if f is None:
+        return None
+    result = (_build_lut(f["r"]), _build_lut(f["g"]), _build_lut(f["b"]))
+    _lut_cache[key] = result
+    return result
+
+
+def apply_film_filter(img: Image.Image, lut_preset: str) -> Image.Image:
+    """Apply film colour pipeline to a PIL Image. Returns a new Image."""
+    if lut_preset == "original" or lut_preset not in _FILM_PRESETS:
+        return img
+
+    f = _FILM_PRESETS[lut_preset]
+    luts = _get_luts(lut_preset)
+    if luts is None:
+        return img
+
+    r_lut, g_lut, b_lut = luts
+    arr = np.array(img, dtype=np.float32)  # H×W×3
+
+    bw = f.get("bw", False)
+    if bw:
+        # Greyscale via luminance then apply single curve
+        lum = (arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587 + arr[:, :, 2] * 0.114).astype(np.uint8)
+        mapped = r_lut[lum].astype(np.float32)
+        arr[:, :, 0] = mapped
+        arr[:, :, 1] = mapped
+        arr[:, :, 2] = mapped
+    else:
+        # Per-channel curves
+        ri = arr[:, :, 0].astype(np.uint8)
+        gi = arr[:, :, 1].astype(np.uint8)
+        bi = arr[:, :, 2].astype(np.uint8)
+        arr[:, :, 0] = r_lut[ri].astype(np.float32)
+        arr[:, :, 1] = g_lut[gi].astype(np.float32)
+        arr[:, :, 2] = b_lut[bi].astype(np.float32)
+
+        # Fade (lift blacks)
+        fade = f["fade"]
+        if fade > 0:
+            arr += (255 - arr) * (fade * 0.18)
+
+        # Tone-split tint
+        lum = (arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587 + arr[:, :, 2] * 0.114) / 255.0
+        shadow_w = ((1 - lum) ** 2)[:, :, np.newaxis]
+        high_w = (lum ** 2)[:, :, np.newaxis]
+        st = np.array(f["shadow_tint"], dtype=np.float32)
+        ht = np.array(f["highlight_tint"], dtype=np.float32)
+        arr += shadow_w * st + high_w * ht
+
+        # Temperature
+        temp = f["temperature"]
+        if temp != 0:
+            arr[:, :, 0] += temp * 0.15
+            arr[:, :, 2] -= temp * 0.15
+
+        # Saturation (luminance-preserving)
+        sat = f["saturation"]
+        if sat != 1.0:
+            lum2 = arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587 + arr[:, :, 2] * 0.114
+            for c in range(3):
+                arr[:, :, c] = lum2 + (arr[:, :, c] - lum2) * sat
+
+    arr = np.clip(arr, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr, "RGB")
 
 
 def _thumbnail_key(s3_key: str) -> str:
@@ -60,6 +187,7 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
             )
         ).scalar_one_or_none()
         photo_format = settings.photo_format if settings else PhotoFormat.PORTRAIT_34
+        lut_preset = settings.lut_preset if settings else LutPreset.PORTRA400
 
         target_w, target_h = _THUMB_SIZES[photo_format]
         crop_ratio = _THUMB_RATIOS[photo_format]
@@ -69,6 +197,7 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
             img = img.convert("RGB")
             img = _center_crop(img, crop_ratio)
             img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            img = apply_film_filter(img, str(lut_preset))
             buf = BytesIO()
             img.save(buf, format="JPEG", quality=85, optimize=True)
             thumb_bytes = buf.getvalue()
@@ -78,4 +207,4 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
         frame.thumbnail_url = thumb_key
         frame.status = FrameStatus.UPLOADED
         await session.commit()
-        logger.info("thumbnail_created", frame_id=frame_id, fmt=photo_format, size=len(thumb_bytes))
+        logger.info("thumbnail_created", frame_id=frame_id, fmt=photo_format, lut=lut_preset, size=len(thumb_bytes))
