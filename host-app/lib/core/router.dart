@@ -16,7 +16,10 @@ import '../features/events/screens/qr_fullscreen_screen.dart';
 import '../features/events/screens/reveal_countdown_screen.dart';
 import '../features/album/screens/album_screen.dart';
 import '../features/album/screens/frame_detail_screen.dart';
+import '../features/memories/screens/memories_screen.dart';
+import '../features/memories/screens/memory_collection_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import 'widgets/main_shell.dart';
 import '../features/guest/screens/role_selection_screen.dart';
 import '../features/guest/screens/guest_entry_screen.dart';
 import '../features/guest/screens/qr_scanner_screen.dart';
@@ -74,7 +77,23 @@ GoRouter appRouter(Ref ref) {
         path: '/auth/otp',
         builder: (c, s) => AuthOtpScreen(email: s.uri.queryParameters['email'] ?? ''),
       ),
-      GoRoute(path: '/dashboard',   builder: (c, s) => const DashboardScreen()),
+      // Main tabs — wrapped in StatefulShellRoute so AppBottomNav stays static.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/memories', builder: (c, s) => const MemoriesScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/profile', builder: (c, s) => const ProfileScreen()),
+          ]),
+        ],
+      ),
+
       GoRoute(path: '/events/create', builder: (c, s) => const CreateEventScreen()),
       GoRoute(
         path: '/events/:id',
@@ -101,13 +120,22 @@ GoRouter appRouter(Ref ref) {
                 builder: (c, s) => FrameDetailScreen(
                   eventId: s.pathParameters['id']!,
                   frameIndex: int.tryParse(s.pathParameters['frameIndex'] ?? '0') ?? 0,
+                  jumpFrameId: s.uri.queryParameters['jumpFrameId'],
                 ),
               ),
             ],
           ),
         ],
       ),
-      GoRoute(path: '/profile',     builder: (c, s) => const ProfileScreen()),
+      GoRoute(
+        path: '/memories/collection',
+        builder: (c, s) {
+          final extra = s.extra as Map<String, dynamic>?;
+          final title = extra?['title'] as String? ?? 'Подборка';
+          final ids = (extra?['event_ids'] as List?)?.cast<String>() ?? const [];
+          return MemoryCollectionScreen(title: title, eventIds: ids);
+        },
+      ),
       GoRoute(path: '/dev',         builder: (c, s) => const DevScreen()),
 
       // Guest entry flow (public — no auth required)

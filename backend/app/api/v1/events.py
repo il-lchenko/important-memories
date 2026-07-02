@@ -18,9 +18,10 @@ from app.domain.schemas.events import (
 from app.domain.schemas.frames import FrameRotationIn
 from app.domain.schemas.guests import InvitedEventOut
 from app.repos import guest_repo
-from app.domain.schemas.payments import CheckoutIn, CheckoutOut
+from app.domain.schemas.payments import CheckoutIn, CheckoutOut, ExtendIn, ExtendOut, UpgradeIn, UpgradeOut
 from app.infra import queue
 from app.services import album_service, event_service, media_service, payment_service
+from app.services.event_service import _resolve_cover_url
 
 router = APIRouter()
 
@@ -52,11 +53,12 @@ async def list_invited_events(
     return [
         InvitedEventOut(
             id=event.id,
+            short_code=event.short_code,
             title=event.title,
             status=event.status.value,
             start_at=event.start_at,
             end_at=event.end_at,
-            cover_url=event.cover_url,
+            cover_url=_resolve_cover_url(event.cover_url),
             my_frames_count=my_count,
             total_frames=total_count,
         )
@@ -131,6 +133,44 @@ async def create_checkout(
 ) -> CheckoutOut:
     key = idempotency_key or str(uuid4())
     return await payment_service.create_checkout(session, user_id, event_id, payload.plan, key)
+
+
+@router.post("/{event_id}/extend", response_model=ExtendOut)
+async def extend_storage(
+    event_id: UUID,
+    payload: ExtendIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> ExtendOut:
+    """Create a YooKassa checkout to extend album storage by 3m/6m/1y.
+
+    expires_at is updated only after webhook confirms the payment (see handle_webhook).
+    """
+    key = idempotency_key or str(uuid4())
+    return await payment_service.create_extend_checkout(
+        session, user_id, event_id, payload.period, key
+    )
+
+
+@router.post("/{event_id}/upgrade", response_model=UpgradeOut)
+async def upgrade_event(
+    event_id: UUID,
+    payload: UpgradeIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> UpgradeOut:
+    """Create a YooKassa checkout to upgrade an event.
+
+    kind="guests" — bump to next-tier plan (P10→P25→P50→...).
+    kind="frames" — extend frames_per_guest from 30 to 45 (+5 ₽/guest).
+    Changes applied after webhook confirms payment.
+    """
+    key = idempotency_key or str(uuid4())
+    return await payment_service.create_upgrade_checkout(
+        session, user_id, event_id, payload.kind, key
+    )
 
 
 @router.get("/{event_id}/qr", responses={200: {"content": {"image/png": {}}}})

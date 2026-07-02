@@ -18,7 +18,13 @@ import '../album_provider.dart';
 class FrameDetailScreen extends ConsumerStatefulWidget {
   final String eventId;
   final int frameIndex;
-  const FrameDetailScreen({super.key, required this.eventId, required this.frameIndex});
+  final String? jumpFrameId;
+  const FrameDetailScreen({
+    super.key,
+    required this.eventId,
+    required this.frameIndex,
+    this.jumpFrameId,
+  });
 
   @override
   ConsumerState<FrameDetailScreen> createState() => _FrameDetailScreenState();
@@ -27,6 +33,7 @@ class FrameDetailScreen extends ConsumerStatefulWidget {
 class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
   late int _current;
   bool _isPolaroid = false;
+  bool _jumped = false;
   // Локальный поворот: применяется визуально, при первом изменении показывается toast «Сохранить ротацию».
   // Если не сохранять — при смене кадра сбрасывается на серверный rotation.
   int _localRotation = 0;
@@ -40,6 +47,25 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
     super.initState();
     _current = widget.frameIndex;
     _loadRole();
+  }
+
+  /// If `jumpFrameId` is provided (from Memories tap), find its index in the
+  /// loaded album frames and switch `_current` to it. Called from build() once
+  /// frames are available.
+  void _maybeJump(List frames) {
+    if (_jumped || widget.jumpFrameId == null || frames.isEmpty) return;
+    final target = widget.jumpFrameId;
+    for (int i = 0; i < frames.length; i++) {
+      final f = frames[i];
+      if (f is Map && f['id']?.toString() == target) {
+        _jumped = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _current != i) setState(() => _current = i);
+        });
+        return;
+      }
+    }
+    _jumped = true; // frame not found — stop trying
   }
 
   Future<void> _loadRole() async {
@@ -248,6 +274,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
           );
         }
 
+        _maybeJump(frames);
         final total = frames.length;
         final safeIdx = _current.clamp(0, total - 1);
         final frame = frames[safeIdx];
@@ -699,7 +726,8 @@ class _FullFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = frame['full_url'] as String?;
+    // Prefer preview (1600px, ~500KB) for fast display; fall back to full_url for legacy frames.
+    final url = (frame['preview_url'] as String?) ?? (frame['full_url'] as String?);
     final w = (frame['width'] as num?)?.toDouble() ?? 3.0;
     final h = (frame['height'] as num?)?.toDouble() ?? 4.0;
     final ratio = w / h;

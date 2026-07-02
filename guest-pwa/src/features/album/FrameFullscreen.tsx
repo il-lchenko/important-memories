@@ -8,6 +8,7 @@ interface Frame {
   guest_name: string
   captured_at: string
   thumbnail_url: string | null
+  preview_url: string | null
   full_url: string
   width: number
   height: number
@@ -65,11 +66,11 @@ export default function FrameFullscreen() {
     if (idx >= 0 && idx < frames.length) setCurrentIndex(idx)
   }, [frames.length])
 
-  // Preload adjacent frames
+  // Preload adjacent frames — prefer preview (smaller, faster). Fallback for legacy frames.
   useEffect(() => {
     const urls: string[] = []
-    if (hasPrev) urls.push(frames[currentIndex - 1].full_url)
-    if (hasNext) urls.push(frames[currentIndex + 1].full_url)
+    if (hasPrev) urls.push(frames[currentIndex - 1].preview_url ?? frames[currentIndex - 1].full_url)
+    if (hasNext) urls.push(frames[currentIndex + 1].preview_url ?? frames[currentIndex + 1].full_url)
     urls.forEach((url) => { const img = new Image(); img.src = url })
   }, [currentIndex]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -196,7 +197,7 @@ export default function FrameFullscreen() {
       >
         <img
           key={frame.id}
-          src={frame.full_url}
+          src={frame.preview_url ?? frame.full_url}
           alt=""
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'block', transform: `rotate(${rotation}deg)`, transition: 'transform 0.3s ease' }}
         />

@@ -51,7 +51,10 @@ class Settings(BaseSettings):
 
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET: SecretStr = SecretStr("")
-    YOOKASSA_WEBHOOK_SECRET: SecretStr = SecretStr("dev-webhook-secret-change-me")
+    # Deprecated: YooKassa не подписывает webhook payload HMAC.
+    # Оставлено для обратной совместимости с существующими .env файлами.
+    # Защита webhook: nginx IP-whitelist (см. infra/nginx.conf).
+    YOOKASSA_WEBHOOK_SECRET: SecretStr = SecretStr("deprecated-not-used")
 
     FCM_PROJECT_ID: str = ""
     FCM_CREDENTIALS_JSON: SecretStr = SecretStr("")

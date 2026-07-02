@@ -40,6 +40,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS: in production require explicit origins list. "*" is only ok for local dev.
+if settings.APP_ENV == "production" and not settings.CORS_ORIGINS:
+    raise RuntimeError(
+        "CORS_ORIGINS must be set in production (e.g. CORS_ORIGINS=['https://impomento.pro'])"
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS or ["*"],

@@ -9,6 +9,7 @@ interface Frame {
   guest_name: string
   captured_at: string
   thumbnail_url: string | null
+  preview_url: string | null
   full_url: string
   width: number
   height: number

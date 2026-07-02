@@ -49,6 +49,7 @@ _ALBUM_URL_TTL = 86400  # 24 h — long enough to view, share, and download with
 
 def _to_frame_out(frame: Frame, guest_name: str, is_mine: bool) -> AlbumFrameOut:
     thumb_url = s3_client.presign_get(frame.thumbnail_url, expires_in=_ALBUM_URL_TTL) if frame.thumbnail_url else None
+    preview_url = s3_client.presign_get(frame.preview_url, expires_in=_ALBUM_URL_TTL) if frame.preview_url else None
     full_url = s3_client.presign_get(frame.s3_key, expires_in=_ALBUM_URL_TTL)
     voice_url = (
         s3_client.presign_get(frame.voice_s3_key, expires_in=_ALBUM_URL_TTL)
@@ -61,6 +62,7 @@ def _to_frame_out(frame: Frame, guest_name: str, is_mine: bool) -> AlbumFrameOut
         guest_name=guest_name,
         captured_at=frame.captured_at,
         thumbnail_url=thumb_url,
+        preview_url=preview_url,
         full_url=full_url,
         width=frame.width,
         height=frame.height,

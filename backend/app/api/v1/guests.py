@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.api.deps import CurrentGuest, OptionalUserId, SessionDep
 from app.core.errors import NotFoundError
@@ -11,15 +11,28 @@ from app.domain.schemas.guests import (
 )
 from app.repos import event_repo
 from app.services import guest_service
+from app.services.event_service import _resolve_cover_url
 
 router = APIRouter()
 
 
+def _client_ip(request: Request) -> str | None:
+    # Nginx sets X-Real-IP; fallback to raw client.
+    xr = request.headers.get("x-real-ip")
+    if xr:
+        return xr.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
 @router.get("/events/{short_code}", response_model=EventPreviewOut)
-async def get_event_preview(short_code: str, session: SessionDep) -> EventPreviewOut:
+async def get_event_preview(
+    short_code: str, session: SessionDep, request: Request
+) -> EventPreviewOut:
     event = await event_repo.get_by_short_code(session, short_code)
     if event is None or event.status == EventStatus.CANCELLED:
-        raise NotFoundError("Event not found", details={"short_code": short_code})
+        # Same anti-bruteforce path as POST /sessions.
+        await guest_service._register_short_code_failure(_client_ip(request))
+        raise NotFoundError("Код не найден")
     s = event.settings
     return EventPreviewOut(
         title=event.title,
@@ -28,7 +41,7 @@ async def get_event_preview(short_code: str, session: SessionDep) -> EventPrevie
         start_at=event.start_at,
         lut_preset=s.lut_preset.value,
         status=event.status.value,
-        cover_url=event.cover_url,
+        cover_url=_resolve_cover_url(event.cover_url),
     )
 
 
@@ -37,6 +50,7 @@ async def join_event(
     payload: GuestJoinIn,
     session: SessionDep,
     user_id: OptionalUserId,
+    request: Request,
 ) -> GuestSessionOut:
     return await guest_service.join(
         session,
@@ -44,6 +58,7 @@ async def join_event(
         name=payload.name,
         fingerprint=payload.fingerprint,
         actor_user_id=user_id,
+        client_ip=_client_ip(request),
     )
 
 

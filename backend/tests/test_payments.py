@@ -1,24 +1,12 @@
-import hashlib
-import hmac
 import json
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.core.config import settings
 from app.core.db import SessionLocal
 from app.domain.models import Event, EventStatus, Payment, PaymentStatus
 from tests.helpers import auth_headers, authenticate, future_event_payload
-
-
-def _sign(body: bytes) -> str:
-    digest = hmac.new(
-        settings.YOOKASSA_WEBHOOK_SECRET.get_secret_value().encode(),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-    return f"sha256={digest}"
 
 
 @pytest.mark.asyncio
@@ -104,10 +92,12 @@ async def test_webhook_succeeded_activates_event(client: AsyncClient) -> None:
     }
     body = json.dumps(payload).encode()
 
+    # Webhook is protected by nginx IP-whitelist in production, not HMAC.
+    # In tests we just POST the payload directly.
     resp = await client.post(
         "/api/v1/webhooks/yookassa",
         content=body,
-        headers={"Content-Type": "application/json", "X-Webhook-Signature": _sign(body)},
+        headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 200, resp.text
 
@@ -119,23 +109,12 @@ async def test_webhook_succeeded_activates_event(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_webhook_rejected_with_wrong_signature(client: AsyncClient) -> None:
-    payload = b'{"event":"payment.succeeded","object":{"id":"x","status":"succeeded"}}'
-    resp = await client.post(
-        "/api/v1/webhooks/yookassa",
-        content=payload,
-        headers={"X-Webhook-Signature": "sha256=deadbeef"},
-    )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
 async def test_webhook_unknown_payment_returns_ok(client: AsyncClient) -> None:
     payload = {"event": "payment.succeeded", "object": {"id": "unknown_x", "status": "succeeded"}}
     body = json.dumps(payload).encode()
     resp = await client.post(
         "/api/v1/webhooks/yookassa",
         content=body,
-        headers={"X-Webhook-Signature": _sign(body)},
+        headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 200

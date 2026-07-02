@@ -30,35 +30,25 @@ class ProfileScreen extends ConsumerWidget {
         : (email.isNotEmpty ? email.split('@').first : '...');
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.paper2,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
           children: [
-            GestureDetector(
-              onTap: () => context.pop(),
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.paper2,
-                  borderRadius: BorderRadius.circular(12),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 16, left: 0, right: 0),
+              padding: const EdgeInsets.only(top: 10, bottom: 16),
+              child: Text(
+                'Профиль',
+                style: GoogleFonts.playfairDisplay(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 28,
+                  letterSpacing: -0.6,
+                  color: AppColors.ink,
                 ),
-                child: const Icon(Icons.chevron_left, color: AppColors.ink, size: 22),
               ),
             ),
-            const SizedBox(height: 20),
-
-            Text(
-              'Профиль',
-              style: GoogleFonts.playfairDisplay(
-                fontWeight: FontWeight.w500,
-                fontSize: 32,
-                letterSpacing: -0.02 * 32,
-                color: AppColors.ink,
-              ),
-            ),
-            const SizedBox(height: 16),
 
             _UserCard(
               initial: initial,
@@ -91,10 +81,68 @@ class ProfileScreen extends ConsumerWidget {
             ),
 
             const _SectionTitle('Помощь'),
-            const _FaqRow('Что такое «проявка»?'),
-            const _FaqRow('Можно ли изменить плёнку?'),
-            const _FaqRow('Кто видит фотографии'),
-            const _FaqRow('Возврат денег'),
+            _FaqRow(
+              question: 'Что такое «проявка»?',
+              answer:
+                  'Как настоящая плёночная камера — снимки не показываются сразу. '
+                  'Вы выбираете при создании альбома, когда «плёнку проявить»: '
+                  'сразу после каждого кадра или в конкретное время после события. '
+                  'До проявки гости видят только чёрные квадраты — так интереснее ждать.',
+            ),
+            _FaqRow(
+              question: 'Можно ли изменить плёнку?',
+              answer:
+                  'Плёнка (Portra 400, Fuji 400H, Cinestill, Ilford HP5) выбирается при '
+                  'создании альбома и применяется ко всем кадрам этого события. '
+                  'Поменять уже после создания нельзя, чтобы стиль альбома оставался цельным. '
+                  'Для нового ощущения — создайте новое событие с другой плёнкой.',
+            ),
+            _FaqRow(
+              question: 'Кто видит фотографии?',
+              answer:
+                  'Только участники события, у которых есть ссылка или QR-код от вас. '
+                  'Все фото хранятся приватно, никаких «публичных лент» или поиска по кадрам. '
+                  'Скачать оригиналы могут владелец альбома и авторы своих кадров.',
+            ),
+            _FaqRow(
+              question: 'Сколько хранятся альбомы?',
+              answer:
+                  'Срок хранения зависит от тарифа: FREE — 14 дней, платные — от 30 до 365 дней. '
+                  'Мы напоминаем за 7, 3 и 1 день до истечения. Продлить хранение можно в любой момент '
+                  'из настроек альбома (от 490 ₽ за 3 месяца).',
+            ),
+            _FaqRow(
+              question: 'Как работает возврат денег?',
+              answer:
+                  'Если событие не активировано — возможен возврат в течение 14 дней. '
+                  'После активации (получения QR-кода) услуга считается оказанной. '
+                  'При техническом сбое на нашей стороне вернём деньги полностью. '
+                  'Заявку на возврат отправьте на support@impomento.pro.',
+            ),
+
+            const _SectionTitle('О проекте'),
+            _FaqRow(
+              question: 'Что такое Important Memories?',
+              answer:
+                  'Цифровая одноразовая камера для свадеб, ДР, корпоративов и любых событий. '
+                  'Гости сканируют QR — снимают моменты — вы получаете один общий альбом с плёночной эстетикой. '
+                  'Без загрузок, без облачных папок, без каши в чатах.',
+            ),
+            _FaqRow(
+              question: 'Правила использования',
+              answer:
+                  'Публичная оферта: https://impomento.pro/offer\n'
+                  'Политика конфиденциальности: https://impomento.pro/privacy\n\n'
+                  'Возраст: 14+. Запрещён контент, нарушающий закон РФ. '
+                  'Спорные материалы удаляем по жалобам от пользователей.',
+            ),
+            _FaqRow(
+              question: 'Связаться с поддержкой',
+              answer:
+                  'Email: support@impomento.pro\n\n'
+                  'В теме письма укажите категорию — «Возврат», '
+                  '«Технический вопрос», «ПД» или «Другое» — так проще разобрать обращение быстрее.',
+            ),
 
             const SizedBox(height: 18),
             _LogoutButton(
@@ -119,6 +167,7 @@ class ProfileScreen extends ConsumerWidget {
           ],
         ),
       ),
+      // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
     );
   }
 }
@@ -137,7 +186,7 @@ class _UserCard extends StatelessWidget {
       child: Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.paper2,
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -245,7 +294,7 @@ class _ToggleRowState extends State<_ToggleRow> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
       decoration: BoxDecoration(
-        color: AppColors.paper2,
+        color: AppColors.paper,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -281,30 +330,92 @@ class _ToggleRowState extends State<_ToggleRow> {
 
 class _FaqRow extends StatelessWidget {
   final String question;
-  const _FaqRow(this.question);
+  final String answer;
+  const _FaqRow({required this.question, required this.answer});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: AppColors.paper2,
-        borderRadius: BorderRadius.circular(14),
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => _FaqSheet(question: question, answer: answer),
       ),
-      child: Row(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: AppColors.paper,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                question,
+                style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.ink),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.ink4, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FaqSheet extends StatelessWidget {
+  final String question;
+  final String answer;
+  const _FaqSheet({required this.question, required this.answer});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              question,
-              style: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.ink),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.paper3,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.ink4, size: 18),
+          const SizedBox(height: 18),
+          Text(
+            question,
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            answer,
+            style: GoogleFonts.manrope(
+              fontSize: 14.5,
+              color: AppColors.ink2,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -322,18 +433,26 @@ class _LogoutButton extends StatelessWidget {
       child: Container(
         height: AppSizes.buttonHeight,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.shutter.withValues(alpha: 0.4)),
+          color: AppColors.shutter.withValues(alpha: 0.10),
+          border: Border.all(color: AppColors.shutter.withValues(alpha: 0.35), width: 1.2),
           borderRadius: AppRadius.mdBR,
         ),
         alignment: Alignment.center,
-        child: const Text(
-          'Выйти из аккаунта',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: AppColors.shutter,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.logout, size: 18, color: AppColors.shutter),
+            SizedBox(width: 8),
+            Text(
+              'Выйти из аккаунта',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: AppColors.shutter,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -15,7 +15,18 @@ export function useCamera() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
+    // Request max resolution the browser can provide.
+    // ideal is a hint; browser picks the closest available (usually 720p → 4K depending on device).
+    // Fallback to plain facingMode / true if constraints get rejected.
     const constraints: MediaStreamConstraints[] = [
+      {
+        video: {
+          facingMode,
+          width: { ideal: 4096 },
+          height: { ideal: 3072 },
+        },
+        audio: false,
+      },
       { video: { facingMode }, audio: false },
       { video: true, audio: false },
     ]

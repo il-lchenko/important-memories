@@ -54,9 +54,12 @@ def download_bytes(key: str) -> bytes:
 
 
 def upload_bytes(key: str, data: bytes, content_type: str) -> None:
+    # SSE-S3 (AES-256 server-side encryption) at rest — required for compliance.
+    # Timeweb S3 supports SSE-S3 out of the box; MinIO local dev ignores unknown headers.
     get_s3_client().put_object(
         Bucket=settings.S3_BUCKET,
         Key=key,
         Body=data,
         ContentType=content_type,
+        ServerSideEncryption="AES256",
     )

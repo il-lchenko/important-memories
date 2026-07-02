@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Политика конфиденциальности — Important Memories</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#F6F2E8;--paper-2:#FCFAF5;--paper-3:#EFE9DA;--ink:#1A1714;--ink-2:#45403A;--ink-3:#756E64;--line:rgba(26,23,20,0.10);--amber:#C9881E;--amber-soft:rgba(201,136,30,0.10);}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .container{display:grid;grid-template-columns:220px 1fr;gap:48px;max-width:1080px;margin:0 auto;padding:48px 32px}
+  aside.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto;font-size:12.5px;border-right:1px solid var(--line);padding-right:16px}
+  aside.toc h3{font-family:'Fraunces',serif;font-size:13px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px}
+  aside.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+  aside.toc li{counter-increment:toc;margin:4px 0}
+  aside.toc a{display:block;color:var(--ink-2);text-decoration:none;padding:3px 6px;border-radius:4px;line-height:1.4}
+  aside.toc a::before{content:counter(toc) ". ";color:var(--ink-3);font-family:'JetBrains Mono',monospace;font-size:10px;margin-right:4px}
+  aside.toc a:hover{background:var(--amber-soft);color:var(--ink)}
+  main{min-width:0;max-width:760px}
+  header.doc-head{margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid var(--line)}
+  header.doc-head .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--amber);margin-bottom:12px}
+  header.doc-head h1{font-family:'Fraunces',serif;font-weight:600;font-size:36px;line-height:1.15;margin:0 0 12px;letter-spacing:-0.5px}
+  header.doc-head .meta{display:flex;gap:24px;font-size:12px;color:var(--ink-3);font-family:'JetBrains Mono',monospace;flex-wrap:wrap}
+  section{margin:40px 0;scroll-margin-top:24px}
+  section > h2{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:-0.3px}
+  section > h2 .num{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--amber);margin-right:10px;font-weight:500}
+  h3{font-family:'Inter',sans-serif;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--ink-3);margin:24px 0 8px}
+  p{margin:0 0 12px}
+  a{color:var(--amber);text-decoration:underline;text-underline-offset:3px}
+  code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--paper-3);padding:1px 5px;border-radius:3px}
+  ul,ol{padding-left:22px}
+  ul li,ol li{margin:4px 0}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  thead th{text-align:left;background:var(--paper-3);color:var(--ink);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--amber);font-size:11.5px;text-transform:uppercase;letter-spacing:0.5px}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:nth-child(even){background:var(--paper-2)}
+  .card{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:16px 0;font-size:14px}
+  .card.amber{background:var(--amber-soft);border-color:rgba(201,136,30,0.25)}
+  .placeholder{display:inline-block;background:var(--amber-soft);color:var(--amber);padding:1px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600}
+  footer.doc-foot{margin-top:64px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);text-align:center;font-family:'JetBrains Mono',monospace}
+  @media(max-width:900px){.container{grid-template-columns:1fr;padding:24px 16px;gap:0}aside.toc{display:none}header.doc-head h1{font-size:28px}}
+  @media print{body{background:#fff;font-size:11pt}aside.toc{display:none}.container{display:block;max-width:100%;padding:0}section{page-break-inside:avoid;margin:24px 0}a{color:var(--ink);text-decoration:underline}.placeholder{background:#fff;border:1px dashed var(--ink-3)}}
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="toc">
+  <h3>Содержание</h3>
+  <ol>
+    <li><a href="#p1">Общие положения</a></li>
+    <li><a href="#p2">Основные понятия</a></li>
+    <li><a href="#p3">Какие ПД мы обрабатываем</a></li>
+    <li><a href="#p4">Цели обработки</a></li>
+    <li><a href="#p5">Правовые основания</a></li>
+    <li><a href="#p6">Обработчики</a></li>
+    <li><a href="#p7">Локализация данных</a></li>
+    <li><a href="#p8">Сроки хранения</a></li>
+    <li><a href="#p9">Права субъекта ПД</a></li>
+    <li><a href="#p10">Cookies</a></li>
+    <li><a href="#p11">Безопасность</a></li>
+    <li><a href="#p12">Изменения политики</a></li>
+  </ol>
+</aside>
+
+<main>
+<header class="doc-head">
+  <div class="eyebrow">Политика в отношении обработки персональных данных</div>
+  <h1>Important Memories</h1>
+  <div class="meta">
+    <span>Дата вступления в силу: <strong><span class="placeholder">{{DATE_EFFECTIVE}}</span></strong></span>
+    <span>Оператор: <strong><span class="placeholder">{{FULL_NAME}}</span></strong></span>
+    <span>Версия: <strong>1.0</strong></span>
+  </div>
+</header>
+
+<section id="p1">
+  <h2><span class="num">01</span>Общие положения</h2>
+  <p>Настоящая Политика в отношении обработки персональных данных (далее — «Политика») разработана в соответствии с требованиями:</p>
+  <ul>
+    <li>Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных»;</li>
+    <li>Федерального закона от 27.07.2006 № 149-ФЗ «Об информации, информационных технологиях и о защите информации»;</li>
+    <li>Конституции Российской Федерации (статьи 23, 24);</li>
+    <li>Закона РФ «О защите прав потребителей».</li>
+  </ul>
+
+  <p><strong>Оператор персональных данных:</strong> <span class="placeholder">{{FULL_NAME}}</span>, самозанятое лицо, ИНН <span class="placeholder">{{INN}}</span>, г. Москва (далее — «Оператор», «мы», «нас»).</p>
+
+  <p><strong>Сфера применения:</strong> настоящая Политика применяется к обработке персональных данных пользователей мобильного приложения Important Memories (далее — «Приложение»), веб-сайта <a href="https://impomento.pro">impomento.pro</a> и прогрессивного веб-приложения (PWA) для гостей событий.</p>
+
+  <p><strong>Целью Политики</strong> является обеспечение защиты прав и свобод человека и гражданина при обработке его персональных данных, в том числе защиты прав на неприкосновенность частной жизни, личной и семейной тайны.</p>
+
+  <p>Используя Приложение или Сайт, вы подтверждаете согласие с условиями настоящей Политики. Если вы не согласны с условиями Политики — прекратите использование Сервиса.</p>
+</section>
+
+<section id="p2">
+  <h2><span class="num">02</span>Основные понятия</h2>
+  <p>В настоящей Политике используются следующие термины (согласно 152-ФЗ):</p>
+  <ul>
+    <li><strong>Персональные данные (ПД)</strong> — любая информация, относящаяся к прямо или косвенно определённому или определяемому физическому лицу.</li>
+    <li><strong>Оператор</strong> — <span class="placeholder">{{FULL_NAME}}</span>, самостоятельно организующий и осуществляющий обработку ПД.</li>
+    <li><strong>Субъект ПД</strong> — физическое лицо, чьи ПД обрабатываются (пользователь Сервиса).</li>
+    <li><strong>Обработка ПД</strong> — любое действие с ПД: сбор, запись, систематизация, накопление, хранение, уточнение, извлечение, использование, передача, обезличивание, блокирование, удаление, уничтожение.</li>
+    <li><strong>Автоматизированная обработка</strong> — обработка ПД с помощью средств вычислительной техники.</li>
+    <li><strong>Согласие субъекта ПД</strong> — свободное, конкретное, информированное и сознательное выражение воли субъекта.</li>
+    <li><strong>Cookies</strong> — фрагменты данных, сохраняемые браузером пользователя для аутентификации и работы Сервиса.</li>
+  </ul>
+</section>
+
+<section id="p3">
+  <h2><span class="num">03</span>Какие персональные данные мы обрабатываем</h2>
+  <p>Мы обрабатываем следующие категории ПД, предоставленные пользователем добровольно или собранные автоматически при использовании Сервиса:</p>
+
+  <table>
+    <thead><tr><th>Категория ПД</th><th>Способ получения</th><th>Обязательность</th></tr></thead>
+    <tbody>
+      <tr><td>Email-адрес</td><td>При регистрации</td><td>Обязательно</td></tr>
+      <tr><td>Имя (никнейм)</td><td>При присоединении к событию</td><td>Обязательно для гостей</td></tr>
+      <tr><td>Уникальный идентификатор устройства (fingerprint)</td><td>Автоматически при первом входе</td><td>Обязательно</td></tr>
+      <tr><td>Фотографии</td><td>Загружаются пользователем через камеру</td><td>По желанию</td></tr>
+      <tr><td>Голосовые заметки</td><td>Записываются пользователем в приложении</td><td>По желанию</td></tr>
+      <tr><td>Текстовые подписи к фото</td><td>Вводятся пользователем</td><td>По желанию</td></tr>
+      <tr><td>IP-адрес</td><td>Автоматически при подключении</td><td>Технически необходимо</td></tr>
+      <tr><td>User-Agent, версия ОС</td><td>Автоматически из HTTP-заголовков</td><td>Технически необходимо</td></tr>
+      <tr><td>Push-токен FCM</td><td>Автоматически при разрешении уведомлений</td><td>По желанию</td></tr>
+      <tr><td>Данные о платежах (ID, сумма, статус)</td><td>Через ЮKassa</td><td>При покупке тарифа</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card amber">
+    <strong>Важно:</strong> мы <strong>не запрашиваем и не храним</strong> реквизиты банковских карт, паспортные данные, СНИЛС, адрес проживания или иные ПД, не указанные в таблице выше. Оплата обрабатывается непосредственно платёжной системой ЮKassa (ООО «НКО ЮMoney»).
+  </div>
+</section>
+
+<section id="p4">
+  <h2><span class="num">04</span>Цели обработки персональных данных</h2>
+  <p>Мы обрабатываем ПД исключительно для следующих целей:</p>
+  <ol>
+    <li><strong>Идентификация пользователя</strong> — регистрация, авторизация, восстановление доступа.</li>
+    <li><strong>Оказание услуг Сервиса</strong> — создание событий и альбомов, загрузка и хранение фотографий, обеспечение доступа гостей к альбомам.</li>
+    <li><strong>Обработка платежей</strong> — оплата тарифов, продлений хранения, дополнительных функций через ЮKassa.</li>
+    <li><strong>Отправка сервисных сообщений</strong> — коды входа по email, push-уведомления о завершении событий, напоминания о продлении хранения.</li>
+    <li><strong>Обеспечение технической работы Сервиса</strong> — балансировка нагрузки, обнаружение и предотвращение мошеннических действий, обеспечение безопасности.</li>
+    <li><strong>Аналитика использования</strong> — агрегированная и обезличенная статистика для улучшения Сервиса (Yandex Metrica).</li>
+    <li><strong>Соблюдение требований законодательства</strong> — исполнение обязательств оператора по 152-ФЗ, ЗоЗПП, налоговому законодательству.</li>
+  </ol>
+  <p>Мы <strong>не используем ПД</strong> для целей маркетингового профилирования, продажи третьим лицам, показа таргетированной рекламы за пределами Сервиса.</p>
+</section>
+
+<section id="p5">
+  <h2><span class="num">05</span>Правовые основания обработки</h2>
+  <p>Обработка ПД осуществляется на следующих правовых основаниях (согласно 152-ФЗ ст. 6 п.1):</p>
+  <ul>
+    <li><strong>Согласие субъекта ПД</strong> (пп. 1) — при регистрации в Приложении пользователь даёт явное согласие путём проставления галочки «Я согласен с Политикой конфиденциальности и Публичной офертой».</li>
+    <li><strong>Заключение и исполнение договора</strong> (пп. 5) — обработка необходима для оказания услуг Сервиса (создание альбомов, обработка платежей).</li>
+    <li><strong>Соблюдение закона</strong> (пп. 2) — обработка требуется для соблюдения обязанностей оператора по 152-ФЗ, ЗоЗПП, НК РФ (в части налоговой отчётности).</li>
+  </ul>
+</section>
+
+<section id="p6">
+  <h2><span class="num">06</span>Кому мы передаём данные (обработчики)</h2>
+  <p>Мы привлекаем следующие организации в качестве обработчиков ПД (по 152-ФЗ ст. 6 п.3) для целей, указанных в разделе 4:</p>
+
+  <table>
+    <thead><tr><th>Обработчик</th><th>Категория данных</th><th>Цель</th></tr></thead>
+    <tbody>
+      <tr><td>ООО «Тайм Веб»<br>(Timeweb Cloud)</td><td>Все данные (хостинг серверов, БД, объектное хранилище S3)</td><td>Инфраструктура сервиса. Серверы в РФ.</td></tr>
+      <tr><td>ООО «НКО ЮMoney»<br>(ЮKassa)</td><td>Email, сумма, ID платежа</td><td>Обработка платежей. Реквизиты карт мы не видим.</td></tr>
+      <tr><td>Resend Inc.</td><td>Email-адрес</td><td>Доставка транзакционных писем (коды входа).</td></tr>
+      <tr><td>Google LLC<br>(Firebase Cloud Messaging)</td><td>Push-токен FCM</td><td>Доставка push-уведомлений.</td></tr>
+      <tr><td>ООО «ЯНДЕКС»<br>(Yandex Metrica)</td><td>IP, User-Agent, cookies</td><td>Обезличенная агрегированная аналитика.</td></tr>
+      <tr><td>Functional Software Inc.<br>(Sentry)</td><td>Маскированные ID, версия приложения</td><td>Мониторинг ошибок. PII маскируется на нашей стороне.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card">
+    <strong>Мы НЕ передаём ПД</strong> третьим лицам за пределами приведённого списка. Исключения — только по обоснованному запросу государственных органов РФ в порядке, установленном законодательством (152-ФЗ ст. 6 п.1 пп. 2, 3).
+  </div>
+</section>
+
+<section id="p7">
+  <h2><span class="num">07</span>Локализация данных</h2>
+  <p>В соответствии со ст. 18 п. 5 152-ФЗ, первичная обработка (сбор, запись, систематизация, накопление, хранение, уточнение, извлечение) персональных данных граждан Российской Федерации осуществляется <strong>с использованием баз данных, находящихся на территории Российской Федерации</strong>.</p>
+  <p>Основной инфраструктурный провайдер — <strong>ООО «Тайм Веб»</strong> (Timeweb Cloud), центры обработки данных которого расположены в Москве и Санкт-Петербурге.</p>
+  <p>Резервные копии баз данных и объектного хранилища сохраняются на территории РФ.</p>
+</section>
+
+<section id="p8">
+  <h2><span class="num">08</span>Сроки хранения персональных данных</h2>
+  <table>
+    <thead><tr><th>Категория данных</th><th>Срок хранения</th></tr></thead>
+    <tbody>
+      <tr><td>Email и профиль пользователя</td><td>Пока активен аккаунт</td></tr>
+      <tr><td>Фотографии и связанный контент (голос, подписи)</td><td>Согласно выбранному тарифу события (от 14 до 365 дней) + продления, оплаченные пользователем</td></tr>
+      <tr><td>Технические логи и IP-адреса</td><td>90 дней</td></tr>
+      <tr><td>Push-токен FCM</td><td>Пока действует</td></tr>
+      <tr><td>Данные о платёжных операциях</td><td>5 лет (в соответствии с ФЗ «О бухгалтерском учёте»)</td></tr>
+      <tr><td>После удаления аккаунта пользователем</td><td>Soft delete на 30 дней (для восстановления), затем полное удаление</td></tr>
+    </tbody>
+  </table>
+  <p>По истечении сроков хранения данные автоматически удаляются или обезличиваются. Пользователь может запросить досрочное удаление своих данных в любое время (см. раздел 9).</p>
+</section>
+
+<section id="p9">
+  <h2><span class="num">09</span>Права субъекта персональных данных</h2>
+  <p>В соответствии с 152-ФЗ (ст. 14, 20, 21) вы имеете право:</p>
+  <ul>
+    <li>Получать информацию, касающуюся обработки ваших ПД;</li>
+    <li>Требовать уточнения, блокирования или уничтожения ПД в случае их неполноты, устаревшего характера, неточности или неправомерной обработки;</li>
+    <li>Отозвать согласие на обработку ПД в любой момент;</li>
+    <li>Обжаловать действия или бездействие Оператора в Роскомнадзоре (<a href="https://rkn.gov.ru" target="_blank">rkn.gov.ru</a>) или в суде.</li>
+  </ul>
+
+  <h3>Как реализовать свои права</h3>
+  <p><strong>В приложении:</strong></p>
+  <ul>
+    <li>«Настройки» → «Удалить аккаунт» — soft delete на 30 дней с возможностью восстановления, затем полное удаление ПД;</li>
+    <li>«Настройки» → «Экспорт моих данных» — получение архива с вашими данными на email в течение 30 дней.</li>
+  </ul>
+  <p><strong>По электронной почте:</strong> направьте запрос на <a href="mailto:support@impomento.pro">support@impomento.pro</a> с темой начинающейся на «ПД:» (например, «ПД: удаление данных», «ПД: доступ»).</p>
+  <p>Мы обязаны ответить на запрос в течение <strong>30 дней</strong> с даты его получения (152-ФЗ ст. 20 п. 1).</p>
+</section>
+
+<section id="p10">
+  <h2><span class="num">10</span>Cookies и техническая информация</h2>
+  <p>Наш Сервис использует cookies и аналогичные технологии для следующих целей:</p>
+  <ul>
+    <li><strong>Session cookies</strong> — поддержание сессии авторизации пользователя;</li>
+    <li><strong>Аналитические cookies</strong> (Yandex Metrica) — обезличенный сбор статистики использования Сервиса;</li>
+    <li><strong>Функциональные cookies</strong> — сохранение выбранных настроек интерфейса.</li>
+  </ul>
+  <p>Вы можете отключить cookies в настройках браузера, однако это может ограничить функциональность Сервиса (например, потребует повторной авторизации при каждом посещении).</p>
+</section>
+
+<section id="p11">
+  <h2><span class="num">11</span>Меры защиты персональных данных</h2>
+  <p>Оператор применяет технические и организационные меры для защиты ПД от неправомерного доступа, изменения, раскрытия или уничтожения:</p>
+  <ul>
+    <li>Передача данных по защищённым каналам HTTPS/TLS 1.2 и выше;</li>
+    <li>Шифрование объектного хранилища на стороне сервера (SSE-S3, AES-256);</li>
+    <li>Хеширование паролей алгоритмом bcrypt;</li>
+    <li>Ограничение доступа к БД и хранилищу — только для авторизованного персонала оператора;</li>
+    <li>Регулярные автоматические резервные копии БД (14 дней хранения);</li>
+    <li>Ротация ключей доступа не реже одного раза в 6 месяцев;</li>
+    <li>Мониторинг ошибок и подозрительной активности через Sentry;</li>
+    <li>Rate limiting на аутентификации для защиты от брутфорса;</li>
+    <li>Санитизация пользовательского ввода для защиты от XSS.</li>
+  </ul>
+  <p>В случае обнаружения инцидента, повлёкшего утечку или неправомерный доступ к ПД, Оператор уведомит Роскомнадзор в течение <strong>24 часов</strong> с момента обнаружения (152-ФЗ ст. 21 п. 3.1) и в течение <strong>72 часов</strong> — затронутых субъектов ПД.</p>
+</section>
+
+<section id="p12">
+  <h2><span class="num">12</span>Изменение Политики</h2>
+  <p>Мы оставляем за собой право периодически обновлять настоящую Политику. Актуальная версия всегда доступна по адресу <a href="https://impomento.pro/privacy">https://impomento.pro/privacy</a>.</p>
+  <p>О <strong>существенных изменениях</strong> (расширение категорий обрабатываемых данных, изменение целей обработки, добавление обработчиков) мы уведомим вас не менее чем за <strong>14 дней</strong> до вступления изменений в силу — через push-уведомление в приложении и на указанный email.</p>
+  <p>Продолжение использования Сервиса после вступления изменений в силу означает согласие с новой редакцией Политики.</p>
+  <p>Предыдущие версии Политики предоставляются по запросу на <a href="mailto:support@impomento.pro">support@impomento.pro</a>.</p>
+</section>
+
+<section>
+  <h2><span class="num">✉</span>Контакты</h2>
+  <div class="card">
+    <p><strong>Оператор персональных данных:</strong><br>
+    <span class="placeholder">{{FULL_NAME}}</span> (самозанятое лицо)<br>
+    ИНН: <span class="placeholder">{{INN}}</span><br>
+    г. Москва<br>
+    Email: <a href="mailto:support@impomento.pro">support@impomento.pro</a></p>
+    <p style="margin:12px 0 0;"><strong>По вопросам обработки ПД:</strong> направляйте запрос на указанный email с темой начинающейся на «ПД:».</p>
+    <p style="margin:12px 0 0;"><strong>Надзорный орган:</strong> Федеральная служба по надзору в сфере связи, информационных технологий и массовых коммуникаций (Роскомнадзор) — <a href="https://rkn.gov.ru">rkn.gov.ru</a>.</p>
+  </div>
+</section>
+
+<footer class="doc-foot">
+  Important Memories · Политика конфиденциальности · версия 1.0 · дата вступления в силу: <span class="placeholder">{{DATE_EFFECTIVE}}</span>
+</footer>
+</main>
+</div>
+</body>
+</html>

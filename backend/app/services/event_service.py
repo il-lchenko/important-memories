@@ -37,6 +37,24 @@ _PLAN_LIMITS: dict[Plan, int] = {
     Plan.UNLIMITED: 10_000,
 }
 
+# Default storage retention (days) per plan — used to set Event.expires_at on activation.
+# Aligned with business plan v3.2 pricing grid.
+_PLAN_RETENTION_DAYS: dict[Plan, int] = {
+    Plan.FREE: 14,
+    Plan.P10: 30,
+    Plan.P25: 60,
+    Plan.P50: 90,
+    Plan.P100: 120,
+    Plan.P150: 180,
+    Plan.UNLIMITED: 240,
+}
+
+
+def default_expires_at(plan: Plan, activated_at: datetime | None = None) -> datetime:
+    """Compute expires_at for an event newly activated on `plan`."""
+    base = activated_at or datetime.now(timezone.utc)
+    return base + timedelta(days=_PLAN_RETENTION_DAYS.get(plan, 60))
+
 
 async def _allocate_short_code(session: AsyncSession) -> str:
     for _ in range(8):
@@ -82,6 +100,7 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
         title=event.title,
         start_at=event.start_at,
         end_at=event.end_at,
+        expires_at=event.expires_at,
         event_type=event.event_type,
         status=event.status,
         cover_url=_resolve_cover_url(event.cover_url),
@@ -233,6 +252,9 @@ async def activate_event(
             details={"status": event.status.value},
         )
     event.status = EventStatus.ACTIVE
+    # Set storage expiration if not already set (e.g. on manual DEV activate).
+    if event.expires_at is None:
+        event.expires_at = default_expires_at(event.settings.plan)
     await session.commit()
     return _to_out(event)
 

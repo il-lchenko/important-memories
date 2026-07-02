@@ -16,34 +16,346 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _tab = 0; // 0 = мои, 1 = приглашённые
   String _selectedFilter = 'all';
+  String _searchQuery = '';
+  DateTimeRange? _dateRange;
+  bool _isSearching = false;
+  bool _chipsCollapsed = false;
+  final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
+
+  static const _collapseThreshold = 16.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final collapsed = _scrollController.offset > _collapseThreshold;
+    if (collapsed != _chipsCollapsed) {
+      setState(() => _chipsCollapsed = collapsed);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String get _tabLabel => switch (_tab) {
+        1 => 'Другие события',
+        2 => 'Все альбомы',
+        _ => 'Мои альбомы',
+      };
+
+  final GlobalKey _titleKey = GlobalKey();
+
+  Future<void> _openTabPicker() async {
+    final ctx = _titleKey.currentContext ?? context;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromLTRB(
+      origin.dx,
+      origin.dy + box.size.height + 6,
+      overlay.size.width - origin.dx - box.size.width,
+      0,
+    );
+    final result = await showMenu<int>(
+      context: ctx,
+      position: position,
+      color: AppColors.paper,
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      items: [
+        _tabMenuItem(value: 0, label: 'Мои альбомы', icon: Icons.collections_bookmark_outlined),
+        _tabMenuItem(value: 1, label: 'Другие события', icon: Icons.groups_outlined),
+        _tabMenuItem(value: 2, label: 'Все альбомы', icon: Icons.dashboard_customize_outlined),
+      ],
+    );
+    if (result != null && result != _tab) {
+      setState(() {
+        _tab = result;
+        _selectedFilter = 'all';
+        _searchQuery = '';
+        _searchController.clear();
+        _dateRange = null;
+        _isSearching = false;
+      });
+    }
+  }
+
+  PopupMenuItem<int> _tabMenuItem({required int value, required String label, required IconData icon}) {
+    final active = value == _tab;
+    return PopupMenuItem<int>(
+      value: value,
+      height: 46,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: active ? AppColors.amber : AppColors.ink2),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 15,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+              color: active ? AppColors.amber : AppColors.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openFiltersSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.paper3,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'Фильтры',
+                  style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Диапазон дат',
+                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink3, letterSpacing: 0.3),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () async {
+                    Navigator.of(ctx).pop();
+                    await _pickDateRange();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _dateRange != null
+                          ? AppColors.amber.withValues(alpha: 0.10)
+                          : AppColors.paper2,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _dateRange != null ? AppColors.amber : AppColors.paper3,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                          color: _dateRange != null ? AppColors.amber : AppColors.ink2,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _dateRange == null
+                                ? 'За всё время'
+                                : '${DateFormat('dd.MM.yyyy', 'ru').format(_dateRange!.start)} — ${DateFormat('dd.MM.yyyy', 'ru').format(_dateRange!.end)}',
+                            style: GoogleFonts.manrope(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: _dateRange != null ? AppColors.amber : AppColors.ink,
+                            ),
+                          ),
+                        ),
+                        if (_dateRange != null)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() => _dateRange = null);
+                              Navigator.of(ctx).pop();
+                            },
+                            child: const Icon(Icons.close, size: 18, color: AppColors.amber),
+                          )
+                        else
+                          const Icon(Icons.chevron_right, size: 20, color: AppColors.ink3),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.ink,
+                      foregroundColor: AppColors.paper,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      'Готово',
+                      style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final result = await showDateRangePicker(
+      context: context,
+      initialDateRange: _dateRange,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 2),
+      helpText: 'Диапазон дат',
+      cancelText: 'Отмена',
+      confirmText: 'Применить',
+      saveText: 'Применить',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: AppColors.amber,
+            onPrimary: Colors.white,
+            surface: AppColors.paper,
+            onSurface: AppColors.ink,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (result != null) {
+      setState(() => _dateRange = result);
+    }
+  }
+
+  bool _matchesFilters(Map<String, dynamic> e) {
+    // status filter
+    if (_selectedFilter != 'all' && (e['status'] as String?) != _selectedFilter) {
+      return false;
+    }
+    // search
+    if (_searchQuery.trim().isNotEmpty) {
+      final title = ((e['title'] as String?) ?? '').toLowerCase();
+      if (!title.contains(_searchQuery.trim().toLowerCase())) return false;
+    }
+    // date range (by start_at)
+    if (_dateRange != null) {
+      final raw = (e['start_at'] as String?) ?? (e['end_at'] as String?);
+      if (raw == null) return false;
+      final dt = DateTime.tryParse(raw);
+      if (dt == null) return false;
+      final localDt = dt.toLocal();
+      final rangeEnd = _dateRange!.end.add(const Duration(days: 1));
+      if (localDt.isBefore(_dateRange!.start) || localDt.isAfter(rangeEnd)) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.paper2,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header: soft cream (paper) + subtle shadow below to separate from content.
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.line, width: 1)),
+              padding: EdgeInsets.fromLTRB(16, 14, 12, _isSearching ? 14 : 16),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    offset: const Offset(0, 3),
+                    blurRadius: 6,
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
-              child: Text('Альбомы', style: Theme.of(context).textTheme.displayMedium),
-            ),
-
-            // Segment control: МОИ / ПРИГЛАШЕНИЯ
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-              child: _TabSwitcher(
-                tab: _tab,
-                onChanged: (t) => setState(() { _tab = t; _selectedFilter = 'all'; }),
-              ),
+              child: _isSearching
+                  ? _SearchBar(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                      onClose: () => setState(() {
+                        _isSearching = false;
+                        _searchQuery = '';
+                        _searchController.clear();
+                      }),
+                      onFilters: _openFiltersSheet,
+                      hasActiveFilter: _dateRange != null,
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            key: _titleKey,
+                            onTap: _openTabPicker,
+                            behavior: HitTestBehavior.opaque,
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _tabLabel,
+                                    style: GoogleFonts.playfairDisplay(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.ink,
+                                      letterSpacing: -0.6,
+                                      height: 1.05,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                const Icon(Icons.arrow_drop_down, size: 28, color: AppColors.ink2),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_tab != 1) _StatusFilterButton(
+                          selected: _selectedFilter,
+                          onSelect: (v) => setState(() => _selectedFilter = v),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _isSearching = true),
+                          icon: const Icon(Icons.search, size: 24, color: AppColors.ink2),
+                          tooltip: 'Поиск',
+                          padding: const EdgeInsets.all(8),
+                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                        ),
+                      ],
+                    ),
             ),
 
             if (_tab == 1) ...[
@@ -51,57 +363,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               Expanded(child: _InvitedSection()),
             ] else ...[
             // ─── Мои альбомы ────────────────────────────────────
-            const SizedBox(height: 14),
-            // Фильтр-чипы
-            eventsAsync.maybeWhen(
-              data: (events) {
-                final visible = events.where((e) => (e['status'] as String?) != 'cancelled').toList();
-                final activeCount = visible.where((e) => (e['status'] as String?) == 'active').length;
-                final completedCount = visible.where((e) => (e['status'] as String?) == 'completed').length;
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3),
-                  child: Row(children: [
-                    _FilterChip(
-                      label: 'Все',
-                      count: visible.length,
-                      accent: AppColors.amber,
-                      active: _selectedFilter == 'all',
-                      onTap: () => setState(() => _selectedFilter = 'all'),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Записываются',
-                      count: activeCount,
-                      accent: AppColors.shutter,
-                      active: _selectedFilter == 'active',
-                      onTap: () => setState(() => _selectedFilter = 'active'),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Проявлены',
-                      count: completedCount,
-                      accent: AppColors.success,
-                      active: _selectedFilter == 'completed',
-                      onTap: () => setState(() => _selectedFilter = 'completed'),
-                    ),
-                  ]),
-                );
-              },
-              orElse: () => SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s3),
-                child: Row(children: [
-                  _FilterChip(label: 'Все', accent: AppColors.amber, active: true, onTap: () {}),
-                  const SizedBox(width: 8),
-                  _FilterChip(label: 'Записываются', accent: AppColors.shutter, onTap: () {}),
-                  const SizedBox(width: 8),
-                  _FilterChip(label: 'Проявлены', accent: AppColors.success, onTap: () {}),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 12),
-
+            const SizedBox(height: 8),
             // Список ивентов
             Expanded(
               child: eventsAsync.when(
@@ -109,9 +371,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(eventsProvider)),
                 data: (events) {
                   final visible = events.where((e) => (e['status'] as String?) != 'cancelled').toList();
-                  final filtered = _selectedFilter == 'all'
-                      ? visible
-                      : visible.where((e) => (e['status'] as String?) == _selectedFilter).toList();
+                  final filtered = visible.where(_matchesFilters).toList();
                   return RefreshIndicator(
                     color: AppColors.amber,
                     backgroundColor: AppColors.paper,
@@ -145,6 +405,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               )
                             : ListView.builder(
+                                controller: _scrollController,
                                 physics: const AlwaysScrollableScrollPhysics(),
                                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                                 itemCount: filtered.length,
@@ -164,84 +425,116 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
       ),
-      floatingActionButton: _tab == 0 ? eventsAsync.maybeWhen(
-        data: (events) => events.isEmpty
-            ? null
-            : FloatingActionButton(
-                onPressed: () => context.push('/events/create'),
-                backgroundColor: AppColors.amber,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.add, size: 28),
-              ),
+      floatingActionButton: _tab != 1 ? eventsAsync.maybeWhen(
+        data: (events) => events.isEmpty ? null : const _CreateAlbumFab(),
         orElse: () => null,
       ) : null,
-      bottomNavigationBar: _BottomNav(),
+      floatingActionButtonLocation: _CreateAlbumFabLocation(),
+      // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
     );
   }
 }
 
-// ─── Tab switcher ─────────────────────────────────────────────────────────────
+// ─── Search bar (inline in header) ─────────────────────────────────────────────
 
-class _TabSwitcher extends StatelessWidget {
-  final int tab;
-  final ValueChanged<int> onChanged;
-  const _TabSwitcher({required this.tab, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.paper2,
-        borderRadius: AppRadius.lgBR,
-      ),
-      child: Row(
-        children: [
-          _TabBtn(label: 'МОИ АЛЬБОМЫ', active: tab == 0, onTap: () => onChanged(0)),
-          const SizedBox(width: 2),
-          _TabBtn(label: 'ДРУГИЕ СОБЫТИЯ', active: tab == 1, onTap: () => onChanged(1)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabBtn extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _TabBtn({required this.label, required this.active, required this.onTap});
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClose;
+  final VoidCallback onFilters;
+  final bool hasActiveFilter;
+  const _SearchBar({
+    required this.controller,
+    required this.onChanged,
+    required this.onClose,
+    required this.onFilters,
+    required this.hasActiveFilter,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          height: 34,
-          decoration: BoxDecoration(
-            color: active ? AppColors.paper : Colors.transparent,
-            borderRadius: AppRadius.mdBR,
-            boxShadow: active
-                ? const [
-                    BoxShadow(color: Color(0x14000000), blurRadius: 2, offset: Offset(0, 1)),
-                  ]
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'JetBrains Mono',
-              fontSize: 10,
-              letterSpacing: 0.8,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-              color: active ? AppColors.amber : AppColors.ink3,
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.paper2,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: AppColors.paper3, width: 1),
+            ),
+            child: Center(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      onChanged: onChanged,
+                      autofocus: true,
+                      textAlignVertical: TextAlignVertical.center,
+                      cursorColor: AppColors.amber,
+                      cursorHeight: 18,
+                      style: GoogleFonts.manrope(fontSize: 15, color: AppColors.ink),
+                      decoration: InputDecoration(
+                        hintText: 'Название альбома…',
+                        hintStyle: GoogleFonts.manrope(fontSize: 15, color: AppColors.ink3),
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  if (controller.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        controller.clear();
+                        onChanged('');
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.only(left: 6, right: 4),
+                        child: Icon(Icons.cancel, size: 18, color: AppColors.ink3),
+                      ),
+                    ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.search, size: 20, color: AppColors.ink3),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+        const SizedBox(width: 4),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              onPressed: onFilters,
+              icon: const Icon(Icons.tune, size: 22, color: AppColors.ink2),
+              tooltip: 'Фильтры',
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            ),
+            if (hasActiveFilter)
+              Positioned(
+                right: 8, top: 8,
+                child: Container(
+                  width: 8, height: 8,
+                  decoration: const BoxDecoration(color: AppColors.amber, shape: BoxShape.circle),
+                ),
+              ),
+          ],
+        ),
+        IconButton(
+          onPressed: onClose,
+          icon: const Icon(Icons.close, size: 22, color: AppColors.ink2),
+          tooltip: 'Закрыть поиск',
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        ),
+      ],
     );
   }
 }
@@ -291,20 +584,23 @@ class _InvitedSection extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
             children: [
               for (final e in events) ...[
-                _InvitedEventCard(event: e),
-                const SizedBox(height: 10),
+                AspectRatio(aspectRatio: 3 / 2, child: _InvitedEventCard(event: e)),
+                const SizedBox(height: 12),
               ],
               const SizedBox(height: 8),
-              OutlinedButton.icon(
+              FilledButton.icon(
                 onPressed: () => context.push('/guest/entry'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.ink3,
-                  side: const BorderSide(color: AppColors.paper3),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.amber,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 icon: const Icon(Icons.qr_code_outlined, size: 18),
-                label: const Text('Подключиться к новому', style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+                label: Text(
+                  'Подключиться к новому',
+                  style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -342,16 +638,19 @@ class _InvitedEmpty extends StatelessWidget {
               style: GoogleFonts.manrope(fontSize: 13, color: AppColors.ink3, height: 1.5),
             ),
             const SizedBox(height: 24),
-            OutlinedButton.icon(
+            FilledButton.icon(
               onPressed: () => context.push('/guest/entry'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.amber,
-                side: const BorderSide(color: AppColors.amber),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.amber,
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               icon: const Icon(Icons.qr_code_outlined, size: 18),
-              label: const Text('Подключиться к событию', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14)),
+              label: Text(
+                'Подключиться к событию',
+                style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -369,7 +668,7 @@ class _InvitedEventCard extends StatelessWidget {
     if (raw == null) return '';
     try {
       final dt = DateTime.parse(raw).toLocal();
-      return DateFormat('dd.MM', 'ru').format(dt);
+      return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
     } catch (_) {
       return '';
     }
@@ -381,79 +680,160 @@ class _InvitedEventCard extends StatelessWidget {
     final myFrames = event['my_frames_count'] as int? ?? 0;
     final totalFrames = event['total_frames'] as int? ?? 0;
     final coverUrl = event['cover_url'] as String?;
-    final dateStr = _dateStr();
+    final status = event['status'] as String? ?? 'active';
 
-    return GestureDetector(
-      onTap: () => context.push('/events/${event['id']}/album'),
-      child: Container(
-        height: 80,
-        decoration: BoxDecoration(
-          color: AppColors.paper2,
-          borderRadius: AppRadius.mdBR,
-          border: Border.all(color: AppColors.paper3),
-        ),
-        child: Row(
-          children: [
-            // Cover thumbnail
-            ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: AppRadius.md),
-              child: SizedBox(
-                width: 80, height: 80,
-                child: coverUrl != null
-                    ? Image.network(coverUrl, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _InvitedCoverPlaceholder())
-                    : _InvitedCoverPlaceholder(),
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink,
+    final dotColor = status == 'active'
+        ? const Color(0xFFC9881E)
+        : status == 'completed'
+            ? const Color(0xFF5BAA72)
+            : AppColors.ink3;
+    final dotGlow = status == 'active' || status == 'completed';
+    final badgeLabel = status == 'active' ? 'ЗАПИСЬ'
+        : status == 'completed' ? 'ПРОЯВЛЕНО'
+        : status == 'draft' ? 'ЧЕРНОВИК'
+        : status.toUpperCase();
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x1E1A1714)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x0D1A1714), blurRadius: 10, offset: Offset(0, 3)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(11.5),
+        child: GestureDetector(
+          onTap: () => context.push('/events/${event['id']}/album'),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (coverUrl != null)
+                Image.network(coverUrl, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _InvitedCoverPlaceholder())
+              else
+                _InvitedCoverPlaceholder(),
+              // Dark gradient below
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.0, 0.25, 0.55, 0.80, 1.0],
+                      colors: [
+                        Color(0x000A0603),
+                        Color(0x100A0603),
+                        Color(0x3C0A0603),
+                        Color(0x780A0603),
+                        Color(0xB20A0603),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    [
-                      if (dateStr.isNotEmpty) dateStr,
-                      '$myFrames ВАШИХ · $totalFrames ВСЕГО',
-                    ].join(' · '),
-                    style: const TextStyle(
-                      fontFamily: 'JetBrains Mono', fontSize: 9,
-                      letterSpacing: 0.8, color: AppColors.ink3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Guest badge
-            Padding(
-              padding: const EdgeInsets.only(right: 14),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withValues(alpha: 0.1),
-                  borderRadius: AppRadius.pillBR,
-                  border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
-                ),
-                child: const Text(
-                  'ГОСТЬ',
-                  style: TextStyle(
-                    fontFamily: 'JetBrains Mono', fontSize: 9,
-                    color: AppColors.amber, fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-            ),
-          ],
+              // Status badge — top-left
+              Positioned(
+                top: 10, left: 10,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 4, 9, 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: dotColor,
+                          boxShadow: dotGlow
+                              ? [BoxShadow(color: dotColor.withValues(alpha: 0.8), blurRadius: 6)]
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(badgeLabel,
+                        style: TextStyle(
+                          fontFamily: 'JetBrains Mono', fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.12, color: dotColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // GUEST badge — bottom-right (diagonal from status)
+              Positioned(
+                bottom: 10, right: 10,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 9, 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.amber.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  child: const Text(
+                    'ГОСТЬ',
+                    style: TextStyle(
+                      fontFamily: 'JetBrains Mono', fontSize: 10,
+                      color: Colors.white, fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              ),
+              // Title + meta
+              Positioned(
+                bottom: 10, left: 12, right: 90, // leave room for GUEST badge
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSerif(
+                        fontSize: 22, fontWeight: FontWeight.w700,
+                        color: const Color(0xFFF0E8D8), height: 1.2,
+                        shadows: const [
+                          Shadow(color: Color(0xCC000000), blurRadius: 0, offset: Offset(0, 1)),
+                          Shadow(color: Color(0x88000000), blurRadius: 6),
+                          Shadow(color: Color(0x44000000), blurRadius: 16),
+                        ],
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.camera_roll_outlined, size: 13, color: Color(0xFFC9881E)),
+                        const SizedBox(width: 3),
+                        Text('$myFrames',
+                          style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFC9881E), fontWeight: FontWeight.w600)),
+                        Text(' / $totalFrames',
+                          style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
+                        if (_dateStr().isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFFB0A080)),
+                          const SizedBox(width: 3),
+                          Text(_dateStr(),
+                            style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -474,75 +854,6 @@ class _InvitedCoverPlaceholder extends StatelessWidget {
     );
   }
 }
-
-// ─── Filter chip (existing) ────────────────────────────────────────────────────
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final int? count;
-  final bool active;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    this.count,
-    this.active = false,
-    this.accent = AppColors.amber,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: AppSizes.chipHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: AppRadius.pillBR,
-          border: Border.all(
-            color: active ? accent : AppColors.line,
-            width: active ? 1.5 : 1,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Color dot — always visible, hints the accent
-            Container(
-              width: 6, height: 6,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
-            ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                color: active ? accent : AppColors.ink2,
-              ),
-            ),
-            if (count != null) ...[
-              const SizedBox(width: 6),
-              Text(
-                '$count',
-                style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
-                  fontSize: 11,
-                  color: active ? accent : AppColors.ink4,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 
 // ─── Карточка события ─────────────────────────────────────────────────────────
 class _EventCard extends StatelessWidget {
@@ -827,41 +1138,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _BottomNav extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-
-    void onQrTap() {
-      final events = ref.read(eventsProvider).valueOrNull ?? [];
-      final active = events.where((e) => (e['status'] as String?) == 'active').toList();
-      final target = active.isNotEmpty ? active.first : (events.isNotEmpty ? events.first : null);
-      if (target != null) {
-        context.push('/events/${target['id']}/qr');
-      } else {
-        context.push('/events/create');
-      }
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.paper.withValues(alpha: 0.92),
-        border: Border(top: BorderSide(color: AppColors.line)),
-      ),
-      padding: EdgeInsets.fromLTRB(24, 8, 24, 16 + bottomInset),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _NavItem(icon: Icons.photo_library_outlined, label: 'Альбомы', active: true),
-          _NavItem(icon: Icons.qr_code_outlined, label: 'QR', onTap: onQrTap),
-          _NavItem(icon: Icons.person_outline, label: 'Профиль', onTap: () => context.push('/profile')),
-        ],
-      ),
-    );
-  }
-}
-
 class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   const _ErrorState({required this.onRetry});
@@ -893,46 +1169,6 @@ class _ErrorState extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _NavItem({required this.icon, required this.label, this.active = false, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 5, height: 5,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? AppColors.amber : Colors.transparent,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Icon(icon, color: active ? AppColors.ink : AppColors.ink4, size: 22),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontFamily: 'Manrope',
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: active ? AppColors.ink : AppColors.ink4,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1053,4 +1289,176 @@ class _AlbumPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─── Custom FAB: open-book icon with plus in the center ───────────────────────
+
+class _CreateAlbumFab extends StatelessWidget {
+  const _CreateAlbumFab();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/events/create'),
+      child: Container(
+        width: 62, height: 62,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.amber,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.amber.withValues(alpha: 0.4),
+              blurRadius: 16,
+              spreadRadius: -2,
+            ),
+            const BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(
+              Icons.photo_album_outlined,
+              size: 32,
+              color: Colors.white,
+            ),
+            Positioned(
+              right: 12, bottom: 12,
+              child: Container(
+                width: 17, height: 17,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+                child: const Icon(
+                  Icons.add,
+                  size: 13,
+                  color: AppColors.amber,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Status filter dropdown in header (replaces chip row) ───────────────────
+
+class _StatusFilterButton extends StatelessWidget {
+  final String selected; // 'all' | 'active' | 'completed'
+  final ValueChanged<String> onSelect;
+
+  const _StatusFilterButton({required this.selected, required this.onSelect});
+
+  Color? get _dotColor {
+    switch (selected) {
+      case 'active':
+        return AppColors.shutter;
+      case 'completed':
+        return AppColors.success;
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _open(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromLTRB(
+      origin.dx - 120,
+      origin.dy + box.size.height + 4,
+      overlay.size.width - origin.dx - box.size.width,
+      0,
+    );
+    final result = await showMenu<String>(
+      context: context,
+      position: position,
+      color: AppColors.paper,
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      items: [
+        _item('all', 'Все', AppColors.amber, Icons.dashboard_customize_outlined),
+        _item('active', 'Записываются', AppColors.shutter, Icons.fiber_manual_record),
+        _item('completed', 'Проявлены', AppColors.success, Icons.check_circle_outline),
+      ],
+    );
+    if (result != null && result != selected) onSelect(result);
+  }
+
+  PopupMenuItem<String> _item(String value, String label, Color accent, IconData icon) {
+    final active = value == selected;
+    return PopupMenuItem<String>(
+      value: value,
+      height: 46,
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: active ? accent : AppColors.ink2),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: GoogleFonts.manrope(
+              fontSize: 15,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              color: active ? accent : AppColors.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = _dotColor;
+    return Builder(builder: (btnCtx) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            onPressed: () => _open(btnCtx),
+            icon: const Icon(Icons.filter_alt_outlined, size: 22, color: AppColors.ink2),
+            tooltip: 'Фильтр',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          ),
+          if (dot != null)
+            Positioned(
+              right: 8, top: 8,
+              child: Container(
+                width: 10, height: 10,
+                decoration: BoxDecoration(
+                  color: dot,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.paper, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+/// Custom FAB location — pushed further from the right edge (default 16 → 28)
+/// and slightly higher to avoid overlapping the bottom nav shadow.
+class _CreateAlbumFabLocation extends FloatingActionButtonLocation {
+  const _CreateAlbumFabLocation();
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final double fabX = scaffoldGeometry.scaffoldSize.width -
+        scaffoldGeometry.floatingActionButtonSize.width - 28;
+    final double contentBottom = scaffoldGeometry.contentBottom;
+    final double bottomInset = scaffoldGeometry.minInsets.bottom;
+    final double fabY = contentBottom - scaffoldGeometry.floatingActionButtonSize.height - 20 - bottomInset;
+    return Offset(fabX, fabY);
+  }
 }

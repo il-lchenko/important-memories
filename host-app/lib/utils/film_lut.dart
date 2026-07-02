@@ -151,7 +151,7 @@ img.Image applyFilmFilter(img.Image image, String preset) {
 Map<String, Object> processImageInIsolate(Map<String, Object> params) {
   final bytes = params['bytes'] as Uint8List;
   final preset = params['preset'] as String;
-  final maxSize = (params['maxSize'] as int?) ?? 1500;
+  final maxSize = (params['maxSize'] as int?) ?? 4000;
   final quarter = (params['quarter'] as int?) ?? 0;
 
   var image = img.decodeImage(bytes)!;
@@ -180,7 +180,7 @@ Map<String, Object> processImageInIsolate(Map<String, Object> params) {
     image = applyFilmFilter(image, preset);
   }
 
-  final jpegBytes = Uint8List.fromList(img.encodeJpg(image, quality: 90));
+  final jpegBytes = Uint8List.fromList(img.encodeJpg(image, quality: 92));
   return {
     'bytes': jpegBytes,
     'width': image.width,

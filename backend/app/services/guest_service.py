@@ -1,14 +1,42 @@
+import asyncio
 from secrets import token_urlsafe
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError
+from app.core.logging import logger
 from app.domain.models import Event, EventStatus, Guest
 from app.domain.schemas.events import EventSettingsOut
 from app.domain.schemas.guests import GuestEventOut, GuestSessionOut
-from app.infra import fcm_client
+from app.infra import fcm_client, rate_limiter
 from app.repos import device_repo, event_repo, frame_repo, guest_repo, user_repo
+
+
+# Anti-bruteforce for short_code guessing.
+# Constant-time delay on failed lookup — timing attacks мало помогают.
+_SHORT_CODE_FAIL_DELAY_SEC = 0.3
+# After 30 failed short_code lookups per hour from one IP → block that IP for 1h.
+_SHORT_CODE_FAIL_LIMIT = 30
+_SHORT_CODE_FAIL_WINDOW = 3600
+
+
+async def _register_short_code_failure(client_ip: str | None) -> None:
+    """Constant delay + Redis counter. Escalates to hard lockout after 30 fails/hour."""
+    await asyncio.sleep(_SHORT_CODE_FAIL_DELAY_SEC)
+    if not client_ip:
+        return
+    try:
+        count = await rate_limiter.check_and_incr(
+            f"guest:short_code_fail:{client_ip}",
+            limit=_SHORT_CODE_FAIL_LIMIT,
+            window_sec=_SHORT_CODE_FAIL_WINDOW,
+        )
+        if count >= _SHORT_CODE_FAIL_LIMIT * 0.8:
+            logger.warning("short_code_bruteforce_suspected", client_ip=client_ip, count=count)
+    except Exception:
+        # rate_limiter itself raises RateLimitError above the limit — that becomes HTTP 429.
+        raise
 
 
 def _build_session_out_direct(guest: Guest, event: Event, frames_used: int) -> GuestSessionOut:
@@ -78,6 +106,7 @@ async def join(
     fingerprint: str,
     *,
     actor_user_id: UUID | None = None,
+    client_ip: str | None = None,
 ) -> GuestSessionOut:
     """Создать или вернуть существующую гость-сессию.
 
@@ -92,7 +121,9 @@ async def join(
     """
     event = await event_repo.get_by_short_code(session, short_code)
     if event is None:
-        raise NotFoundError("Event not found", details={"short_code": short_code})
+        await _register_short_code_failure(client_ip)
+        # Generic message — не помогаем брутфорсеру отличать «нет кода» от «неверный код».
+        raise NotFoundError("Код не найден")
 
     # Хост (event.user_id) может подключаться как «гость» в свой же альбом
     # даже в DRAFT / COMPLETED — это даёт ему встроенную камеру в приложении.

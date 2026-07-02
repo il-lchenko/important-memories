@@ -1,3 +1,4 @@
+import html as html_mod
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -11,6 +12,16 @@ from app.domain.models.enums import (
     Plan,
     RevealMode,
 )
+
+
+def _sanitize_title(v: str | None) -> str | None:
+    """Escape HTML in event titles — displayed publicly in album views."""
+    if v is None:
+        return None
+    stripped = v.strip()
+    if not stripped:
+        return None
+    return html_mod.escape(stripped, quote=True)
 
 
 class EventSettingsOut(BaseModel):
@@ -34,6 +45,7 @@ class EventOut(BaseModel):
     title: str
     start_at: datetime
     end_at: datetime
+    expires_at: datetime | None = None  # storage retention deadline
     event_type: EventType
     status: EventStatus
     cover_url: str | None
@@ -59,6 +71,11 @@ class EventCreateIn(BaseModel):
     lut_preset: LutPreset | None = None
     plan: Plan = Plan.FREE
     photo_format: PhotoFormat = PhotoFormat.PORTRAIT_34
+
+    @field_validator("title", "name")
+    @classmethod
+    def _sanitize(cls, v: str | None) -> str | None:
+        return _sanitize_title(v)
 
     @model_validator(mode="after")
     def _resolve(self) -> "EventCreateIn":
@@ -105,11 +122,24 @@ class EventSettingsUpdateIn(BaseModel):
 class EventRenameIn(BaseModel):
     title: str = Field(min_length=1, max_length=80)
 
+    @field_validator("title")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        clean = _sanitize_title(v)
+        if not clean:
+            raise ValueError("Название события не может быть пустым")
+        return clean
+
 
 class EventUpdateIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=80)
     event_type: EventType | None = None
     start_at: datetime | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _sanitize(cls, v: str | None) -> str | None:
+        return _sanitize_title(v)
 
 
 class QRCodeOut(BaseModel):

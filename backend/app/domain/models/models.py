@@ -93,6 +93,19 @@ class Event(Base):
         _enum_col(EventStatus, "event_status"), nullable=False, default=EventStatus.DRAFT
     )
     cover_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Storage retention: when the album's photos will be deleted from S3.
+    # Set automatically on activate() based on Plan; extendable via /events/{id}/extend.
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    # Log of paid storage extensions: [{"added_days": 90, "price_kopecks": 49000, "paid_at": ISO}]
+    extension_history: Mapped[list[dict]] = mapped_column(
+        JSON, default=list, server_default="[]", nullable=False
+    )
+    # Anti-duplicate flags for expiry push notifications (see workers/notifications.py).
+    notified_7d: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
+    notified_3d: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
+    notified_1d: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -181,6 +194,7 @@ class Frame(Base):
     )
     s3_key: Mapped[str] = mapped_column(String(512), nullable=False)
     thumbnail_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    preview_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     width: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     height: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

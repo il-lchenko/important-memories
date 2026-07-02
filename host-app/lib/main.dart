@@ -3,12 +3,15 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = true;
+  // Русская локаль для DateFormat в разделе «Кадры» и других экранах.
+  await initializeDateFormatting('ru');
   runApp(const ProviderScope(child: App()));
 }
 

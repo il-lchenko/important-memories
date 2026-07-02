@@ -10,6 +10,7 @@ class AlbumFrameOut(BaseModel):
     guest_name: str
     captured_at: datetime
     thumbnail_url: str | None
+    preview_url: str | None
     full_url: str
     width: int
     height: int

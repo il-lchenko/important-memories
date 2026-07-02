@@ -158,6 +158,21 @@ def _thumbnail_key(s3_key: str) -> str:
     return s3_key + ".thumb.jpg"
 
 
+def _preview_key(s3_key: str) -> str:
+    """Preview 1600px key for gallery — replaces /frames/ with /previews/."""
+    if "/frames/" in s3_key:
+        base, _, name = s3_key.rpartition("/")
+        base = base.replace("/frames", "/previews")
+        stem = name.rsplit(".", 1)[0]
+        return f"{base}/{stem}.jpg"
+    return s3_key + ".preview.jpg"
+
+
+# Preview: max side 1600px, JPEG q=88. Balances quality (Full HD+) and load speed.
+_PREVIEW_MAX_SIDE = 1600
+_PREVIEW_QUALITY = 88
+
+
 def _center_crop(img: Image.Image, ratio: float) -> Image.Image:
     """Return a center-cropped copy of img with the given w/h ratio."""
     w, h = img.size
@@ -193,18 +208,47 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
         crop_ratio = _THUMB_RATIOS[photo_format]
 
         original = s3_client.download_bytes(frame.s3_key)
-        with Image.open(BytesIO(original)) as img:
-            img = img.convert("RGB")
-            img = _center_crop(img, crop_ratio)
-            img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-            img = apply_film_filter(img, str(lut_preset))
-            buf = BytesIO()
-            img.save(buf, format="JPEG", quality=85, optimize=True)
-            thumb_bytes = buf.getvalue()
+        with Image.open(BytesIO(original)) as raw:
+            raw = raw.convert("RGB")
+
+            # Thumbnail 400×533 (or 533×400) for fast gallery scroll.
+            thumb_img = _center_crop(raw, crop_ratio)
+            thumb_img = thumb_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            thumb_img = apply_film_filter(thumb_img, str(lut_preset))
+            tbuf = BytesIO()
+            thumb_img.save(tbuf, format="JPEG", quality=85, optimize=True)
+            thumb_bytes = tbuf.getvalue()
+
+            # Preview 1600px on the longer side — used in fullscreen album view.
+            # Keeps aspect ratio (no center-crop) so aspect matches original.
+            pw, ph = raw.size
+            longer = max(pw, ph)
+            if longer > _PREVIEW_MAX_SIDE:
+                scale = _PREVIEW_MAX_SIDE / longer
+                preview_img = raw.resize(
+                    (round(pw * scale), round(ph * scale)),
+                    Image.Resampling.LANCZOS,
+                )
+            else:
+                preview_img = raw.copy()
+            preview_img = apply_film_filter(preview_img, str(lut_preset))
+            pbuf = BytesIO()
+            preview_img.save(pbuf, format="JPEG", quality=_PREVIEW_QUALITY, optimize=True)
+            preview_bytes = pbuf.getvalue()
 
         thumb_key = _thumbnail_key(frame.s3_key)
+        preview_key = _preview_key(frame.s3_key)
         s3_client.upload_bytes(thumb_key, thumb_bytes, "image/jpeg")
+        s3_client.upload_bytes(preview_key, preview_bytes, "image/jpeg")
         frame.thumbnail_url = thumb_key
+        frame.preview_url = preview_key
         frame.status = FrameStatus.UPLOADED
         await session.commit()
-        logger.info("thumbnail_created", frame_id=frame_id, fmt=photo_format, lut=lut_preset, size=len(thumb_bytes))
+        logger.info(
+            "thumbnail_and_preview_created",
+            frame_id=frame_id,
+            fmt=photo_format,
+            lut=lut_preset,
+            thumb_size=len(thumb_bytes),
+            preview_size=len(preview_bytes),
+        )

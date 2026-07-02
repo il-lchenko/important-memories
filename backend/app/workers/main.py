@@ -18,6 +18,7 @@ from arq.connections import RedisSettings
 from app.core.config import settings
 from app.core.logging import configure_logging, logger
 from app.workers.cleanup import cleanup_expired_frames, retry_failed_uploads
+from app.workers.notifications import notify_expiring_events
 from app.workers.reveal import execute_reveal
 from app.workers.thumbnail import make_thumbnail
 from app.workers.zip_builder import build_zip
@@ -35,6 +36,8 @@ class WorkerSettings:
     cron_jobs = [
         cron(retry_failed_uploads, minute={0, 10, 20, 30, 40, 50}, run_at_startup=False),
         cron(cleanup_expired_frames, hour={3}, minute={0}, run_at_startup=False),
+        # Daily at 12:00 UTC (15:00 MSK) — enough headroom for late-night morning check.
+        cron(notify_expiring_events, hour={12}, minute={0}, run_at_startup=False),
     ]
     redis_settings = _redis_settings()
     keep_result = 7 * 24 * 3600

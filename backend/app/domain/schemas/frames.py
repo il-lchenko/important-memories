@@ -1,7 +1,19 @@
+import html as html_mod
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
+
+
+def _sanitize_caption(v: str | None) -> str | None:
+    """Escape HTML in user text to prevent XSS. Preserves display chars."""
+    if v is None:
+        return None
+    stripped = v.strip()
+    if not stripped:
+        return None
+    # Escape < > & " ' — safe for display in both PWA and Flutter.
+    return html_mod.escape(stripped, quote=True)
 
 
 class FramePresignIn(BaseModel):
@@ -48,6 +60,11 @@ class FrameUpdateIn(BaseModel):
     voice_peaks: list[float] | None = Field(default=None)
     clear_caption: bool = False
     clear_voice: bool = False
+
+    @field_validator("caption")
+    @classmethod
+    def _sanitize(cls, v: str | None) -> str | None:
+        return _sanitize_caption(v)
 
     @field_validator("voice_peaks")
     @classmethod

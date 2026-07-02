@@ -264,7 +264,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       try {
         ctrl = CameraController(
           _cameras[idx],
-          ResolutionPreset.high,
+          ResolutionPreset.max,
           enableAudio: false,
           imageFormatGroup: ImageFormatGroup.jpeg,
         );
@@ -345,12 +345,13 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final rawBytes = await file.readAsBytes();
 
       // Process: bakeOrientation + resize + film filter (in isolate).
+      // maxSize 4000 = full 4K quality for memorable photos.
       final result = await compute(
         processImageInIsolate,
         {
           'bytes': rawBytes,
           'preset': _lutPreset,
-          'maxSize': 1500,
+          'maxSize': 4000,
           'quarter': quarter,
         },
       );
