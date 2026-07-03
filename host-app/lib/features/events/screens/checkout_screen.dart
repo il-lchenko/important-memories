@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
@@ -92,7 +93,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _submit() async {
     setState(() => _loading = true);
     try {
-      await ref.read(createEventProvider({
+      final dio = ref.read(dioProvider);
+
+      // Step 1: create event (always starts as DRAFT)
+      final created = await ref.read(createEventProvider({
         'name': widget.draft['name'],
         'event_type': widget.draft['event_type'],
         'frames_per_guest': _framesPerGuest,
@@ -103,9 +107,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         'plan': _planId,
         if (_storageKey != 'base') 'storage_extension': _storageKey,
       }).future);
-      if (!mounted) return;
-      ref.invalidate(eventsProvider);
-      context.go('/dashboard');
+
+      final eventId = created['id'] as String;
+
+      if (_totalRub == 0) {
+        // Free plan: activate immediately
+        await dio.post('events/$eventId/activate');
+        if (!mounted) return;
+        ref.invalidate(eventsProvider);
+        context.go('/dashboard');
+      } else {
+        // Paid plan: get YooKassa checkout URL and open in browser
+        final resp = await dio.post(
+          'events/$eventId/checkout',
+          data: {'plan': _planId},
+        );
+        final confirmUrl = resp.data['confirmation_url'] as String?;
+        if (!mounted) return;
+        ref.invalidate(eventsProvider);
+        if (confirmUrl != null && confirmUrl.isNotEmpty) {
+          final uri = Uri.parse(confirmUrl);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+        context.go('/dashboard');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

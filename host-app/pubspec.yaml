@@ -56,6 +56,9 @@ dependencies:
   # Deep links — Android App Links for impomento.pro/g/CODE
   app_links: ^6.3.0
 
+  # Open payment page in browser
+  url_launcher: ^6.3.1
+
   # Accelerometer-based device orientation (for camera UI rotation)
   sensors_plus: ^6.1.1
   cached_network_image: ^3.4.1
