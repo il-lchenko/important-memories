@@ -303,6 +303,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final ctrl = _ctrl;
+    if (state == AppLifecycleState.resumed) {
+      // Пере-принудить portrait — Android при переключении может сбросить lock
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    }
     if (ctrl == null || !ctrl.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
       ctrl.dispose();
@@ -345,13 +349,14 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final rawBytes = await file.readAsBytes();
 
       // Process: bakeOrientation + resize + film filter (in isolate).
-      // maxSize 4000 = full 4K quality for memorable photos.
+      // maxSize 2560 = 2.5K — качество остаётся высоким, но isolate работает в ~2x быстрее.
+      // Дальше на сервере thumbnail worker сжимает до нужных размеров.
       final result = await compute(
         processImageInIsolate,
         {
           'bytes': rawBytes,
           'preset': _lutPreset,
-          'maxSize': 4000,
+          'maxSize': 2560,
           'quarter': quarter,
         },
       );
@@ -537,7 +542,17 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     _maybeReinit();
     _showPendingToast();
 
-    return Scaffold(
+    return PopScope(
+      // Свайп-назад на экране «снятого кадра» должен убирать превью,
+      // а не выходить из приложения. На камере без превью — обычный pop.
+      canPop: _preview == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_preview != null) {
+          setState(() => _preview = null);
+        }
+      },
+      child: Scaffold(
       backgroundColor: AppColors.dark,
       body: Stack(
         fit: StackFit.expand,
@@ -623,6 +638,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
               },
             ),
         ],
+      ),
       ),
     );
   }
@@ -1308,12 +1324,12 @@ class _FramePreviewState extends State<_FramePreview> {
                             'Новый кадр',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 17,
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, size: 18),
+                          SizedBox(width: 10),
+                          Icon(Icons.arrow_forward, size: 22),
                         ],
                       ),
                     ),
@@ -1322,17 +1338,18 @@ class _FramePreviewState extends State<_FramePreview> {
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
-                      height: 44,
-                      child: OutlinedButton(
+                      height: AppSizes.buttonHeight,
+                      child: ElevatedButton(
                         onPressed:
                             (_signLoading || d.status == _UploadStatus.failed)
                                 ? null
                                 : _handleSign,
-                        style: OutlinedButton.styleFrom(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.drText.withValues(alpha: 0.12),
                           foregroundColor: AppColors.drText,
-                          side: BorderSide(
-                            color: AppColors.drText.withValues(alpha: 0.25),
-                          ),
+                          disabledBackgroundColor: AppColors.drText.withValues(alpha: 0.06),
+                          disabledForegroundColor: AppColors.drText.withValues(alpha: 0.5),
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: AppRadius.pillBR,
                           ),
@@ -1343,21 +1360,21 @@ class _FramePreviewState extends State<_FramePreview> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const SizedBox(
-                                    width: 14,
-                                    height: 14,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                      strokeWidth: 1.5,
+                                      strokeWidth: 2,
                                       color: AppColors.drAmber,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 10),
                                   Text(
                                     'Кадр загружается…',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 13,
-                                      color:
-                                          AppColors.drText.withValues(alpha: 0.8),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.drText.withValues(alpha: 0.8),
                                     ),
                                   ),
                                 ],
@@ -1365,13 +1382,14 @@ class _FramePreviewState extends State<_FramePreview> {
                             : const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.edit_outlined, size: 16),
-                                  SizedBox(width: 6),
+                                  Icon(Icons.edit_outlined, size: 20),
+                                  SizedBox(width: 10),
                                   Text(
                                     'Подписать кадр',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
-                                      fontSize: 14,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],

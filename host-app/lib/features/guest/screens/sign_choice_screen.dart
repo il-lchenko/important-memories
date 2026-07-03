@@ -67,21 +67,19 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
               ),
             ),
 
-            // Polaroid with real photo
+            // Big photo — full width
             Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Center(
-                child: _SmallPolaroid(
-                  photoBytes: photoBytes,
-                  ratio: ratio,
-                  guestName: guestName,
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: _BigPhoto(
+                photoBytes: photoBytes,
+                ratio: ratio,
+                guestName: guestName,
               ),
             ),
 
             // Title + subtitle
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -89,7 +87,7 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
                     'Как подписать кадр?',
                     style: GoogleFonts.fraunces(
                       fontWeight: FontWeight.w500,
-                      fontSize: 22,
+                      fontSize: 26,
                       height: 1.15,
                       color: AppColors.ink,
                     ),
@@ -99,7 +97,7 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
                     'Выберите способ — текст или голосовое сообщение.',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 12,
+                      fontSize: 14,
                       color: AppColors.ink3,
                       height: 1.4,
                     ),
@@ -108,9 +106,11 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
               ),
             ),
 
+            const Spacer(),
+
             // Choice cards
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: Row(
                 children: [
                   Expanded(
@@ -150,29 +150,28 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
               ),
             ),
 
-            const Spacer(),
-
-            // Skip — ghost
+            // Skip — filled soft grey, no outline
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
               child: SizedBox(
                 width: double.infinity,
                 height: AppSizes.buttonHeight,
-                child: OutlinedButton(
+                child: ElevatedButton(
                   onPressed: () => context.go('/guest/camera/$_eventId'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.ink3,
-                    side: const BorderSide(color: AppColors.paper3),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.paper3,
+                    foregroundColor: AppColors.ink2,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: const Text(
                     'Пропустить',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
                     ),
                   ),
                 ),
@@ -186,79 +185,80 @@ class _SignChoiceScreenState extends State<SignChoiceScreen> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared polaroid (used by sign/caption/voice screens)
+// Big polaroid — на всю ширину экрана
 // ─────────────────────────────────────────────────────────────────────────────
-class _SmallPolaroid extends StatelessWidget {
+class _BigPhoto extends StatelessWidget {
   final Uint8List? photoBytes;
   final double ratio;
   final String guestName;
 
-  const _SmallPolaroid({
+  const _BigPhoto({
     required this.photoBytes,
     required this.ratio,
     required this.guestName,
   });
 
-  static const double width = 130;
-
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.026, // ≈ -1.5°
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        decoration: BoxDecoration(
-          color: AppColors.paper,
-          borderRadius: BorderRadius.circular(3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AspectRatio(
-              aspectRatio: ratio,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: photoBytes != null
-                    ? Image.memory(
-                        photoBytes!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                      )
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      return Transform.rotate(
+        angle: -0.014, // ≈ -0.8°
+        child: Container(
+          width: width,
+          padding: EdgeInsets.fromLTRB(14, 14, 14, 6),
+          decoration: BoxDecoration(
+            color: AppColors.paper,
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: ratio,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: photoBytes != null
+                      ? Image.memory(
+                          photoBytes!,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        )
+                      : Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
-            ),
-            SizedBox(
-              height: width * 0.18,
-              child: Center(
-                child: Text(
-                  guestName,
-                  style: GoogleFonts.caveat(
-                    fontSize: width * 0.13,
-                    color: AppColors.ink2,
+              SizedBox(
+                height: width * 0.12,
+                child: Center(
+                  child: Text(
+                    guestName,
+                    style: GoogleFonts.caveat(
+                      fontSize: width * 0.09,
+                      color: AppColors.ink2,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -314,25 +314,25 @@ class _ChoiceCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
           child: Column(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 56,
+                height: 56,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0x1FC9881E),
                 ),
-                child: Icon(icon, size: 20, color: AppColors.amber),
+                child: Icon(icon, size: 28, color: AppColors.amber),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 title,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
                   color: AppColors.ink,
                 ),
               ),
@@ -342,8 +342,8 @@ class _ChoiceCard extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 11,
-                  height: 1.3,
+                  fontSize: 13,
+                  height: 1.35,
                   color: AppColors.ink3,
                 ),
               ),

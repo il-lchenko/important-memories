@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
-import '../events_provider.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({super.key});
@@ -32,11 +30,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   // Шаг 5
   String _film = 'portra400';
 
-  // Шаг 6
-  String _plan = 'p50';
-
-  bool _loading = false;
-  static const _totalSteps = 6;
+  static const _totalSteps = 5;
 
   final _films = [
     {'id': 'original',  'name': 'Без фильтра',      'desc': 'Фото как снято · Без обработки'},
@@ -44,16 +38,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     {'id': 'fuji400h',  'name': 'Fuji 400H',        'desc': 'Холодные пастельные зелёные · Природа и портреты'},
     {'id': 'cinestill', 'name': 'Cinestill 800T',   'desc': 'Неоновые красные · Ночные и городские сцены'},
     {'id': 'ilford',    'name': 'Ilford HP5+',      'desc': 'Ч/Б · Классика документальной съёмки'},
-  ];
-
-  final _plans = [
-    {'id': 'free',      'guests': 'До 5 гостей',    'price': '0'},
-    {'id': 'p10',       'guests': 'До 10 гостей',   'price': '150'},
-    {'id': 'p25',       'guests': 'До 25 гостей',   'price': '450'},
-    {'id': 'p50',       'guests': 'До 50 гостей',   'price': '1190', 'hit': 'true'},
-    {'id': 'p100',      'guests': 'До 100 гостей',  'price': '2290'},
-    {'id': 'p150',      'guests': 'До 150 гостей',  'price': '3890'},
-    {'id': 'unlimited', 'guests': 'Больше 150',     'price': 'talk'},
   ];
 
   @override
@@ -67,8 +51,21 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     if (_step < _totalSteps) {
       setState(() => _step++);
     } else {
-      _create();
+      _goToCheckout();
     }
+  }
+
+  void _goToCheckout() {
+    final revealMode = _revealAt != null ? 'delayed' : 'instant';
+    context.push('/events/create/checkout', extra: {
+      'name': _nameCtrl.text.trim(),
+      'event_type': _eventType,
+      'frames_per_guest': _framesPerGuest,
+      'reveal_mode': revealMode,
+      if (_revealAt != null) 'reveal_at': _revealAt!.toUtc().toIso8601String(),
+      if (_startAt != null)  'start_at':  _startAt!.toUtc().toIso8601String(),
+      'film': _film,
+    });
   }
 
   void _back() {
@@ -116,41 +113,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     setState(() => _startAt = DateTime(d.year, d.month, d.day, time.hour, time.minute));
   }
 
-  Future<void> _create() async {
-    setState(() => _loading = true);
-    try {
-      final revealMode = _revealAt != null ? 'delayed' : 'instant';
-      await ref.read(createEventProvider({
-        'name': _nameCtrl.text.trim(),
-        'event_type': _eventType,
-        'frames_per_guest': _framesPerGuest,
-        'reveal_mode': revealMode,
-        if (_revealAt != null) 'reveal_at': _revealAt!.toUtc().toIso8601String(),
-        if (_startAt != null) 'start_at': _startAt!.toUtc().toIso8601String(),
-        'film': _film,
-        'plan': _plan,
-      }).future);
-      if (mounted) {
-        ref.invalidate(eventsProvider);
-        context.go('/dashboard');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(extractUserMessage(e), style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
-            backgroundColor: AppColors.shutter,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,7 +131,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                     _BottomCTA(
                       step: _step,
                       total: _totalSteps,
-                      loading: _loading,
                       enabled: _step == 1 ? _nameCtrl.text.trim().isNotEmpty : true,
                       onNext: _next,
                     ),
@@ -210,11 +171,6 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           films: _films,
           selected: _film,
           onChanged: (v) => setState(() => _film = v),
-        ),
-      6 => _Step6(
-          plans: _plans,
-          selected: _plan,
-          onChanged: (v) => setState(() => _plan = v),
         ),
       _ => const SizedBox(),
     };
@@ -440,7 +396,7 @@ class _Step2 extends StatelessWidget {
 
   const _Step2({required this.frames, required this.onFramesChanged});
 
-  static const _frameValues = [6, 12, 18, 24, 30, 36, 42, 48];
+  static const _frameValues = [6, 12, 18, 24, 30, 45];
   static const _thumbR = 7.0;
 
   @override
@@ -486,8 +442,8 @@ class _Step2 extends StatelessWidget {
                 ),
                 child: Slider(
                   value: frames.toDouble(),
-                  min: 6, max: 48,
-                  divisions: 42,
+                  min: 6, max: 45,
+                  divisions: 39,
                   onChanged: (v) => onFramesChanged(v.round()),
                 ),
               ),
@@ -503,8 +459,71 @@ class _Step2 extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _FramesExtraNotice(extended: frames > 30),
         const SizedBox(height: AppSpacing.s4),
       ],
+    );
+  }
+}
+
+class _FramesExtraNotice extends StatelessWidget {
+  final bool extended;
+  const _FramesExtraNotice({required this.extended});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: extended
+            ? AppColors.amber.withValues(alpha: 0.10)
+            : AppColors.paper2,
+        borderRadius: AppRadius.mdBR,
+        border: Border.all(
+          color: extended ? AppColors.amber : Colors.transparent,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            extended ? Icons.local_fire_department : Icons.check_circle_outline,
+            size: 18,
+            color: extended ? AppColors.amber : AppColors.ink3,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  extended ? 'Плёнка «люкс»' : 'Базовая плёнка',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: extended ? AppColors.ink : AppColors.ink2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  extended
+                      ? 'Сверх 30 кадров · +5 ₽ за каждого гостя'
+                      : 'До 30 кадров — входит в цену тарифа',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    color: AppColors.ink3,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -636,7 +655,7 @@ class _FrameRulerPainter extends CustomPainter {
   });
 
   double _x(int v, double W) =>
-      thumbRadius + (v - 6) / 42.0 * (W - 2 * thumbRadius);
+      thumbRadius + (v - 6) / 39.0 * (W - 2 * thumbRadius);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -645,7 +664,7 @@ class _FrameRulerPainter extends CustomPainter {
     final majorPaint = Paint()..strokeWidth = 1.5..strokeCap = StrokeCap.round;
 
     // Minor ticks at every integer between major values
-    for (int v = 7; v <= 47; v++) {
+    for (int v = 7; v <= 44; v++) {
       if (v % 6 == 0) continue;
       final x = _x(v, W);
       final isActive = v <= selected;
@@ -1211,103 +1230,19 @@ class _Step5 extends StatelessWidget {
   };
 }
 
-// ─── Step 6: Тарифы ───────────────────────────────────────────────────────
-
-class _Step6 extends StatelessWidget {
-  final List<Map<String, String>> plans;
-  final String selected;
-  final ValueChanged<String> onChanged;
-  const _Step6({required this.plans, required this.selected, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Kicker('ШАГ 6 · ТАРИФНЫЙ ПЛАН'),
-        _Title('Выберите план'),
-        const _StepDesc('Одна цена за всё событие. Гости не платят ничего — только организатор'),
-        ...plans.map((p) {
-          final active = p['id'] == selected;
-          final isHit  = p['hit'] == 'true';
-          final isTalk = p['price'] == 'talk';
-          final isFree = p['price'] == '0';
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: GestureDetector(
-              onTap: () => onChanged(p['id']!),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  color: active ? AppColors.amber.withValues(alpha: 0.06) : AppColors.paper,
-                  borderRadius: AppRadius.mdBR,
-                  border: Border.all(color: active ? AppColors.amber : AppColors.line, width: active ? 1.5 : 1),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text(
-                            p['guests']!,
-                            style: TextStyle(
-                              fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
-                              color: active ? AppColors.ink : AppColors.ink2,
-                            ),
-                          ),
-                          if (isHit) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(color: AppColors.amber, borderRadius: AppRadius.pillBR),
-                              child: const Text('ХИТ', style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          isFree ? 'Бесплатно' : isTalk ? 'По запросу' : '${p['price']} ₽',
-                          style: TextStyle(
-                            fontFamily: 'JetBrains Mono', fontSize: 15, fontWeight: FontWeight.w600,
-                            color: active ? AppColors.amber : AppColors.ink2,
-                          ),
-                        ),
-                        if (!isFree && !isTalk)
-                          const Text('за ивент', style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink4)),
-                      ],
-                    ),
-                    if (active) ...[const SizedBox(width: 10), const Icon(Icons.check_circle, color: AppColors.amber, size: 20)],
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-        const SizedBox(height: AppSpacing.s4),
-      ],
-    );
-  }
-}
-
 // ─── Bottom CTA ───────────────────────────────────────────────────────────
 
 class _BottomCTA extends StatelessWidget {
   final int step;
   final int total;
-  final bool loading, enabled;
+  final bool enabled;
   final VoidCallback onNext;
-  const _BottomCTA({required this.step, required this.total, required this.loading, required this.enabled, required this.onNext});
+  const _BottomCTA({required this.step, required this.total, required this.enabled, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: enabled && !loading ? onNext : null,
+      onTap: enabled ? onNext : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         width: double.infinity,
@@ -1320,12 +1255,10 @@ class _BottomCTA extends StatelessWidget {
               : null,
         ),
         child: Center(
-          child: loading
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(
-                  step < total ? 'Дальше →' : 'Создать альбом',
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-                ),
+          child: Text(
+            step < total ? 'Дальше →' : 'К смете →',
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
         ),
       ),
     );

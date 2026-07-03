@@ -242,15 +242,13 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                 ),
               ),
 
-              // Polaroid
+              // Big polaroid — на всю ширину
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Center(
-                  child: _SmallPolaroid(
-                    photoBytes: photoBytes,
-                    ratio: ratio,
-                    guestName: guestName,
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: _BigPhoto(
+                  photoBytes: photoBytes,
+                  ratio: ratio,
+                  guestName: guestName,
                 ),
               ),
 
@@ -265,17 +263,17 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                         'Оставьте комментарий к снимку',
                         style: GoogleFonts.fraunces(
                           fontWeight: FontWeight.w500,
-                          fontSize: 22,
+                          fontSize: 26,
                           height: 1.15,
                           color: AppColors.ink,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       const Text(
                         'Несколько слов о запечатлённом моменте. Подпись сохранится в альбоме.',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 12,
+                          fontSize: 14,
                           color: AppColors.ink3,
                           height: 1.4,
                         ),
@@ -380,8 +378,8 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                                 'Сохранить подпись',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 17,
                                 ),
                               ),
                       ),
@@ -390,15 +388,16 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                     SizedBox(
                       width: double.infinity,
                       height: AppSizes.buttonHeight,
-                      child: OutlinedButton(
+                      child: ElevatedButton(
                         onPressed: () async {
                           if (await _confirmLeave() && mounted) {
                             context.go('/guest/camera/$_eventId');
                           }
                         },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.ink3,
-                          side: const BorderSide(color: AppColors.paper3),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.paper3,
+                          foregroundColor: AppColors.ink2,
+                          elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -407,8 +406,8 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                           'Пропустить',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
                           ),
                         ),
                       ),
@@ -495,16 +494,13 @@ class _DisplayMode extends StatelessWidget {
               ),
             ),
 
-            // Larger polaroid
+            // Big polaroid — full width
             Padding(
-              padding: const EdgeInsets.only(top: 18),
-              child: Center(
-                child: _SmallPolaroid(
-                  photoBytes: photoBytes,
-                  ratio: ratio,
-                  guestName: guestName,
-                  width: 220,
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _BigPhoto(
+                photoBytes: photoBytes,
+                ratio: ratio,
+                guestName: guestName,
               ),
             ),
 
@@ -598,77 +594,78 @@ class _DisplayMode extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared widgets (mirror sign_choice_screen.dart)
 // ─────────────────────────────────────────────────────────────────────────────
-class _SmallPolaroid extends StatelessWidget {
+class _BigPhoto extends StatelessWidget {
   final Uint8List? photoBytes;
   final double ratio;
   final String guestName;
-  final double width;
 
-  const _SmallPolaroid({
+  const _BigPhoto({
     required this.photoBytes,
     required this.ratio,
     required this.guestName,
-    this.width = 130,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.026,
-      child: Container(
-        width: width,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        decoration: BoxDecoration(
-          color: AppColors.paper,
-          borderRadius: BorderRadius.circular(3),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AspectRatio(
-              aspectRatio: ratio,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: photoBytes != null
-                    ? Image.memory(
-                        photoBytes!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                      )
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      return Transform.rotate(
+        angle: -0.014,
+        child: Container(
+          width: width,
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+          decoration: BoxDecoration(
+            color: AppColors.paper,
+            borderRadius: BorderRadius.circular(4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.22),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AspectRatio(
+                aspectRatio: ratio,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: photoBytes != null
+                      ? Image.memory(
+                          photoBytes!,
+                          fit: BoxFit.cover,
+                          gaplessPlayback: true,
+                        )
+                      : Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
+                            ),
                           ),
                         ),
-                      ),
+                ),
               ),
-            ),
-            SizedBox(
-              height: width * 0.18,
-              child: Center(
-                child: Text(
-                  guestName,
-                  style: GoogleFonts.caveat(
-                    fontSize: width * 0.13,
-                    color: AppColors.ink2,
+              SizedBox(
+                height: width * 0.11,
+                child: Center(
+                  child: Text(
+                    guestName,
+                    style: GoogleFonts.caveat(
+                      fontSize: width * 0.085,
+                      color: AppColors.ink2,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 

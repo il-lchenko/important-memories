@@ -26,12 +26,20 @@ class RevealMode(StrEnum):
 
 
 class Plan(StrEnum):
-    FREE = "free"
-    P10 = "p10"
-    P25 = "p25"
-    P50 = "p50"
-    P100 = "p100"
-    P150 = "p150"
+    # Business plan v3.2 — guest-count pricing grid (analysis/business-plan/index.html §09).
+    # Number = max guests included in this tier.
+    FREE = "free"    # 5 guests, 14d
+    P10 = "p10"      # 10 guests, 249₽, 30d
+    P25 = "p25"      # 25, 449₽, 60d
+    P50 = "p50"      # 50, 1290₽, 90d ⭐ base
+    P75 = "p75"      # 75, 1990₽, 90d
+    P100 = "p100"    # 100, 2990₽, 120d ⭐
+    P150 = "p150"   # 150, 4490₽, 150d
+    P175 = "p175"   # 175, 5490₽, 180d ⭐
+    P200 = "p200"   # 200, 6290₽, 180d
+    P250 = "p250"   # 250, 7690₽, 240d ⭐
+    CUSTOM = "custom"  # 250+ — цена по формуле 7690 + (N-250)*30, срок 240d
+    # Deprecated (kept for migration compat — treat as CUSTOM):
     UNLIMITED = "unlimited"
 
 

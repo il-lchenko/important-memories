@@ -31,6 +31,7 @@ Future<Map<String, dynamic>> createEvent(Ref ref, Map<String, dynamic> data) asy
     if (data['start_at'] != null) 'start_at': data['start_at'],
     'film': data['film'],
     'plan': data['plan'],
+    if (data['storage_extension'] != null) 'storage_extension': data['storage_extension'],
   });
   return Map<String, dynamic>.from(resp.data as Map);
 }

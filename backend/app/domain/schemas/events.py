@@ -1,5 +1,6 @@
 import html as html_mod
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -71,6 +72,8 @@ class EventCreateIn(BaseModel):
     lut_preset: LutPreset | None = None
     plan: Plan = Plan.FREE
     photo_format: PhotoFormat = PhotoFormat.PORTRAIT_34
+    # Optional storage extension purchased on checkout (см. STORAGE_EXTENSIONS в event_service).
+    storage_extension: Literal["3m", "6m", "1y"] | None = None
 
     @field_validator("title", "name")
     @classmethod

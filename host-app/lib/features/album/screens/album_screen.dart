@@ -125,6 +125,11 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                                 ? () => Share.share('Посмотри нашу плёнку «$title»!\n$shareUrl', subject: title)
                                 : () {},
                           ),
+                          const SizedBox(width: 8),
+                          _IcBtn(
+                            icon: Icons.tune,
+                            onTap: () => context.push('/events/${widget.eventId}/settings'),
+                          ),
                         ],
                       ),
                     ],

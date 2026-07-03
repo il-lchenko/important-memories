@@ -10,11 +10,14 @@ import '../features/auth/screens/auth_email_screen.dart';
 import '../features/auth/screens/auth_otp_screen.dart';
 import '../features/events/screens/dashboard_screen.dart';
 import '../features/events/screens/create_event_screen.dart';
+import '../features/events/screens/checkout_screen.dart';
 import '../features/events/screens/event_detail_screen.dart';
 import '../features/events/screens/live_progress_screen.dart';
 import '../features/events/screens/qr_fullscreen_screen.dart';
 import '../features/events/screens/reveal_countdown_screen.dart';
 import '../features/album/screens/album_screen.dart';
+import '../features/album/screens/album_settings_screen.dart';
+import '../features/album/screens/extend_storage_screen.dart';
 import '../features/album/screens/frame_detail_screen.dart';
 import '../features/memories/screens/memories_screen.dart';
 import '../features/memories/screens/memory_collection_screen.dart';
@@ -96,6 +99,13 @@ GoRouter appRouter(Ref ref) {
 
       GoRoute(path: '/events/create', builder: (c, s) => const CreateEventScreen()),
       GoRoute(
+        path: '/events/create/checkout',
+        builder: (c, s) {
+          final draft = (s.extra as Map?)?.cast<String, dynamic>() ?? const {};
+          return CheckoutScreen(draft: draft);
+        },
+      ),
+      GoRoute(
         path: '/events/:id',
         builder: (c, s) => EventDetailScreen(eventId: s.pathParameters['id']!),
         routes: [
@@ -125,6 +135,10 @@ GoRouter appRouter(Ref ref) {
               ),
             ],
           ),
+          GoRoute(
+            path: 'settings',
+            builder: (c, s) => AlbumSettingsScreen(eventId: s.pathParameters['id']!),
+          ),
         ],
       ),
       GoRoute(
@@ -135,6 +149,10 @@ GoRouter appRouter(Ref ref) {
           final ids = (extra?['event_ids'] as List?)?.cast<String>() ?? const [];
           return MemoryCollectionScreen(title: title, eventIds: ids);
         },
+      ),
+      GoRoute(
+        path: '/extend/:eventId',
+        builder: (c, s) => ExtendStorageScreen(eventId: s.pathParameters['eventId']!),
       ),
       GoRoute(path: '/dev',         builder: (c, s) => const DevScreen()),
 

@@ -327,10 +327,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   child: Text(
                                     _tabLabel,
                                     style: GoogleFonts.playfairDisplay(
-                                      fontSize: 28,
+                                      fontSize: 32,
                                       fontWeight: FontWeight.w500,
                                       color: AppColors.ink,
-                                      letterSpacing: -0.6,
+                                      letterSpacing: -0.7,
                                       height: 1.05,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -338,21 +338,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 2),
-                                const Icon(Icons.arrow_drop_down, size: 28, color: AppColors.ink2),
+                                const Icon(Icons.arrow_drop_down, size: 30, color: AppColors.ink2),
                               ],
                             ),
                           ),
                         ),
-                        if (_tab != 1) _StatusFilterButton(
+                        _StatusFilterButton(
                           selected: _selectedFilter,
                           onSelect: (v) => setState(() => _selectedFilter = v),
                         ),
+                        const SizedBox(width: 2),
                         IconButton(
                           onPressed: () => setState(() => _isSearching = true),
-                          icon: const Icon(Icons.search, size: 24, color: AppColors.ink2),
+                          icon: const Icon(Icons.search, size: 26, color: AppColors.ink2),
                           tooltip: 'Поиск',
-                          padding: const EdgeInsets.all(8),
-                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                          padding: const EdgeInsets.all(6),
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
                       ],
                     ),
@@ -360,7 +361,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             if (_tab == 1) ...[
               // ─── Другие события ────────────────────────────────
-              Expanded(child: _InvitedSection()),
+              Expanded(child: _InvitedSection(filter: _selectedFilter)),
             ] else ...[
             // ─── Мои альбомы ────────────────────────────────────
             const SizedBox(height: 8),
@@ -542,6 +543,14 @@ class _SearchBar extends StatelessWidget {
 // ─── Invited events section ───────────────────────────────────────────────────
 
 class _InvitedSection extends ConsumerWidget {
+  final String filter;
+  const _InvitedSection({this.filter = 'all'});
+
+  bool _matchStatus(Map<String, dynamic> e) {
+    if (filter == 'all') return true;
+    return (e['status'] as String? ?? '') == filter;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final invitedAsync = ref.watch(invitedEventsProvider);
@@ -573,6 +582,7 @@ class _InvitedSection extends ConsumerWidget {
         if (events.isEmpty) {
           return _InvitedEmpty();
         }
+        final filtered = events.where(_matchStatus).toList();
         return RefreshIndicator(
           color: AppColors.amber,
           backgroundColor: AppColors.paper,
@@ -583,7 +593,17 @@ class _InvitedSection extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
             children: [
-              for (final e in events) ...[
+              if (filtered.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Center(
+                    child: Text(
+                      'Нет событий в этом разделе',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.ink3),
+                    ),
+                  ),
+                ),
+              for (final e in filtered) ...[
                 AspectRatio(aspectRatio: 3 / 2, child: _InvitedEventCard(event: e)),
                 const SizedBox(height: 12),
               ],
@@ -814,18 +834,18 @@ class _InvitedEventCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.camera_roll_outlined, size: 13, color: Color(0xFFC9881E)),
-                        const SizedBox(width: 3),
+                        const Icon(Icons.camera_roll_outlined, size: 16, color: Color(0xFFC9881E)),
+                        const SizedBox(width: 4),
                         Text('$myFrames',
-                          style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFC9881E), fontWeight: FontWeight.w600)),
+                          style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFC9881E), fontWeight: FontWeight.w700)),
                         Text(' / $totalFrames',
-                          style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
+                          style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
                         if (_dateStr().isNotEmpty) ...[
                           const SizedBox(width: 10),
-                          const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFFB0A080)),
-                          const SizedBox(width: 3),
+                          const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFFB0A080)),
+                          const SizedBox(width: 4),
                           Text(_dateStr(),
-                            style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
+                            style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
                         ],
                       ],
                     ),
@@ -990,20 +1010,20 @@ class _EventCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.person_outline, size: 13, color: Color(0xFFB0A080)),
-                      const SizedBox(width: 3),
+                      const Icon(Icons.person_outline, size: 16, color: Color(0xFFB0A080)),
+                      const SizedBox(width: 4),
                       Text('$guestsCount',
-                        style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.camera_roll_outlined, size: 13, color: Color(0xFFC9881E)),
-                      const SizedBox(width: 3),
+                        style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.camera_roll_outlined, size: 16, color: Color(0xFFC9881E)),
+                      const SizedBox(width: 4),
                       Text('$framesCount',
-                        style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFC9881E), fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.calendar_today_outlined, size: 13, color: Color(0xFFB0A080)),
-                      const SizedBox(width: 3),
+                        style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFC9881E), fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 10),
+                      const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFFB0A080)),
+                      const SizedBox(width: 4),
                       Text(_dateStr(),
-                        style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFFB0A080), fontWeight: FontWeight.w500)),
+                        style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],
@@ -1291,7 +1311,7 @@ class _AlbumPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ─── Custom FAB: open-book icon with plus in the center ───────────────────────
+// ─── FAB: создать альбом ──────────────────────────────────────────────────────
 
 class _CreateAlbumFab extends StatelessWidget {
   const _CreateAlbumFab();
@@ -1301,48 +1321,25 @@ class _CreateAlbumFab extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/events/create'),
       child: Container(
-        width: 62, height: 62,
+        width: 60, height: 60,
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
           color: AppColors.amber,
+          shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.amber.withValues(alpha: 0.4),
-              blurRadius: 16,
-              spreadRadius: -2,
+              color: AppColors.amber.withValues(alpha: 0.45),
+              blurRadius: 18,
+              spreadRadius: -3,
+              offset: const Offset(0, 4),
             ),
             const BoxShadow(
-              color: Color(0x33000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
+              color: Color(0x29000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(
-              Icons.photo_album_outlined,
-              size: 32,
-              color: Colors.white,
-            ),
-            Positioned(
-              right: 12, bottom: 12,
-              child: Container(
-                width: 17, height: 17,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-                child: const Icon(
-                  Icons.add,
-                  size: 13,
-                  color: AppColors.amber,
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: const Icon(Icons.add, size: 32, color: Colors.white),
       ),
     );
   }
@@ -1424,10 +1421,10 @@ class _StatusFilterButton extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => _open(btnCtx),
-            icon: const Icon(Icons.filter_alt_outlined, size: 22, color: AppColors.ink2),
+            icon: const Icon(Icons.filter_alt_outlined, size: 26, color: AppColors.ink2),
             tooltip: 'Фильтр',
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
           if (dot != null)
             Positioned(
@@ -1455,10 +1452,10 @@ class _CreateAlbumFabLocation extends FloatingActionButtonLocation {
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
     final double fabX = scaffoldGeometry.scaffoldSize.width -
-        scaffoldGeometry.floatingActionButtonSize.width - 28;
+        scaffoldGeometry.floatingActionButtonSize.width - 20;
     final double contentBottom = scaffoldGeometry.contentBottom;
     final double bottomInset = scaffoldGeometry.minInsets.bottom;
-    final double fabY = contentBottom - scaffoldGeometry.floatingActionButtonSize.height - 20 - bottomInset;
+    final double fabY = contentBottom - scaffoldGeometry.floatingActionButtonSize.height - 16 - bottomInset;
     return Offset(fabX, fabY);
   }
 }

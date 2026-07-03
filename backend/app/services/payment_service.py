@@ -20,9 +20,14 @@ PLAN_PRICES_KOPECKS: dict[Plan, int] = {
     Plan.P10: 24900,     # 249 ₽
     Plan.P25: 44900,     # 449 ₽
     Plan.P50: 129000,    # 1 290 ₽
+    Plan.P75: 199000,    # 1 990 ₽
     Plan.P100: 299000,   # 2 990 ₽
     Plan.P150: 449000,   # 4 490 ₽
-    Plan.UNLIMITED: 769000,  # 7 690 ₽ (250 гостей эквивалент)
+    Plan.P175: 549000,   # 5 490 ₽
+    Plan.P200: 629000,   # 6 290 ₽
+    Plan.P250: 769000,   # 7 690 ₽
+    # CUSTOM (>250): computed via price_for_guests(n) in event_service.
+    Plan.UNLIMITED: 769000,  # legacy — treat as P250
 }
 
 # Storage extension: (days added, price in kopecks). Business plan v3.2 section 10.
@@ -33,13 +38,18 @@ EXTEND_OPTIONS: dict[str, tuple[int, int]] = {
 }
 
 # Guest count upgrade path (from -> to). Only "next tier" upgrades are supported.
+# Aligned with business plan v3.2 discrete tiers.
 _UPGRADE_GUESTS_PATH: dict[Plan, Plan] = {
     Plan.FREE: Plan.P10,
     Plan.P10: Plan.P25,
     Plan.P25: Plan.P50,
-    Plan.P50: Plan.P100,
+    Plan.P50: Plan.P75,
+    Plan.P75: Plan.P100,
     Plan.P100: Plan.P150,
-    Plan.P150: Plan.UNLIMITED,
+    Plan.P150: Plan.P175,
+    Plan.P175: Plan.P200,
+    Plan.P200: Plan.P250,
+    # P250 → CUSTOM handled separately (custom_guests param)
 }
 
 # Post-purchase upgrade premium (business plan v3.2 section 10 — "no arbitrage" rule).

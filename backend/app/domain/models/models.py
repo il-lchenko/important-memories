@@ -131,7 +131,8 @@ class EventSettings(Base):
         ForeignKey("events.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    frames_per_guest: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    # Business plan v3.2: base 30 frames/guest, extended to 45 for +5₽/guest.
+    frames_per_guest: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     max_guests: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
     reveal_mode: Mapped[RevealMode] = mapped_column(
         _enum_col(RevealMode, "reveal_mode"), default=RevealMode.INSTANT, nullable=False

@@ -43,8 +43,8 @@ class ProfileScreen extends ConsumerWidget {
                 'Профиль',
                 style: GoogleFonts.playfairDisplay(
                   fontWeight: FontWeight.w500,
-                  fontSize: 28,
-                  letterSpacing: -0.6,
+                  fontSize: 32,
+                  letterSpacing: -0.7,
                   color: AppColors.ink,
                 ),
               ),

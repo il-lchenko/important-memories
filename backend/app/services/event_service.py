@@ -27,26 +27,91 @@ from app.domain.schemas.events import (
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo
 
+# Business plan v3.2 — pricing grid by guest count (analysis/business-plan/index.html §09).
+# Kept in one place so pricing/limits/retention stay in sync.
+
 _PLAN_LIMITS: dict[Plan, int] = {
     Plan.FREE: 5,
     Plan.P10: 10,
     Plan.P25: 25,
     Plan.P50: 50,
+    Plan.P75: 75,
     Plan.P100: 100,
     Plan.P150: 150,
-    Plan.UNLIMITED: 10_000,
+    Plan.P175: 175,
+    Plan.P200: 200,
+    Plan.P250: 250,
+    Plan.CUSTOM: 10_000,     # для 250+ (реальный лимит в EventSettings.max_guests)
+    Plan.UNLIMITED: 10_000,  # legacy
 }
 
-# Default storage retention (days) per plan — used to set Event.expires_at on activation.
-# Aligned with business plan v3.2 pricing grid.
+# Price in kopecks (для YooKassa) — ровно как в бизнес-плане.
+_PLAN_PRICE_KOPECKS: dict[Plan, int] = {
+    Plan.FREE: 0,
+    Plan.P10: 24900,
+    Plan.P25: 44900,
+    Plan.P50: 129000,
+    Plan.P75: 199000,
+    Plan.P100: 299000,
+    Plan.P150: 449000,
+    Plan.P175: 549000,
+    Plan.P200: 629000,
+    Plan.P250: 769000,
+    # CUSTOM: рассчитывается формулой price_for_guests()
+}
+
+# Default storage retention (days) per plan.
 _PLAN_RETENTION_DAYS: dict[Plan, int] = {
     Plan.FREE: 14,
     Plan.P10: 30,
     Plan.P25: 60,
     Plan.P50: 90,
+    Plan.P75: 90,
     Plan.P100: 120,
-    Plan.P150: 180,
+    Plan.P150: 150,
+    Plan.P175: 180,
+    Plan.P200: 180,
+    Plan.P250: 240,
+    Plan.CUSTOM: 240,
     Plan.UNLIMITED: 240,
+}
+
+
+def price_for_guests(guests: int) -> int:
+    """Return price in kopecks for arbitrary guest count.
+
+    - Discrete tiers up to 250 map to _PLAN_PRICE_KOPECKS.
+    - 250 < N ≤ 2000: formula 7690 + (N-250)*30 ₽ (plateau 30₽/guest).
+    - N > 2000: not returned here (needs B2B contact).
+    """
+    if guests <= 5:
+        return 0
+    if guests <= 10:  return _PLAN_PRICE_KOPECKS[Plan.P10]
+    if guests <= 25:  return _PLAN_PRICE_KOPECKS[Plan.P25]
+    if guests <= 50:  return _PLAN_PRICE_KOPECKS[Plan.P50]
+    if guests <= 75:  return _PLAN_PRICE_KOPECKS[Plan.P75]
+    if guests <= 100: return _PLAN_PRICE_KOPECKS[Plan.P100]
+    if guests <= 150: return _PLAN_PRICE_KOPECKS[Plan.P150]
+    if guests <= 175: return _PLAN_PRICE_KOPECKS[Plan.P175]
+    if guests <= 200: return _PLAN_PRICE_KOPECKS[Plan.P200]
+    if guests <= 250: return _PLAN_PRICE_KOPECKS[Plan.P250]
+    if guests <= 2000:
+        rubles = 7690 + (guests - 250) * 30
+        return rubles * 100
+    return -1  # sentinel: needs B2B
+
+
+# Extra frames: base 30, extended to 45 for +5₽/guest.
+FRAMES_BASE_PER_GUEST = 30
+FRAMES_EXTENDED_PER_GUEST = 45
+FRAMES_EXTENSION_PRICE_KOPECKS_PER_GUEST = 500  # +5₽
+
+# Storage extensions after event completion.
+STORAGE_EXTENSIONS: dict[str, tuple[int, int]] = {
+    # key: (days, price_kopecks)
+    "3m": (90, 49000),
+    "6m": (180, 79000),
+    "1y": (365, 129000),
 }
 
 
@@ -128,12 +193,22 @@ async def create_event(
         f"events:create:user:{user_id}", limit=5, window_sec=3600
     )
     short_code = await _allocate_short_code(session)
+    # expires_at рассчитываем сразу с учётом купленного продления хранения (checkout).
+    extra_days = 0
+    if payload.storage_extension is not None:
+        ext = STORAGE_EXTENSIONS.get(payload.storage_extension)
+        if ext is not None:
+            extra_days = ext[0]
+    base_days = _PLAN_RETENTION_DAYS.get(payload.plan, 60)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=base_days + extra_days)
+
     event = Event(
         user_id=user_id,
         short_code=short_code,
         title=payload.title,
         start_at=payload.start_at,
         end_at=payload.end_at,
+        expires_at=expires_at,
         event_type=payload.event_type,
         status=EventStatus.DRAFT,
     )

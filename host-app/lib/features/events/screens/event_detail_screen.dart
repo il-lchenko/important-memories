@@ -1072,22 +1072,23 @@ class _ActionList extends ConsumerWidget {
           GestureDetector(
             onTap: () => context.push('/events/$eventId/qr'),
             child: Container(
-              height: 54,
+              height: 56,
               decoration: BoxDecoration(
                 color: AppColors.ink,
                 borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.20), blurRadius: 14, offset: const Offset(0, 5), spreadRadius: -4)],
               ),
               alignment: Alignment.center,
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.qr_code_2, color: Colors.white, size: 24),
+                  Icon(Icons.qr_code_2, color: Colors.white, size: 22),
                   SizedBox(width: 10),
                   Text(
                     'QR для гостей',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                       letterSpacing: 0.2,
@@ -1102,7 +1103,7 @@ class _ActionList extends ConsumerWidget {
           GestureDetector(
             onTap: () => _onTapOpenAlbum(context, event, eventId),
             child: Container(
-              height: 54,
+              height: 56,
               decoration: BoxDecoration(
                 color: AppColors.amber,
                 borderRadius: BorderRadius.circular(14),
@@ -1112,7 +1113,7 @@ class _ActionList extends ConsumerWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.photo_library_outlined, color: Colors.white, size: 20),
+                  Icon(Icons.photo_library_outlined, color: Colors.white, size: 22),
                   SizedBox(width: 10),
                   Text('Открыть альбом', style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                 ],
