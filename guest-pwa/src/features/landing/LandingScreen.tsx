@@ -68,7 +68,7 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
               height: 26, padding: '0 10px',
               background: 'rgba(0,0,0,.4)', backdropFilter: 'blur(8px)',
               color: 'var(--paper)', borderRadius: 999,
-              fontSize: 11, fontWeight: 600, fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 11, fontWeight: 600, fontFamily: 'Inter, sans-serif',
               letterSpacing: '.12em', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--shutter)', display: 'inline-block' }} />
@@ -81,7 +81,7 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
               height: 26, padding: '0 10px',
               background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(8px)',
               color: 'rgba(240,230,210,.7)', borderRadius: 999,
-              fontSize: 11, fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 11, fontFamily: 'Inter, sans-serif',
               letterSpacing: '.12em', display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
               ЗАВЕРШЕНО
@@ -92,14 +92,14 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
 
       {/* Copy */}
       <div style={{ padding: '18px 24px 0' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           {isCompleted ? 'Мероприятие завершено' : 'Вас пригласили'}
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 38, lineHeight: 1, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           {preview?.title ?? '...'}
         </h1>
         {preview?.reveal_at && !isCompleted && (
-          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, letterSpacing: '.08em', color: 'var(--ink-3)', marginBottom: 18 }}>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, letterSpacing: '.08em', color: 'var(--ink-3)', marginBottom: 18 }}>
             ОТКРОЕТСЯ В {revealLabel(preview.reveal_at)}
           </div>
         )}
@@ -116,8 +116,8 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
           ].map((item, i) => (
             <div key={i} style={{ textAlign: 'center', position: 'relative' }}>
               {i > 0 && <div style={{ position: 'absolute', left: 0, top: 8, bottom: 8, width: 1, background: 'var(--line)' }} />}
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 500, color: 'var(--ink)', lineHeight: 1 }}>{item.v}</div>
-              <div style={{ fontSize: 10, letterSpacing: '.12em', color: 'var(--ink-3)', textTransform: 'uppercase', marginTop: 5, fontFamily: 'JetBrains Mono, monospace' }}>{item.l}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 20, fontWeight: 500, color: 'var(--ink)', lineHeight: 1 }}>{item.v}</div>
+              <div style={{ fontSize: 10, letterSpacing: '.12em', color: 'var(--ink-3)', textTransform: 'uppercase', marginTop: 5, fontFamily: 'Inter, sans-serif' }}>{item.l}</div>
             </div>
           ))}
         </div>
@@ -127,7 +127,7 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
       <div className="footer-gradient">
         {isCompleted ? (
           <div style={{ textAlign: 'center', padding: '0 24px' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
               АЛЬБОМ ЗАКРЫТ
             </div>
             <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
@@ -136,7 +136,7 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
           </div>
         ) : isDraft ? (
           <div style={{ textAlign: 'center', padding: '0 24px' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 8 }}>
               СКОРО
             </div>
             <div style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>
@@ -172,14 +172,14 @@ function NameStep({
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
       {/* Back link */}
-      <button onClick={onBack} style={{ padding: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}>
+      <button onClick={onBack} style={{ padding: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
         {eventTitle || 'Назад'}
       </button>
 
       {/* Main content — grows, no overflow */}
       <div style={{ flex: 1, padding: '20px 24px 0', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           Шаг 1 из 2
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 36, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
@@ -189,7 +189,7 @@ function NameStep({
           Имя появится под каждым вашим кадром в общем альбоме. Можно псевдоним.
         </p>
 
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
           Имя
         </div>
         <input
@@ -227,13 +227,13 @@ function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       {/* Back link */}
-      <button onClick={onBack} style={{ padding: '12px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start' }}>
+      <button onClick={onBack} style={{ padding: '12px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start' }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
         {guestName} · {eventTitle || 'Назад'}
       </button>
 
       <div style={{ padding: '24px 24px 0' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           Шаг 2 из 2
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 18px' }}>

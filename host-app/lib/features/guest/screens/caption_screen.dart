@@ -202,7 +202,7 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                     const Spacer(),
                     Text(
                       'ПОДПИСЬ К КАДРУ ${frameNum.toString().padLeft(2, '0')}',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
+                      style: GoogleFonts.inter(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
                     ),
                     const Spacer(),
                     const SizedBox(width: 34),
@@ -271,7 +271,7 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                         alignment: Alignment.centerRight,
                         child: Text(
                           '$charCount / $_maxLen',
-                          style: GoogleFonts.jetBrainsMono(
+                          style: GoogleFonts.inter(
                             fontSize: 10, letterSpacing: 1.0,
                             color: charCount >= _maxLen ? AppColors.shutter : AppColors.ink4,
                           ),
@@ -384,7 +384,7 @@ class _DisplayMode extends StatelessWidget {
                         const Icon(Icons.check, size: 11, color: AppColors.amber),
                         const SizedBox(width: 4),
                         Text('ПОДПИСАНО',
-                            style: GoogleFonts.jetBrainsMono(fontSize: 9, letterSpacing: 1.2, color: AppColors.amber)),
+                            style: GoogleFonts.inter(fontSize: 9, letterSpacing: 1.2, color: AppColors.amber)),
                       ],
                     ),
                   ),

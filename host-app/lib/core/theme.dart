@@ -117,6 +117,6 @@ TextTheme _buildTextTheme(TextTheme base) {
     bodyMedium:  GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w400, color: AppColors.ink2),
     bodySmall:   GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w400, color: AppColors.ink3),
     labelLarge:  GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
-    labelSmall:  GoogleFonts.jetBrainsMono(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.ink3, letterSpacing: 0.14),
+    labelSmall:  GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppColors.ink3, letterSpacing: 0.14, fontFeatures: [const FontFeature.tabularFigures()]),
   );
 }

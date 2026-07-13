@@ -114,7 +114,7 @@ function FilmCounter({ frames }: { frames: number }) {
       <Holes />
       <div style={{
         padding: '0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700,
+        fontFamily: 'Inter, sans-serif', fontSize: 20, fontWeight: 700,
         color: '#FFB347', lineHeight: 1, letterSpacing: '-.02em',
       }}>
         {frames}
@@ -162,11 +162,11 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, c
           </svg>
         </button>
         {savedHint && (
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.1em', color: 'rgba(240,230,210,.55)', whiteSpace: 'nowrap' }}>→ Файлы</span>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.1em', color: 'rgba(240,230,210,.55)', whiteSpace: 'nowrap' }}>→ Файлы</span>
         )}
       </div>
 
-      <div style={{ padding: '8px 24px 0', fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'rgba(240,230,210,.55)', letterSpacing: '.14em', textAlign: 'center', paddingTop: 60 }}>
+      <div style={{ padding: '8px 24px 0', fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(240,230,210,.55)', letterSpacing: '.14em', textAlign: 'center', paddingTop: 60 }}>
         КАДР {frameNum} · МОМЕНТ ЗАПЕЧАТЛЁН
       </div>
 
@@ -239,7 +239,7 @@ function OfflineScreen({ queue, onRetry, onContinue }: {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', paddingTop: 60 }}>
       <div style={{ padding: '14px 24px 0' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--shutter)', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'var(--shutter)', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--shutter)', display: 'inline-block' }} />
           Связь потеряна
         </div>
@@ -265,7 +265,7 @@ function OfflineScreen({ queue, onRetry, onContinue }: {
           <div style={{ marginTop: 16, padding: 14, borderRadius: 16, background: 'var(--paper-2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <h4 style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600 }}>В очереди</h4>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--amber)', letterSpacing: '.08em' }}>{queue.length} · ОТПРАВКА…</span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'var(--amber)', letterSpacing: '.08em' }}>{queue.length} · ОТПРАВКА…</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
               {thumbUrls.slice(0, 3).map((url, i) => (
@@ -729,7 +729,7 @@ export default function CameraScreen() {
 
             {/* Film label & aperture — никогда не вращаются */}
             <div style={{
-              fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+              fontFamily: 'Inter, sans-serif', fontSize: 10,
               letterSpacing: '.14em', color: 'rgba(255,179,71,0.65)',
               display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
             }}>
@@ -871,7 +871,7 @@ export default function CameraScreen() {
                           background: active ? 'rgba(255,179,71,0.24)' : 'transparent',
                           border: active ? '1px solid rgba(255,179,71,0.6)' : '1px solid transparent',
                           color: active ? '#FFB347' : 'rgba(240,230,210,0.85)',
-                          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
+                          fontFamily: 'Inter, sans-serif', fontSize: 11, fontWeight: 700,
                           letterSpacing: '.04em', cursor: 'pointer',
                         }}
                       >{label}</button>

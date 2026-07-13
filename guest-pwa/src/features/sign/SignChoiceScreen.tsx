@@ -31,7 +31,7 @@ export default function SignChoiceScreen() {
             <polyline points="11 18 5 12 11 6"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
         </button>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)' }}>
           ПОДПИСЬ К КАДРУ {String(state.frameNum).padStart(2, '0')}
         </div>
         <div style={{ width: 34 }} />

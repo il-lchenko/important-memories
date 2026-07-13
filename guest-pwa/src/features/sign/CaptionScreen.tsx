@@ -147,7 +147,7 @@ export default function CaptionScreen() {
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="11 18 5 12 11 6"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(201,136,30,.12)', color: 'var(--amber)', fontFamily: 'JetBrains Mono, monospace', fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: 'rgba(201,136,30,.12)', color: 'var(--amber)', fontFamily: 'Inter, sans-serif', fontSize: 9, letterSpacing: '.1em', textTransform: 'uppercase' }}>
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
             Подписано
           </div>
@@ -203,7 +203,7 @@ export default function CaptionScreen() {
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="11 18 5 12 11 6"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)' }}>
           ПОДПИСЬ К КАДРУ {String(state.frameNum).padStart(2, '0')}
         </div>
         <div style={{ width: 34 }} />
@@ -235,7 +235,7 @@ export default function CaptionScreen() {
           rows={3}
           style={{ width: '100%', background: 'rgba(0,0,0,0.04)', border: '1px solid var(--line)', borderRadius: 10, padding: 14, fontFamily: 'Inter, sans-serif', fontSize: 14, color: 'var(--ink)', resize: 'none' }}
         />
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.1em', color: text.length >= MAX ? 'var(--shutter)' : 'var(--ink-4)', textAlign: 'right', marginTop: 6 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.1em', color: text.length >= MAX ? 'var(--shutter)' : 'var(--ink-4)', textAlign: 'right', marginTop: 6 }}>
           {text.length} / {MAX}
         </div>
         {error && (

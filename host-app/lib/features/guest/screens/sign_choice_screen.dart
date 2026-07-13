@@ -42,7 +42,7 @@ class SignChoiceScreen extends StatelessWidget {
                   const Spacer(),
                   Text(
                     'КАДР ${frameNum.toString().padLeft(2, '0')}',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.inter(
                       fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3,
                     ),
                   ),

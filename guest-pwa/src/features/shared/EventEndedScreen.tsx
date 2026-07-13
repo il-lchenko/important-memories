@@ -48,7 +48,7 @@ export default function EventEndedScreen() {
       </p>
 
       {eventTitle && (
-        <div style={{ marginTop: 16, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'var(--ink-4)', textTransform: 'uppercase' }}>
+        <div style={{ marginTop: 16, fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'var(--ink-4)', textTransform: 'uppercase' }}>
           {eventTitle.toUpperCase()}
         </div>
       )}

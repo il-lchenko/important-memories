@@ -212,7 +212,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                                           ? 'ЗАГРУЗКА...'
                                           : '$frameCount КАДРОВ · ПРОЯВЛЕНО',
                                       style: const TextStyle(
-                                        fontFamily: 'JetBrains Mono', fontSize: 11,
+                                        fontFamily: 'Inter', fontSize: 11,
                                         letterSpacing: 1.54, color: AppColors.ink3,
                                       ),
                                     ),
@@ -440,7 +440,7 @@ class _EmptyAlbum extends StatelessWidget {
             const Text(
               '[ 0 КАДРОВ ]',
               style: TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 11,
+                fontFamily: 'Inter', fontSize: 11,
                 letterSpacing: 2, color: AppColors.ink3,
               ),
             ),
@@ -735,7 +735,7 @@ class _MagazineGrid extends StatelessWidget {
                             child: Text(
                               time,
                               style: const TextStyle(
-                                fontFamily: 'JetBrains Mono', fontSize: 9, color: Color(0xD9FFD2AA),
+                                fontFamily: 'Inter', fontSize: 9, color: Color(0xD9FFD2AA),
                               ),
                             ),
                           ),
@@ -1134,7 +1134,7 @@ class _PolaroidFeed extends StatelessWidget {
                           child: Text(
                             time,
                             style: const TextStyle(
-                              fontFamily: 'JetBrains Mono', fontSize: 10,
+                              fontFamily: 'Inter', fontSize: 10,
                               letterSpacing: 0.6, color: AppColors.ink3,
                             ),
                           ),
@@ -1383,7 +1383,7 @@ class _AdminPreviewBanner extends StatelessWidget {
           Text(
             'АДМИН‑РЕЖИМ',
             style: TextStyle(
-              fontFamily: 'JetBrains Mono', fontSize: 9,
+              fontFamily: 'Inter', fontSize: 9,
               letterSpacing: 1.2, color: AppColors.shutter, fontWeight: FontWeight.w600,
             ),
           ),

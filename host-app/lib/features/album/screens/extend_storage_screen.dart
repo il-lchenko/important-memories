@@ -146,7 +146,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
                       style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, fontWeight: FontWeight.w500)),
                   Text('${opt.priceRub} ₽',
                       style: const TextStyle(
-                        fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.ink, letterSpacing: -0.5,
+                        fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.ink, letterSpacing: -0.5,
                       )),
                 ],
               ),
@@ -214,7 +214,7 @@ class _Kicker extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text,
         style: const TextStyle(
-          fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 0.18,
+          fontFamily: 'Inter', fontSize: 11, letterSpacing: 0.18,
           color: AppColors.amber, fontWeight: FontWeight.w500,
         ),
       );
@@ -255,7 +255,7 @@ class _ExpireBanner extends StatelessWidget {
               Text(
                 isUrgent ? 'СКОРО ИСЧЕЗНЕТ' : 'ОСТАЛОСЬ ХРАНИТЬ',
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono', fontSize: 11,
+                  fontFamily: 'Inter', fontSize: 11,
                   fontWeight: FontWeight.w700, letterSpacing: 0.4, color: accent,
                 ),
               ),
@@ -282,7 +282,7 @@ class _ExpireBanner extends StatelessWidget {
             Text(
               '${_formatDate(expiresAt!)} · $guestsCount гостей · $framesCount кадров',
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 11, color: AppColors.ink3, letterSpacing: 0.2, fontWeight: FontWeight.w500,
+                fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, letterSpacing: 0.2, fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -369,14 +369,14 @@ class _ExtendOptionCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text('до $untilDate',
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono', fontSize: 11, color: AppColors.ink3, letterSpacing: 0.2,
+                            fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, letterSpacing: 0.2,
                           )),
                     ],
                     if (opt.savingsHint != null) ...[
                       const SizedBox(height: 4),
                       Text(opt.savingsHint!.toUpperCase(),
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono', fontSize: 9, fontWeight: FontWeight.w700,
+                            fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.w700,
                             color: Color(0xFF5BAA72), letterSpacing: 0.5,
                           )),
                     ],
@@ -385,7 +385,7 @@ class _ExtendOptionCard extends StatelessWidget {
               ),
               Text('${opt.priceRub} ₽',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.w700,
                     color: selected ? AppColors.amber : AppColors.ink2, letterSpacing: -0.4,
                   )),
             ],

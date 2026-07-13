@@ -1174,7 +1174,7 @@ class _FilmLabel extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             filmLabel(lutPreset),
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.inter(
               fontSize: 10,
               letterSpacing: 1.4,
               color: const Color(0xA6FFB347),
@@ -1185,7 +1185,7 @@ class _FilmLabel extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             'ƒ 2.8',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.inter(
               fontSize: 10,
               letterSpacing: 1.4,
               color: const Color(0xA6FFB347).withValues(alpha: 0.55),
@@ -1224,7 +1224,7 @@ class _FilmCounter extends StatelessWidget {
               child: Center(
                 child: Text(
                   '$remaining',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.drAmber,
@@ -1437,7 +1437,7 @@ class _FramePreviewState extends State<_FramePreview> {
                   const Spacer(),
                   Text(
                     'КАДР ${d.frameNum} · МОМЕНТ ЗАПЕЧАТЛЁН',
-                    style: GoogleFonts.jetBrainsMono(
+                    style: GoogleFonts.inter(
                       fontSize: 11,
                       letterSpacing: 1.5,
                       color: AppColors.drText.withValues(alpha: 0.55),
@@ -1713,7 +1713,7 @@ class _ZoomChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
+          style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.5,
@@ -1826,7 +1826,7 @@ class _CaptureOverlay extends StatelessWidget {
                 const SizedBox(height: 14),
                 Text(
                   'Проявляется кадр…',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.inter(
                     fontSize: 11,
                     letterSpacing: 1.4,
                     color: AppColors.drText.withValues(alpha: 0.7),

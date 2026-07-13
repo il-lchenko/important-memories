@@ -314,7 +314,7 @@ class _GuestProfileScreenState extends ConsumerState<GuestProfileScreen> {
                                 child: const Text(
                                   'АНОНИМНЫЙ ГОСТЬ',
                                   style: TextStyle(
-                                    fontFamily: 'JetBrains Mono',
+                                    fontFamily: 'Inter',
                                     fontSize: 10,
                                     letterSpacing: 1.3,
                                     color: AppColors.amber,
@@ -364,7 +364,7 @@ class _GuestProfileScreenState extends ConsumerState<GuestProfileScreen> {
                       Text(
                         '$framesUsed из ${framesUsed + framesRemaining} кадров снято',
                         style: const TextStyle(
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'Inter',
                           fontSize: 10,
                           letterSpacing: 1.1,
                           color: AppColors.ink4,

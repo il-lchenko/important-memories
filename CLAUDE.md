@@ -93,7 +93,7 @@ ssh impomento "docker cp /opt/im/backend/alembic/. im-backend:/app/alembic/ && d
 **Paper Light** (основная тема): bg `#F6F2E8`, text `#1A1714`, accent `#C9881E`, danger `#D54B3D`
 **Darkroom** (камера и reveal): bg `#16100C`, text `#FFB347`
 
-Шрифты: Fraunces (display), Inter (UI), JetBrains Mono, Caveat (script)
+Шрифты: Fraunces (display), Inter (UI + метки/цифры с tabular-nums), Caveat (script)
 
 Токены: `analysis/design-screens/project/tokens.json`
 

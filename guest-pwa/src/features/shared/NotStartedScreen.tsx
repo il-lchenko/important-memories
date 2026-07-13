@@ -86,7 +86,7 @@ export default function NotStartedScreen() {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 30% 25%, rgba(255,179,71,.15) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(213,75,61,.12) 0%, transparent 55%)' }} />
 
       <div style={{ padding: '60px 24px 24px', position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
           {isSoon ? 'Почти начинаем' : 'Скоро мероприятие'}
         </div>
 
@@ -111,10 +111,10 @@ export default function NotStartedScreen() {
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
                 transition: 'background .4s, border-color .4s',
               }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 56, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em' }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 56, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em' }}>
                   {num}
                 </div>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.2em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.2em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
                   {label}
                 </div>
               </div>
@@ -123,7 +123,7 @@ export default function NotStartedScreen() {
         )}
 
         {startLabel && (
-          <div style={{ marginTop: 14, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.5)', textTransform: 'uppercase' }}>
+          <div style={{ marginTop: 14, fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.5)', textTransform: 'uppercase' }}>
             Начнётся {startLabel}
           </div>
         )}

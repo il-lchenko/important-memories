@@ -132,7 +132,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                           TextSpan(
                             text: widget.email,
                             style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
+                              fontFamily: 'Inter',
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: AppColors.ink2,
@@ -180,7 +180,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                                   TextSpan(
                                     text: '00:${_resendCountdown.toString().padLeft(2, '0')}',
                                     style: const TextStyle(
-                                      fontFamily: 'JetBrains Mono',
+                                      fontFamily: 'Inter',
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
                                       color: AppColors.ink,
@@ -274,7 +274,7 @@ class _OtpCell extends StatelessWidget {
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'Inter',
             fontSize: 28,
             fontWeight: FontWeight.w500,
             color: AppColors.ink,

@@ -91,7 +91,7 @@ class _OnbPager extends StatelessWidget {
           Text(
             '${step.toString().padLeft(2, '0')} / 07',
             style: const TextStyle(
-              fontFamily: 'JetBrains Mono',
+              fontFamily: 'Inter',
               fontSize: 11,
               letterSpacing: 1.54,
               color: AppColors.ink3,
@@ -331,7 +331,7 @@ class _OnbPage1 extends StatelessWidget {
                       child: Text(
                         '·12·07·26',
                         style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'Inter',
                           fontSize: 10,
                           letterSpacing: 1.0,
                           color: Color(0xD9FFD2AA),
@@ -394,7 +394,7 @@ class _OnbPage2 extends StatelessWidget {
                   const Text(
                     'impomento.pro/g/qb47d7rt',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'Inter',
                       fontSize: 11,
                       letterSpacing: 1.32,
                       color: AppColors.ink3,
@@ -738,7 +738,7 @@ class _AlbumCard extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'Inter',
                   fontSize: 10,
                   letterSpacing: 1.6,
                   color: dark ? const Color(0x99FFD2AA) : AppColors.ink3,
@@ -1073,7 +1073,7 @@ class _OnbPage5 extends StatelessWidget {
                       child: Text(
                         'KODAK PORTRA 400',
                         style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'Inter',
                           fontSize: 10,
                           letterSpacing: 1.4,
                           color: Color(0xCCFFD2AA),
@@ -1226,7 +1226,7 @@ class _FilmSwatch extends StatelessWidget {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'Inter',
                   fontSize: 8,
                   letterSpacing: 0.8,
                   fontWeight: FontWeight.w600,
@@ -1284,7 +1284,7 @@ class _OnbPageFrames extends StatelessWidget {
                           const Text(
                             'КАДРЫ',
                             style: TextStyle(
-                              fontFamily: 'JetBrains Mono', fontSize: 11,
+                              fontFamily: 'Inter', fontSize: 11,
                               letterSpacing: 1.7, color: AppColors.ink,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1299,7 +1299,7 @@ class _OnbPageFrames extends StatelessWidget {
                             child: const Text(
                               '4 альбома',
                               style: TextStyle(
-                                fontFamily: 'JetBrains Mono', fontSize: 10,
+                                fontFamily: 'Inter', fontSize: 10,
                                 letterSpacing: 0.6, color: AppColors.amber,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1413,7 +1413,7 @@ class _AlbumFrameRow extends StatelessWidget {
             ),
             child: Text(status,
               style: TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 9,
+                fontFamily: 'Inter', fontSize: 9,
                 letterSpacing: 1.0, color: statusColor,
                 fontWeight: FontWeight.w600,
               ),

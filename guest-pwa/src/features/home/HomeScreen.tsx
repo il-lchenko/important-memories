@@ -60,7 +60,7 @@ export default function HomeScreen() {
       {/* Brand header */}
       <div style={{ padding: '24px 24px 16px' }}>
         <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+          fontFamily: 'Inter, sans-serif', fontSize: 11,
           letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase',
         }}>
           IMPORTANT MEMORIES
@@ -115,14 +115,14 @@ export default function HomeScreen() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                        fontFamily: 'Inter, sans-serif', fontSize: 10,
                         letterSpacing: '.14em', color: badge.color,
                       }}>
                         {badge.label}
                       </span>
                       <span style={{ color: 'var(--ink-4)', fontSize: 10 }}>•</span>
                       <span style={{
-                        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+                        fontFamily: 'Inter, sans-serif', fontSize: 11,
                         color: 'var(--ink-3)', letterSpacing: '.08em',
                       }}>
                         {r.shortCode}
@@ -180,7 +180,7 @@ export default function HomeScreen() {
       {/* Sticky bottom: code input + CTA */}
       <div className="footer-gradient" style={{ paddingTop: 32 }}>
         <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+          fontFamily: 'Inter, sans-serif', fontSize: 10,
           letterSpacing: '.14em', color: 'var(--ink-3)',
           textTransform: 'uppercase', marginBottom: 8,
         }}>
@@ -200,7 +200,7 @@ export default function HomeScreen() {
           }}
           maxLength={8}
           style={{
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: 'Inter, sans-serif',
             letterSpacing: '.2em', textTransform: 'uppercase',
           }}
         />

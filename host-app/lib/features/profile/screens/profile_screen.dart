@@ -178,7 +178,7 @@ class ProfileScreen extends ConsumerWidget {
               child: Text(
                 'IM · v1.0.53 · 2026',
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'Inter',
                   fontSize: 10,
                   letterSpacing: 1.4,
                   color: AppColors.ink4,
@@ -398,7 +398,7 @@ class _UserCard extends StatelessWidget {
                 Text(
                   email,
                   style: const TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'Inter',
                     fontSize: 11,
                     color: AppColors.ink3,
                     letterSpacing: 0.04,
@@ -427,7 +427,7 @@ class _SectionTitle extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: const TextStyle(
-          fontFamily: 'JetBrains Mono',
+          fontFamily: 'Inter',
           fontSize: 11,
           letterSpacing: 1.6,
           color: AppColors.ink3,

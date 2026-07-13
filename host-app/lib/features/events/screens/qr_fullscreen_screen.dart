@@ -48,7 +48,7 @@ class QrFullscreenScreen extends ConsumerWidget {
                   Text(
                     title.toUpperCase(),
                     style: const TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'Inter',
                       fontSize: 10,
                       letterSpacing: 0.16,
                       color: AppColors.drAmber,
@@ -121,7 +121,7 @@ class QrFullscreenScreen extends ConsumerWidget {
                     child: Text(
                       joinUrl,
                       style: const TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: 'Inter',
                         fontSize: 14,
                         letterSpacing: 0.04,
                         color: AppColors.drAmber,

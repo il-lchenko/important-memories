@@ -196,7 +196,7 @@ class _Topbar extends StatelessWidget {
               'НОВЫЙ АЛЬБОМ',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: 'Inter',
                 fontSize: 11,
                 letterSpacing: 1.32,
                 color: AppColors.ink3,
@@ -419,7 +419,7 @@ class _Step2 extends StatelessWidget {
               Text(
                 '$frames',
                 style: const TextStyle(
-                  fontFamily: 'JetBrains Mono', fontSize: 56,
+                  fontFamily: 'Inter', fontSize: 56,
                   fontWeight: FontWeight.w600, color: AppColors.amber,
                 ),
               ),
@@ -690,7 +690,7 @@ class _FrameRulerPainter extends CustomPainter {
           text: '$v',
           style: TextStyle(
             fontSize: 9,
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'Inter',
             fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
             color: isSel
                 ? activeColor
@@ -798,7 +798,7 @@ class _Step3 extends StatelessWidget {
                         const Text('Начало мероприятия', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3)),
                         Text(
                           _formatDt(startAt!),
-                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
                         ),
                       ],
                     ),
@@ -872,14 +872,14 @@ class _MiniCalendar extends StatelessWidget {
                   decoration: BoxDecoration(color: _redDate, borderRadius: BorderRadius.circular(6)),
                   child: Text(
                     '${selectedDate!.day} ${_monthNames[selectedDate!.month].substring(0, 3).toLowerCase()}',
-                    style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
               Text(
                 '$year',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: AppColors.ink3),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3),
               ),
             ],
           ),
@@ -929,7 +929,7 @@ class _MiniCalendar extends StatelessWidget {
                     child: Text(
                       '$day',
                       style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: 'Inter',
                         fontSize: 11,
                         fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                         color: isSel
@@ -1042,7 +1042,7 @@ class _Step4Reveal extends StatelessWidget {
                         const Text('Плёнка проявится', style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3)),
                         Text(
                           _formatDt(revealAt!),
-                          style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),
                         ),
                       ],
                     ),
@@ -1284,7 +1284,7 @@ class _Kicker extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
     child: Text(text, style: const TextStyle(
-      fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 0.18,
+      fontFamily: 'Inter', fontSize: 11, letterSpacing: 0.18,
       color: AppColors.amber, fontWeight: FontWeight.w500,
     )),
   );

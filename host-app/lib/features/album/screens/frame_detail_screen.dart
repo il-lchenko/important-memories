@@ -313,7 +313,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                           'КАДР ${safeIdx + 1} / $total',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'Inter',
                             fontSize: 11,
                             letterSpacing: 1.32,
                             color: AppColors.ink3,
@@ -442,7 +442,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                             Text(
                               guestName.isNotEmpty ? guestName.toUpperCase() : '—',
                               style: const TextStyle(
-                                fontFamily: 'JetBrains Mono',
+                                fontFamily: 'Inter',
                                 fontSize: 10,
                                 letterSpacing: 1.4,
                                 color: AppColors.ink3,
@@ -460,7 +460,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                             Text(
                               dt.time,
                               style: const TextStyle(
-                                fontFamily: 'JetBrains Mono',
+                                fontFamily: 'Inter',
                                 fontSize: 10,
                                 letterSpacing: 1.4,
                                 color: AppColors.ink3,
@@ -476,7 +476,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                             Text(
                               dt.date,
                               style: const TextStyle(
-                                fontFamily: 'JetBrains Mono',
+                                fontFamily: 'Inter',
                                 fontSize: 10,
                                 letterSpacing: 1.4,
                                 color: AppColors.ink3,
@@ -488,7 +488,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                         const Text(
                           '—',
                           style: TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'Inter',
                             fontSize: 10,
                             letterSpacing: 1.4,
                             color: AppColors.ink3,
@@ -927,7 +927,7 @@ class _VoicePlayerState extends State<_VoicePlayer> {
           Text(
             '0:${totalSec.toString().padLeft(2, '0')}',
             style: const TextStyle(
-              fontFamily: 'JetBrains Mono', fontSize: 10, color: AppColors.ink3,
+              fontFamily: 'Inter', fontSize: 10, color: AppColors.ink3,
             ),
           ),
         ],

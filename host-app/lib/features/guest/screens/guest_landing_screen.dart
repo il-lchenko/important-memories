@@ -257,7 +257,7 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
                           Text(
                             'КОД ${widget.code}',
                             style: const TextStyle(
-                              fontFamily: 'JetBrains Mono',
+                              fontFamily: 'Inter',
                               fontSize: 10,
                               letterSpacing: 1.4,
                               color: Color(0xCCFFFFFF),
@@ -282,7 +282,7 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
                         Text(
                           '${_eventTypeLabel(status)} · $dateStr',
                           style: const TextStyle(
-                            fontFamily: 'JetBrains Mono',
+                            fontFamily: 'Inter',
                             fontSize: 10,
                             letterSpacing: 1.2,
                             color: AppColors.amber,

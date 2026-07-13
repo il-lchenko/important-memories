@@ -93,7 +93,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 const Text(
                   'СКАНИРУЙТЕ QR',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'Inter',
                     fontSize: 10,
                     letterSpacing: 2.0,
                     color: Color(0x99F0E6D2),

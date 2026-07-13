@@ -168,7 +168,7 @@ class _TopBar extends StatelessWidget {
           const Expanded(
             child: Text('СМЕТА',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 1.32, color: AppColors.ink3)),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 11, letterSpacing: 1.32, color: AppColors.ink3)),
           ),
           _IcBtn(icon: Icons.close, onTap: () => context.go('/dashboard'), iconSize: 18),
         ],
@@ -223,7 +223,7 @@ class _GuestsTileGrid extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('ГОСТЕЙ',
-              style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 0.18, color: AppColors.ink3, fontWeight: FontWeight.w500)),
+              style: TextStyle(fontFamily: 'Inter', fontSize: 11, letterSpacing: 0.18, color: AppColors.ink3, fontWeight: FontWeight.w500)),
           const SizedBox(height: 12),
           // 5 columns × 2 rows
           GridView.builder(
@@ -255,7 +255,7 @@ class _GuestsTileGrid extends StatelessWidget {
                     child: Text(
                       '$count',
                       style: TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: 'Inter',
                         fontSize: 15,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                         color: active ? AppColors.amber : AppColors.ink2,
@@ -289,7 +289,7 @@ class _GuestsTileGrid extends StatelessWidget {
                 Text(
                   selectedPrice == 0 ? 'Бесплатно' : '$selectedPrice ₽',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'Inter',
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: selectedPrice == 0 ? const Color(0xFF4CAF79) : AppColors.amber,
@@ -443,7 +443,7 @@ class _TotalCard extends StatelessWidget {
               ),
               Text(
                 isFree ? 'Бесплатно' : '$planPriceRub ₽',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.amber),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 26, fontWeight: FontWeight.w700, color: AppColors.amber),
               ),
             ],
           ),
@@ -494,7 +494,7 @@ class _TotalRow extends StatelessWidget {
         ),
         Text(value,
             style: TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 14,
+                fontFamily: 'Inter', fontSize: 14,
                 color: dim ? AppColors.ink4 : AppColors.ink,
                 fontWeight: FontWeight.w500)),
       ],
@@ -583,7 +583,7 @@ class _Kicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 4),
-    child: Text(text, style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 0.18, color: AppColors.amber, fontWeight: FontWeight.w500)),
+    child: Text(text, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, letterSpacing: 0.18, color: AppColors.amber, fontWeight: FontWeight.w500)),
   );
 }
 

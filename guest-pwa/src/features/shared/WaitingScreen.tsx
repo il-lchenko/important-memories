@@ -133,7 +133,7 @@ export default function WaitingScreen() {
         {revealed ? (
           // ── Revealed state ──
           <>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
               Альбом открыт
             </div>
             <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 40px', maxWidth: 280 }}>
@@ -147,7 +147,7 @@ export default function WaitingScreen() {
         ) : (
           // ── Waiting state ──
           <>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
               {revealAt ? 'Скоро открытие' : 'Альбом ещё закрыт'}
             </div>
             <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 280 }}>
@@ -168,10 +168,10 @@ export default function WaitingScreen() {
                     border: '1px solid rgba(255,179,71,.18)',
                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 56, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em' }}>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 56, fontWeight: 500, color: 'var(--dr-text)', lineHeight: 1, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums' }}>
                       {num}
                     </div>
-                    <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.2em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.2em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
                       {label}
                     </div>
                   </div>
@@ -180,7 +180,7 @@ export default function WaitingScreen() {
             )}
 
             {openLabel && (
-              <div style={{ marginTop: 14, fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.5)', textTransform: 'uppercase' }}>
+              <div style={{ marginTop: 14, fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.5)', textTransform: 'uppercase' }}>
                 Откроется {openLabel}
               </div>
             )}
@@ -213,7 +213,7 @@ export default function WaitingScreen() {
             )}
 
             {/* Meta */}
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.45)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', paddingBottom: 14 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.45)', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between', paddingBottom: 14 }}>
               {framesPerGuest > 0 && <span>ВАШИХ · {framesPerGuest}</span>}
               <span>{eventTitle.toUpperCase()}</span>
             </div>

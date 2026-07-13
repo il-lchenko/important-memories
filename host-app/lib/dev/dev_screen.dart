@@ -33,7 +33,7 @@ class DevScreen extends StatelessWidget {
             const Text(
               'DEV · все экраны',
               style: TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: 'Inter',
                 fontSize: 11,
                 letterSpacing: 0.18,
                 color: AppColors.amber,
@@ -92,7 +92,7 @@ class _RouteButton extends StatelessWidget {
               Text(
                 route.path.length > 28 ? '…${route.path.substring(route.path.length - 20)}' : route.path,
                 style: const TextStyle(
-                  fontFamily: 'JetBrains Mono',
+                  fontFamily: 'Inter',
                   fontSize: 10,
                   color: AppColors.ink4,
                   letterSpacing: 0.04,

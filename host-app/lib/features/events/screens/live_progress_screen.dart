@@ -194,7 +194,7 @@ class _LiveProgressScreenState extends ConsumerState<LiveProgressScreen>
                                 RichText(
                                   text: TextSpan(
                                     style: const TextStyle(
-                                      fontFamily: 'JetBrains Mono',
+                                      fontFamily: 'Inter',
                                       fontSize: 88,
                                       fontWeight: FontWeight.w500,
                                       height: 1,
@@ -234,7 +234,7 @@ class _LiveProgressScreenState extends ConsumerState<LiveProgressScreen>
                             const Text(
                               'ПОСЛЕДНИЕ',
                               style: TextStyle(
-                                fontFamily: 'JetBrains Mono',
+                                fontFamily: 'Inter',
                                 fontSize: 10,
                                 letterSpacing: 1.4,
                                 color: AppColors.ink3,
@@ -375,7 +375,7 @@ class _GuestRow extends StatelessWidget {
           Text(
             '${data.frames} / $framesPerGuest',
             style: const TextStyle(
-              fontFamily: 'JetBrains Mono',
+              fontFamily: 'Inter',
               fontSize: 14,
               color: AppColors.ink3,
             ),
@@ -385,7 +385,7 @@ class _GuestRow extends StatelessWidget {
             Text(
               agoStr,
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: 'Inter',
                 fontSize: 11,
                 letterSpacing: 0.4,
                 color: AppColors.ink4,
@@ -450,7 +450,7 @@ class _RevealCard extends StatelessWidget {
                     Text(
                       done ? 'ГОТОВО К ПРОЯВКЕ' : 'ПРОЯВКА ЧЕРЕЗ',
                       style: const TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: 'Inter',
                         fontSize: 11,
                         letterSpacing: 1.54,
                         color: Color(0x99F0E6D2),
@@ -460,7 +460,7 @@ class _RevealCard extends StatelessWidget {
                     Text(
                       done ? '—' : '${_fmt(h)} : ${_fmt(m)} : ${_fmt(s)}',
                       style: const TextStyle(
-                        fontFamily: 'JetBrains Mono',
+                        fontFamily: 'Inter',
                         fontSize: 24,
                         letterSpacing: 1.0,
                         fontWeight: FontWeight.w500,

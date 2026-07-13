@@ -22,7 +22,7 @@ export default function DoneScreen() {
       {/* Top meta bar */}
       <div style={{
         padding: '0 24px', paddingTop: 60,
-        fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+        fontFamily: 'Inter, sans-serif', fontSize: 11,
         letterSpacing: '.14em', color: 'rgba(240,230,210,.45)',
         textTransform: 'uppercase',
         display: 'flex', justifyContent: 'space-between',
@@ -34,7 +34,7 @@ export default function DoneScreen() {
       {/* Core */}
       <div style={{ flex: 1, padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
         <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
+          fontFamily: 'Inter, sans-serif',
           fontSize: 180, fontWeight: 500,
           color: 'var(--dr-amber)', lineHeight: 1, letterSpacing: '-.06em',
           textShadow: '0 0 60px rgba(255,179,71,.3)',

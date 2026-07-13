@@ -93,7 +93,7 @@ export default function PublicAlbumScreen() {
   if (notFound) {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
-        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.16em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.16em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
           АЛЬБОМ НЕ НАЙДЕН
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 26, letterSpacing: '-.02em', margin: 0, color: 'var(--ink)' }}>
@@ -118,7 +118,7 @@ export default function PublicAlbumScreen() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0 }} />
           <span style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em',
+            fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em',
             color: 'var(--ink-3)', textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             ПУБЛИЧНЫЙ АЛЬБОМ · ПРОСМОТР
@@ -143,7 +143,7 @@ export default function PublicAlbumScreen() {
           {meta?.title ?? '...'}
         </h1>
         <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+          fontFamily: 'Inter, sans-serif', fontSize: 11,
           letterSpacing: '.14em', color: 'var(--ink-3)',
           textTransform: 'uppercase', marginTop: 4,
         }}>
@@ -172,7 +172,7 @@ export default function PublicAlbumScreen() {
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <span style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>Загрузка...</span>
+          <span style={{ color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Загрузка...</span>
         </div>
       ) : frames.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', textAlign: 'center' }}>
@@ -194,7 +194,7 @@ export default function PublicAlbumScreen() {
           <div ref={sentinelRef} style={{ height: 1 }} />
           {loadingMore && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
-              <span style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>Загрузка...</span>
+              <span style={{ color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', fontSize: 12 }}>Загрузка...</span>
             </div>
           )}
         </>

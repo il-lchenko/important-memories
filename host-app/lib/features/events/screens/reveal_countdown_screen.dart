@@ -144,7 +144,7 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                     const Spacer(),
                     const Text(
                       'ОТКРЫТИЕ',
-                      style: TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 1.98, color: AppColors.drAmber),
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 11, letterSpacing: 1.98, color: AppColors.drAmber),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -200,7 +200,7 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                                   const Text(
                                     'ОТКРОЕТСЯ ЧЕРЕЗ',
                                     style: TextStyle(
-                                      fontFamily: 'JetBrains Mono',
+                                      fontFamily: 'Inter',
                                       fontSize: 11,
                                       letterSpacing: 1.98,
                                       color: AppColors.drAmber,
@@ -232,7 +232,7 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                                     Text(
                                       'Откроется $revealDateLabel',
                                       style: const TextStyle(
-                                        fontFamily: 'JetBrains Mono',
+                                        fontFamily: 'Inter',
                                         fontSize: 11,
                                         letterSpacing: 1.54,
                                         color: Color(0x80F0E6D2),
@@ -294,7 +294,7 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
       );
 
   static const _metaStyle = TextStyle(
-    fontFamily: 'JetBrains Mono',
+    fontFamily: 'Inter',
     fontSize: 11,
     letterSpacing: 1.54,
     color: Color(0x73F0E6D2),
@@ -324,19 +324,20 @@ class _ClockBox extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: 'Inter',
                 fontSize: 56,
                 fontWeight: FontWeight.w500,
                 height: 1,
                 letterSpacing: -1.12,
                 color: AppColors.drText,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
             const SizedBox(height: 8),
             Text(
               label,
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono',
+                fontFamily: 'Inter',
                 fontSize: 10,
                 letterSpacing: 2.0,
                 color: AppColors.drAmber,

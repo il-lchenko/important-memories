@@ -167,7 +167,7 @@ export default function FrameFullscreen() {
           </svg>
         </IcBtn>
 
-        <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.65)' }}>
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.14em', color: 'rgba(240,230,210,.65)' }}>
           {currentIndex + 1} / {totalFrames}
         </span>
 
@@ -298,7 +298,7 @@ export default function FrameFullscreen() {
           </span>
         </div>
         <span style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+          fontFamily: 'Inter, sans-serif', fontSize: 11,
           color: 'rgba(255,179,71,.85)', letterSpacing: '.1em',
           flexShrink: 0,
         }}>
@@ -427,7 +427,7 @@ function VoicePlayer({ url, peaks, durationMs }: { url: string; peaks: number[] 
           )
         })}
       </div>
-      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'rgba(255,179,71,.7)', flexShrink: 0 }}>
+      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: 'rgba(255,179,71,.7)', flexShrink: 0 }}>
         0:{String(totalSec).padStart(2, '0')}
       </span>
     </div>

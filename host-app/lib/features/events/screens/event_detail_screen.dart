@@ -328,7 +328,7 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
               Text(
                 '${_formatDate(startAt)} — ${_formatDate(endAt)}',
                 style: const TextStyle(
-                  fontFamily: 'JetBrains Mono', fontSize: 11,
+                  fontFamily: 'Inter', fontSize: 11,
                   letterSpacing: 0.8, color: AppColors.ink3,
                 ),
               ),
@@ -602,7 +602,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('$frames', style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 48, fontWeight: FontWeight.w600, color: AppColors.amber)),
+              Text('$frames', style: const TextStyle(fontFamily: 'Inter', fontSize: 48, fontWeight: FontWeight.w600, color: AppColors.amber)),
               Slider(value: frames.toDouble(), min: 6, max: 48, activeColor: AppColors.amber, inactiveColor: AppColors.paper3, onChanged: (v) => setD(() => frames = v.round())),
             ],
           ),
@@ -1056,7 +1056,7 @@ class _MetricItem extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'Inter',
             fontSize: 18,
             fontWeight: FontWeight.w500,
             color: AppColors.ink,
@@ -1068,7 +1068,7 @@ class _MetricItem extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontFamily: 'JetBrains Mono',
+            fontFamily: 'Inter',
             fontSize: 10,
             fontWeight: FontWeight.w500,
             color: AppColors.ink3,
@@ -1724,7 +1724,7 @@ class _FilmTimerSheetState extends ConsumerState<_FilmTimerSheet> {
                 Text(
                   _fmt(_remaining),
                   style: const TextStyle(
-                    fontFamily: 'JetBrains Mono', fontSize: 44,
+                    fontFamily: 'Inter', fontSize: 44,
                     fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 3,
                   ),
                 ),

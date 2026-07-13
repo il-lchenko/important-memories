@@ -83,7 +83,7 @@ export default function ReportModal({ frameId, onClose }: Props) {
             </div>
 
             {/* Comment textarea */}
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, letterSpacing: '.14em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
               Комментарий · необязательно
             </div>
             <textarea

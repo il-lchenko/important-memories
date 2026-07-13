@@ -154,7 +154,7 @@ class _Content extends StatelessWidget {
                 Text(
                   'ОПАСНАЯ ЗОНА',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono', fontSize: 12,
+                    fontFamily: 'Inter', fontSize: 12,
                     letterSpacing: 1.6,
                     color: AppColors.shutter,
                     fontWeight: FontWeight.w600,
@@ -283,7 +283,7 @@ class _Kicker extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text,
         style: const TextStyle(
-          fontFamily: 'JetBrains Mono', fontSize: 12, letterSpacing: 1.6,
+          fontFamily: 'Inter', fontSize: 12, letterSpacing: 1.6,
           color: AppColors.amber, fontWeight: FontWeight.w600,
         ),
       );
@@ -341,7 +341,7 @@ class _CurrentCard extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontFamily: 'JetBrains Mono', fontSize: 10,
+                  fontFamily: 'Inter', fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.4,
                   color: dotColor,
@@ -384,11 +384,11 @@ class _CurrentCard extends StatelessWidget {
             children: [
               Text(
                 '$guestsCount / $maxGuests гостей',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: AppColors.ink3, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontWeight: FontWeight.w500),
               ),
               Text(
                 '$framesCount кадров загружено',
-                style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 11, color: AppColors.ink3, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -418,13 +418,13 @@ class _StatCell extends StatelessWidget {
         children: [
           Text(label,
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 10, letterSpacing: 0.6,
+                fontFamily: 'Inter', fontSize: 10, letterSpacing: 0.6,
                 color: AppColors.ink3, fontWeight: FontWeight.w500,
               )),
           const SizedBox(height: 2),
           Text(value,
               style: const TextStyle(
-                fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: FontWeight.w700,
+                fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.w700,
                 color: AppColors.ink, letterSpacing: -0.3,
               )),
         ],
@@ -486,7 +486,7 @@ class _UpgradeRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(price,
                 style: const TextStyle(
-                  fontFamily: 'JetBrains Mono', fontSize: 13, fontWeight: FontWeight.w700,
+                  fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w700,
                   color: AppColors.amber, letterSpacing: -0.2,
                 )),
             const SizedBox(width: 8),
@@ -734,7 +734,7 @@ class _GuestLinkBlock extends StatelessWidget {
               _url,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: AppColors.ink2),
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink2),
             ),
           ),
           const SizedBox(height: 10),
@@ -938,7 +938,7 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
               url,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: AppColors.ink2),
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink2),
             ),
           ),
           const SizedBox(height: 12),

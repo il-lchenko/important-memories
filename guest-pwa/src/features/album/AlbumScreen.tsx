@@ -296,7 +296,7 @@ export function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: 
                 position: 'absolute', top: 8, right: 10,
                 padding: '2px 5px', borderRadius: 4,
                 background: 'rgba(0,0,0,.3)',
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 9,
+                fontFamily: 'Inter, sans-serif', fontSize: 9,
                 color: 'rgba(255,210,170,.85)',
               }}>
                 {formatTime(frame.captured_at)}
@@ -540,7 +540,7 @@ export function PolaroidCaption({ caption, capturedAt, compact = false }: {
       )}
       {time && (
         <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
+          fontFamily: 'Inter, sans-serif',
           fontSize: (compact ? 8 : 10), color: 'var(--ink-3)',
           textAlign: 'right', marginTop: 4, letterSpacing: '.06em',
         }}>
@@ -702,7 +702,7 @@ export default function AlbumScreen() {
       <div style={{ padding: '14px 24px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+            fontFamily: 'Inter, sans-serif', fontSize: 11,
             letterSpacing: '.14em', textTransform: 'uppercase',
             color: 'var(--ink-3)', marginBottom: 6,
           }}>
@@ -716,7 +716,7 @@ export default function AlbumScreen() {
             {eventName}
           </h1>
           <div style={{
-            fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+            fontFamily: 'Inter, sans-serif', fontSize: 11,
             letterSpacing: '.14em', color: 'var(--ink-3)',
             textTransform: 'uppercase', marginTop: 4,
           }}>
@@ -769,7 +769,7 @@ export default function AlbumScreen() {
       {/* Body */}
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-          <span style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>
+          <span style={{ color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
             Загрузка...
           </span>
         </div>
@@ -810,7 +810,7 @@ export default function AlbumScreen() {
 
           {loadingMore && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
-              <span style={{ color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>
+              <span style={{ color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', fontSize: 12 }}>
                 Загрузка...
               </span>
             </div>

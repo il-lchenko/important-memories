@@ -136,7 +136,7 @@ class _CodeInputScreenState extends State<CodeInputScreen> {
                                   UpperCaseTextFormatter(),
                                 ],
                                 style: TextStyle(
-                                  fontFamily: 'JetBrains Mono',
+                                  fontFamily: 'Inter',
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   color: filled ? AppColors.amber : AppColors.ink,

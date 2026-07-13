@@ -55,7 +55,7 @@ class GuestHomeScreen extends ConsumerWidget {
                             Text(
                               'ВЫ — ГОСТЬ · $framesUsed КАДРОВ ИЗ $framesTotal',
                               style: const TextStyle(
-                                fontFamily: 'JetBrains Mono', fontSize: 10,
+                                fontFamily: 'Inter', fontSize: 10,
                                 letterSpacing: 1.2, color: AppColors.ink3,
                               ),
                             ),

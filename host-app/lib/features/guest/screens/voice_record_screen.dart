@@ -292,7 +292,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                   const Spacer(),
                   Text(
                     'ГОЛОС К КАДРУ ${frameNum.toString().padLeft(2, '0')}',
-                    style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
+                    style: GoogleFonts.inter(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
                   ),
                   const Spacer(),
                   const SizedBox(width: 34),
@@ -340,7 +340,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                   style: GoogleFonts.fraunces(fontStyle: FontStyle.italic, fontSize: 16, color: AppColors.ink2)),
               const SizedBox(height: 4),
               Text('ДО 20 СЕКУНД',
-                  style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: const Color(0xFF9C9082))),
+                  style: GoogleFonts.inter(fontSize: 10, letterSpacing: 1.4, color: const Color(0xFF9C9082))),
             ] else if (isRecording || isUploading) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -353,7 +353,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                     const SizedBox(height: 8),
                     Text(
                       isUploading ? 'ЗАГРУЖАЕМ...' : 'ИДЁТ ЗАПИСЬ — НАЖМИ ◼ ЧТОБЫ ОСТАНОВИТЬ',
-                      style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.0, color: const Color(0xFF9C9082)),
+                      style: GoogleFonts.inter(fontSize: 10, letterSpacing: 1.0, color: const Color(0xFF9C9082)),
                     ),
                   ],
                 ),
@@ -366,7 +366,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
               const SizedBox(height: 10),
               Text(
                 'ГОЛОСОВАЯ ЗАМЕТКА ГОТОВА',
-                style: GoogleFonts.jetBrainsMono(
+                style: GoogleFonts.inter(
                   fontSize: 11, letterSpacing: 1.4, color: AppColors.amber, fontWeight: FontWeight.w600,
                 ),
               ),
@@ -499,7 +499,7 @@ class _WaveformCapsule extends StatelessWidget {
           // Timer
           Text(
             '● ${_fmt(elapsedMs)}',
-            style: GoogleFonts.jetBrainsMono(
+            style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppColors.shutter,
@@ -565,7 +565,7 @@ class _PlaybackCapsule extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               _fmt(durationMs),
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: AppColors.amber,

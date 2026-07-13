@@ -157,7 +157,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                 const Text(
                   'DISPOSABLE · 2026',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono',
+                    fontFamily: 'Inter',
                     fontSize: 11,
                     letterSpacing: 2.64,
                     color: AppColors.ink3,

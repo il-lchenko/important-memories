@@ -153,7 +153,7 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
                       const Text(
                         'EMAIL',
                         style: TextStyle(
-                          fontFamily: 'JetBrains Mono',
+                          fontFamily: 'Inter',
                           fontSize: 10,
                           letterSpacing: 0.14,
                           color: AppColors.ink3,

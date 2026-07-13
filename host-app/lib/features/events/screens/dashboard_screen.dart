@@ -804,7 +804,7 @@ class _InvitedEventCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       Text(badgeLabel,
                         style: TextStyle(
-                          fontFamily: 'JetBrains Mono', fontSize: 10,
+                          fontFamily: 'Inter', fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.12, color: dotColor,
                         ),
@@ -828,7 +828,7 @@ class _InvitedEventCard extends StatelessWidget {
                   child: const Text(
                     'ГОСТЬ',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono', fontSize: 10,
+                      fontFamily: 'Inter', fontSize: 10,
                       color: Colors.white, fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
                     ),
@@ -1003,7 +1003,7 @@ class _EventCard extends StatelessWidget {
                     const SizedBox(width: 5),
                     Text(badgeLabel,
                       style: TextStyle(
-                        fontFamily: 'JetBrains Mono', fontSize: 10,
+                        fontFamily: 'Inter', fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.12, color: dotColor,
                       ),

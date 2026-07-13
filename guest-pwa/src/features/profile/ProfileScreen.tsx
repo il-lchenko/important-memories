@@ -169,7 +169,7 @@ export default function ProfileScreen() {
       {/* Content */}
       <div style={{ flex: 1, padding: '16px 20px 40px', overflowY: 'auto' }}>
         {loading ? (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
             Загрузка...
           </div>
         ) : error || !session ? (
@@ -203,7 +203,7 @@ export default function ProfileScreen() {
                   <div style={{
                     position: 'absolute', inset: 0, borderRadius: '50%',
                     background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--amber)', fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                    color: 'var(--amber)', fontFamily: 'Inter, sans-serif', fontSize: 10,
                     letterSpacing: '.14em',
                   }}>
                     ...
@@ -227,7 +227,7 @@ export default function ProfileScreen() {
                 <span style={{
                   padding: '4px 10px', borderRadius: 8,
                   background: 'rgba(201,136,30,.12)',
-                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                  fontFamily: 'Inter, sans-serif', fontSize: 10,
                   letterSpacing: '.16em', color: 'var(--amber)',
                   textTransform: 'uppercase', alignSelf: 'flex-start',
                 }}>
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
                 {session.event_title}
               </div>
               <div style={{
-                fontFamily: 'JetBrains Mono, monospace', fontSize: 10,
+                fontFamily: 'Inter, sans-serif', fontSize: 10,
                 letterSpacing: '.12em', color: 'var(--ink-4)',
                 textTransform: 'uppercase', marginTop: 4,
               }}>

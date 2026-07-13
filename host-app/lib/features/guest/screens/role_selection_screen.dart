@@ -69,7 +69,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   const Text(
                     'ОДНОРАЗОВАЯ КАМЕРА · ВАШИ МОМЕНТЫ',
                     style: TextStyle(
-                      fontFamily: 'JetBrains Mono',
+                      fontFamily: 'Inter',
                       fontSize: 9,
                       letterSpacing: 1.4,
                       color: AppColors.ink4,
