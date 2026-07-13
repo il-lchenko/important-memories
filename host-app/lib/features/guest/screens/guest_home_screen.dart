@@ -46,7 +46,7 @@ class GuestHomeScreen extends ConsumerWidget {
                           children: [
                             Text(
                               eventTitle,
-                              style: GoogleFonts.playfairDisplay(
+                              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                                 fontSize: 28, fontWeight: FontWeight.w700,
                                 letterSpacing: -0.5, height: 1.1, color: AppColors.ink,
                               ),
@@ -94,7 +94,7 @@ class GuestHomeScreen extends ConsumerWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Создайте аккаунт, чтобы сохранить событие и участвовать в других. Ваши $framesUsed кадров привяжутся автоматически.',
+                            'Создайте аккаунт, чтобы сохранить событие и участвовать в других. Ваши $framesUsed кадров привяжутся автоматически',
                             style: const TextStyle(
                               fontFamily: 'Inter', fontSize: 12,
                               color: AppColors.ink3, height: 1.45,
@@ -175,7 +175,7 @@ class GuestHomeScreen extends ConsumerWidget {
                         flex: 2,
                         child: ElevatedButton.icon(
                           onPressed: (eventId.isNotEmpty && isActive && framesRemaining > 0)
-                              ? () => context.go('/guest/camera/$eventId')
+                              ? () => context.push('/guest/camera/$eventId')
                               : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.amber,

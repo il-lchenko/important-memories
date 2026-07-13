@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
@@ -67,20 +69,13 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
               Text(
                 'Подпись не сохранена',
                 style: GoogleFonts.fraunces(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 18,
-                  color: AppColors.ink,
+                  fontWeight: FontWeight.w500, fontSize: 18, color: AppColors.ink,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Если вернуться сейчас, то текст не попадёт в альбом. Сохранить подпись или продолжить без неё?',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  color: AppColors.ink3,
-                  height: 1.5,
-                ),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.5),
               ),
               const SizedBox(height: 16),
               Row(
@@ -92,18 +87,10 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                         foregroundColor: AppColors.ink3,
                         side: const BorderSide(color: AppColors.paper3),
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text(
-                        'Без подписи',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
+                      child: const Text('Без подписи',
+                          style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -111,22 +98,12 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(ctx, 'save'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.amber,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        backgroundColor: AppColors.amber, foregroundColor: Colors.white,
+                        elevation: 0, padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text(
-                        'Сохранить',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
+                      child: const Text('Сохранить',
+                          style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ),
                 ],
@@ -146,33 +123,22 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
   Future<void> _save() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSaving) return;
-    setState(() {
-      _isSaving = true;
-      _errorText = null;
-    });
+    setState(() { _isSaving = true; _errorText = null; });
     try {
-      final token =
-          _eventId.isEmpty ? '' : await GuestPrefs.tokenFor(_eventId);
+      final token = _eventId.isEmpty ? '' : await GuestPrefs.tokenFor(_eventId);
       final dio = ref.read(dioProvider);
       await dio.patch(
         'guest/frames/${widget.frameId}',
         data: {'caption': text},
         options: Options(headers: {'X-Guest-Token': token}),
       );
-      // Запомнить, чтобы camera screen показала «Подпись сохранена» toast.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('pending_sign_toast', 'Подпись сохранена');
       if (!mounted) return;
-      setState(() {
-        _savedText = text;
-        _isSaving = false;
-      });
+      setState(() { _savedText = text; _isSaving = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _errorText = 'Не удалось сохранить. Попробуйте ещё раз.';
-      });
+      setState(() { _isSaving = false; _errorText = 'Не удалось сохранить. Попробуйте ещё раз.'; });
     }
   }
 
@@ -190,24 +156,30 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
 
     if (_savedText != null) {
       return _DisplayMode(
-        photoBytes: photoBytes,
-        ratio: ratio,
-        guestName: guestName,
-        savedText: _savedText!,
-        eventId: _eventId,
-        topPad: topPad,
-        botPad: botPad,
+        photoBytes: photoBytes, ratio: ratio, guestName: guestName,
+        savedText: _savedText!, eventId: _eventId,
+        topPad: topPad, botPad: botPad,
+        onEdit: () => setState(() {
+          _controller.text = _savedText!;
+          _savedText = null;
+          _errorText = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _focus.requestFocus();
+          });
+        }),
       );
     }
 
     final charCount = _controller.text.length;
+    final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final screenH = MediaQuery.of(context).size.height;
+    final screenW = MediaQuery.of(context).size.width;
+    final photoSectionH = (screenH * 0.38).clamp(160.0, 360.0);
 
     return PopScope(
       canPop: !_hasUnsaved,
       onPopInvokedWithResult: (didPop, _) async {
-        if (!didPop && await _confirmLeave() && mounted) {
-          context.pop();
-        }
+        if (!didPop && await _confirmLeave() && mounted) context.pop();
       },
       child: Scaffold(
         backgroundColor: AppColors.paper,
@@ -216,9 +188,9 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
           padding: EdgeInsets.only(top: topPad),
           child: Column(
             children: [
-              // Top bar
+              // ── Top bar ──────────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
                 child: Row(
                   children: [
                     _RoundIconBtn(
@@ -230,11 +202,7 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                     const Spacer(),
                     Text(
                       'ПОДПИСЬ К КАДРУ ${frameNum.toString().padLeft(2, '0')}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        letterSpacing: 1.4,
-                        color: AppColors.ink3,
-                      ),
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
                     ),
                     const Spacer(),
                     const SizedBox(width: 34),
@@ -242,43 +210,44 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                 ),
               ),
 
-              // Big polaroid — на всю ширину
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: _BigPhoto(
-                  photoBytes: photoBytes,
-                  ratio: ratio,
-                  guestName: guestName,
+              // ── Photo (only when keyboard closed) ────────────────────
+              if (!keyboardOpen) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: photoSectionH,
+                  width: double.infinity,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      // Полароид может вырасти по высоте из-за длинной подписи —
+                      // тогда доступен скролл внутри фиксированной секции.
+                      child: _Polaroid(
+                        photoBytes: photoBytes, ratio: ratio, guestName: guestName,
+                        maxHeight: photoSectionH, maxWidth: screenW - 48,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
 
-              // Form
+              // ── Form ─────────────────────────────────────────────────
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+                  padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Оставьте комментарий к снимку',
                         style: GoogleFonts.fraunces(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 26,
-                          height: 1.15,
-                          color: AppColors.ink,
+                          fontWeight: FontWeight.w500, fontSize: 22, height: 1.15, color: AppColors.ink,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       const Text(
-                        'Несколько слов о запечатлённом моменте. Подпись сохранится в альбоме.',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          color: AppColors.ink3,
-                          height: 1.4,
-                        ),
+                        'Несколько слов о запечатлённом моменте',
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _controller,
                         focusNode: _focus,
@@ -286,68 +255,40 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                         maxLines: 3,
                         decoration: InputDecoration(
                           hintText: 'Закат, который мы так ждали…',
-                          hintStyle: const TextStyle(
-                            fontFamily: 'Inter',
-                            color: AppColors.ink4,
-                            fontSize: 14,
-                          ),
+                          hintStyle: const TextStyle(fontFamily: 'Inter', color: AppColors.ink4, fontSize: 14),
                           filled: true,
                           fillColor: const Color(0x0A000000),
                           counterText: '',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.line),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.line),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                const BorderSide(color: AppColors.amber),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.line)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.line)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.amber)),
                           contentPadding: const EdgeInsets.all(14),
                         ),
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          color: AppColors.ink,
-                        ),
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.ink),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
                           '$charCount / $_maxLen',
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            letterSpacing: 1.0,
-                            color: charCount >= _maxLen
-                                ? AppColors.shutter
-                                : AppColors.ink4,
+                            fontSize: 10, letterSpacing: 1.0,
+                            color: charCount >= _maxLen ? AppColors.shutter : AppColors.ink4,
                           ),
                         ),
                       ),
                       if (_errorText != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          _errorText!,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            color: AppColors.shutter,
-                          ),
-                        ),
+                        const SizedBox(height: 6),
+                        Text(_errorText!, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.shutter)),
                       ],
                     ],
                   ),
                 ),
               ),
 
-              // Buttons
+              // ── Buttons ───────────────────────────────────────────────
               Padding(
-                padding: EdgeInsets.fromLTRB(16, 12, 16, botPad + 16),
+                padding: EdgeInsets.fromLTRB(16, 10, 16, botPad + 14),
                 child: Column(
                   children: [
                     SizedBox(
@@ -356,32 +297,14 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                       child: ElevatedButton(
                         onPressed: (charCount > 0 && !_isSaving) ? _save : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.amber,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.paper3,
-                          disabledForegroundColor: AppColors.ink4,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          backgroundColor: AppColors.amber, foregroundColor: Colors.white,
+                          disabledBackgroundColor: AppColors.paper3, disabledForegroundColor: AppColors.ink4,
+                          elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Сохранить подпись',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 17,
-                                ),
-                              ),
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Text('Сохранить подпись',
+                                style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 15)),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -390,26 +313,14 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                       height: AppSizes.buttonHeight,
                       child: ElevatedButton(
                         onPressed: () async {
-                          if (await _confirmLeave() && mounted) {
-                            context.go('/guest/camera/$_eventId');
-                          }
+                          if (await _confirmLeave() && mounted) context.pop();
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.paper3,
-                          foregroundColor: AppColors.ink2,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          backgroundColor: AppColors.paper3, foregroundColor: AppColors.ink2,
+                          elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text(
-                          'Пропустить',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                          ),
-                        ),
+                        child: const Text('Пропустить',
+                            style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 15)),
                       ),
                     ),
                   ],
@@ -434,40 +345,35 @@ class _DisplayMode extends StatelessWidget {
   final String eventId;
   final double topPad;
   final double botPad;
+  final VoidCallback onEdit;
 
   const _DisplayMode({
-    required this.photoBytes,
-    required this.ratio,
-    required this.guestName,
-    required this.savedText,
-    required this.eventId,
-    required this.topPad,
-    required this.botPad,
+    required this.photoBytes, required this.ratio, required this.guestName,
+    required this.savedText, required this.eventId,
+    required this.topPad, required this.botPad,
+    required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenH = MediaQuery.of(context).size.height;
+    final screenW = MediaQuery.of(context).size.width;
+    final photoSectionH = (screenH * 0.40).clamp(170.0, 380.0);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: Padding(
         padding: EdgeInsets.only(top: topPad, bottom: botPad),
         child: Column(
           children: [
-            // Top bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
               child: Row(
                 children: [
-                  _RoundIconBtn(
-                    icon: Icons.arrow_back,
-                    onTap: () => context.go('/guest/camera/$eventId'),
-                  ),
+                  _RoundIconBtn(icon: Icons.arrow_back, onTap: () => context.pop()),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.amber.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
@@ -477,14 +383,8 @@ class _DisplayMode extends StatelessWidget {
                       children: [
                         const Icon(Icons.check, size: 11, color: AppColors.amber),
                         const SizedBox(width: 4),
-                        Text(
-                          'ПОДПИСАНО',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
-                            letterSpacing: 1.2,
-                            color: AppColors.amber,
-                          ),
-                        ),
+                        Text('ПОДПИСАНО',
+                            style: GoogleFonts.jetBrainsMono(fontSize: 9, letterSpacing: 1.2, color: AppColors.amber)),
                       ],
                     ),
                   ),
@@ -494,66 +394,44 @@ class _DisplayMode extends StatelessWidget {
               ),
             ),
 
-            // Big polaroid — full width
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: _BigPhoto(
-                photoBytes: photoBytes,
-                ratio: ratio,
-                guestName: guestName,
-              ),
-            ),
+            const SizedBox(height: 14),
 
-            const SizedBox(height: 26),
-
-            // Caption text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                savedText,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.caveat(
-                  fontStyle: FontStyle.italic,
-                  fontSize: 26,
-                  height: 1.2,
-                  color: AppColors.ink2,
+            SizedBox(
+              height: photoSectionH,
+              width: double.infinity,
+              child: Center(
+                child: SingleChildScrollView(
+                  child: _Polaroid(
+                    photoBytes: photoBytes, ratio: ratio, guestName: guestName,
+                    caption: savedText,
+                    maxHeight: photoSectionH, maxWidth: screenW - 48,
+                  ),
                 ),
               ),
             ),
 
             const Spacer(),
 
-            // Buttons
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
               child: Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
                     height: AppSizes.buttonHeight,
                     child: ElevatedButton(
-                      onPressed: () => context.go('/guest/camera/$eventId'),
+                      onPressed: () => context.pop(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.amber,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        backgroundColor: AppColors.amber, foregroundColor: Colors.white,
+                        elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'Вернуться к съёмке',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
+                          Text('Вернуться к съёмке',
+                              style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 16)),
                           SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, size: 16),
+                          Icon(Icons.arrow_forward, size: 18),
                         ],
                       ),
                     ),
@@ -563,22 +441,33 @@ class _DisplayMode extends StatelessWidget {
                     width: double.infinity,
                     height: AppSizes.buttonHeight,
                     child: OutlinedButton(
-                      onPressed: () => context.go('/events/$eventId/album'),
+                      onPressed: onEdit,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.ink2,
+                        side: const BorderSide(color: AppColors.paper3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Изменить подпись',
+                          style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 15)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: AppSizes.buttonHeight,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.remove('pending_sign_toast');
+                        if (context.mounted) context.go('/events/$eventId/album');
+                      },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.ink3,
-                        side: const BorderSide(color: AppColors.paper3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        side: BorderSide.none,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text(
-                        'К альбому',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
+                      child: const Text('К альбому',
+                          style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w500, fontSize: 14)),
                     ),
                   ),
                 ],
@@ -592,80 +481,89 @@ class _DisplayMode extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared widgets (mirror sign_choice_screen.dart)
+// Polaroid — размер вычисляется из maxHeight, не распирает экран
 // ─────────────────────────────────────────────────────────────────────────────
-class _BigPhoto extends StatelessWidget {
+class _Polaroid extends StatelessWidget {
   final Uint8List? photoBytes;
   final double ratio;
   final String guestName;
+  final String? caption;
+  final double maxHeight;
+  final double maxWidth;
 
-  const _BigPhoto({
-    required this.photoBytes,
-    required this.ratio,
-    required this.guestName,
+  const _Polaroid({
+    required this.photoBytes, required this.ratio,
+    required this.guestName, this.caption,
+    required this.maxHeight, required this.maxWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      return Transform.rotate(
-        angle: -0.014,
-        child: Container(
-          width: width,
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
-          decoration: BoxDecoration(
-            color: AppColors.paper,
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    const hPad = 10.0;
+    const vPad = 10.0;
+    const botPad = 8.0;
+    const emptyCaptionH = 30.0;
+
+    final captionText = (caption ?? '').trim();
+    final hasCaption = captionText.isNotEmpty;
+
+    // Ширина фото фиксированная (максимум по maxWidth) — при длинной подписи
+    // она НЕ должна сжиматься, растёт только нижняя белая зона.
+    double imgW = maxWidth - hPad * 2;
+    double imgH = imgW / ratio;
+    // Если фото + пустое поле подписи не влезают в maxHeight — уменьшаем строго до
+    // пропорций (пропорционально: и width, и height).
+    final maxImgH = maxHeight - vPad - emptyCaptionH - botPad;
+    if (imgH > maxImgH) {
+      imgH = maxImgH.clamp(1.0, double.infinity);
+      imgW = imgH * ratio;
+    }
+
+    return Container(
+      width: imgW + hPad * 2,
+      padding: const EdgeInsets.fromLTRB(hPad, vPad, hPad, botPad),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: imgW,
+            height: imgH,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: photoBytes != null
+                  ? Image.memory(photoBytes!, fit: BoxFit.cover)
+                  : Container(decoration: const BoxDecoration(gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)]))),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AspectRatio(
-                aspectRatio: ratio,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: photoBytes != null
-                      ? Image.memory(
-                          photoBytes!,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
-                      : Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-              SizedBox(
-                height: width * 0.11,
-                child: Center(
-                  child: Text(
-                    guestName,
+          // Белая зона снизу растёт по длине подписи. Правое поле остаётся статичным
+          // (imgW уже вычислена сверху).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: hasCaption
+                ? Text(
+                    captionText,
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.caveat(
-                      fontSize: width * 0.085,
+                      fontSize: 18,
+                      fontStyle: FontStyle.italic,
+                      height: 1.24,
                       color: AppColors.ink2,
                     ),
-                  ),
-                ),
-              ),
-            ],
+                  )
+                : const SizedBox(height: 6),
           ),
-        ),
-      );
-    });
+        ],
+      ),
+    );
   }
 }
 
@@ -679,12 +577,8 @@ class _RoundIconBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 34,
-        height: 34,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Color(0x0F000000),
-        ),
+        width: 34, height: 34,
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0x0F000000)),
         child: Icon(icon, size: 16, color: AppColors.ink2),
       ),
     );

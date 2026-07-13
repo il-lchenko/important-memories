@@ -149,11 +149,11 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                     const SizedBox(height: 8),
                     Text(
                       'Плёнку можно\nпроявить',
-                      style: GoogleFonts.playfairDisplay(fontSize: 36, fontWeight: FontWeight.w500, letterSpacing: -0.72, height: 1.1, color: AppColors.drText),
+                      style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 36, fontWeight: FontWeight.w500, letterSpacing: -0.72, height: 1.1, color: AppColors.drText),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Время проявления не задано. Вернитесь к событию и нажмите «Проявить сейчас» или укажите дату и время.',
+                      'Время проявления не задано. Вернитесь к событию и нажмите «Проявить сейчас» или укажите дату и время',
                       style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0x80F0E6D2), height: 1.5),
                     ),
                     const Spacer(),
@@ -209,7 +209,7 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                                   const SizedBox(height: 6),
                                   Text(
                                     'Плёнка ещё\nпроявляется',
-                                    style: GoogleFonts.playfairDisplay(
+                                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                                       fontSize: 32,
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: -0.64,
@@ -249,8 +249,8 @@ class _RevealCountdownScreenState extends ConsumerState<RevealCountdownScreen>
                                       ),
                                     ),
                                     child: Text(
-                                      'Гости снимали не для сториз. Они снимали для вас — и для себя.',
-                                      style: GoogleFonts.playfairDisplay(
+                                      'Гости снимали не для сториз. Они снимали для вас — и для себя',
+                                      style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                                         fontSize: 17,
                                         height: 1.4,
                                         color: AppColors.drText,
@@ -380,7 +380,7 @@ class _RevealedContent extends StatelessWidget {
           const SizedBox(height: 24),
           Text(
             'Плёнка проявлена!',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 32,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.64,

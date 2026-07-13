@@ -138,6 +138,8 @@ class EventUpdateIn(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=80)
     event_type: EventType | None = None
     start_at: datetime | None = None
+    reveal_mode: RevealMode | None = None
+    reveal_at: datetime | None = None
 
     @field_validator("title")
     @classmethod

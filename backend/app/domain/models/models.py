@@ -93,6 +93,11 @@ class Event(Base):
         _enum_col(EventStatus, "event_status"), nullable=False, default=EventStatus.DRAFT
     )
     cover_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # Public read-only share token — генерится при переходе в COMPLETED.
+    # По ссылке /a/<token> любой может открыть альбом без ввода имени.
+    public_share_token: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
     # Storage retention: when the album's photos will be deleted from S3.
     # Set automatically on activate() based on Plan; extendable via /events/{id}/extend.
     expires_at: Mapped[datetime | None] = mapped_column(
@@ -173,6 +178,10 @@ class Guest(Base):
     fingerprint: Mapped[str] = mapped_column(String(128), nullable=False)
     joined_at: Mapped[datetime] = _ts()
     frames_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Публичный профиль гостя: аватар в S3 (avatars/{guest_id}.jpg) и краткое био.
+    # Виден в списке гостей у хоста и другим гостям в альбоме.
+    avatar_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    bio: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     event: Mapped[Event] = relationship(back_populates="guests")
     frames: Mapped[list["Frame"]] = relationship(back_populates="guest")

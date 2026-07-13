@@ -19,7 +19,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   String _eventType = 'wedding';
 
   // Шаг 2
-  int _framesPerGuest = 24;
+  int _framesPerGuest = 30;
 
   // Шаг 3
   DateTime? _startAt;
@@ -396,7 +396,7 @@ class _Step2 extends StatelessWidget {
 
   const _Step2({required this.frames, required this.onFramesChanged});
 
-  static const _frameValues = [6, 12, 18, 24, 30, 45];
+  static const _frameValues = [6, 12, 18, 24, 30];
   static const _thumbR = 7.0;
 
   @override
@@ -442,8 +442,8 @@ class _Step2 extends StatelessWidget {
                 ),
                 child: Slider(
                   value: frames.toDouble(),
-                  min: 6, max: 45,
-                  divisions: 39,
+                  min: 6, max: 30,
+                  divisions: 24,
                   onChanged: (v) => onFramesChanged(v.round()),
                 ),
               ),
@@ -459,8 +459,6 @@ class _Step2 extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        _FramesExtraNotice(extended: frames > 30),
         const SizedBox(height: AppSpacing.s4),
       ],
     );
@@ -655,7 +653,7 @@ class _FrameRulerPainter extends CustomPainter {
   });
 
   double _x(int v, double W) =>
-      thumbRadius + (v - 6) / 39.0 * (W - 2 * thumbRadius);
+      thumbRadius + (v - 6) / 24.0 * (W - 2 * thumbRadius);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -664,7 +662,7 @@ class _FrameRulerPainter extends CustomPainter {
     final majorPaint = Paint()..strokeWidth = 1.5..strokeCap = StrokeCap.round;
 
     // Minor ticks at every integer between major values
-    for (int v = 7; v <= 44; v++) {
+    for (int v = 7; v <= 29; v++) {
       if (v % 6 == 0) continue;
       final x = _x(v, W);
       final isActive = v <= selected;
@@ -865,7 +863,7 @@ class _MiniCalendar extends StatelessWidget {
             children: [
               Text(
                 _monthNames[month],
-                style: GoogleFonts.playfairDisplay(fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.ink),
+                style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 16, fontWeight: FontWeight.w500, color: AppColors.ink),
               ),
               const Spacer(),
               if (selectedDate != null) ...[
@@ -1186,7 +1184,7 @@ class _Step5 extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(f['name']!, style: GoogleFonts.playfairDisplay(
+                              Text(f['name']!, style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                                 fontSize: 17, fontWeight: FontWeight.w700,
                                 color: active ? AppColors.ink : AppColors.ink2, height: 1.15,
                               )),
@@ -1299,7 +1297,7 @@ class _Title extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 4, bottom: 4),
-    child: Text(text, style: GoogleFonts.playfairDisplay(
+    child: Text(text, style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
       fontWeight: FontWeight.w500,
       fontSize: 30, height: 1.05, letterSpacing: -0.6, color: AppColors.ink,
     )),

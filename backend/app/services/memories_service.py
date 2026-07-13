@@ -84,7 +84,7 @@ async def _fetch_thumbs_for_event(
 ) -> list[MemoryThumb]:
     """Return up to `limit` thumb objects from an event, newest captured_at first."""
     stmt = (
-        select(Frame.id, Frame.thumbnail_url, Frame.s3_key)
+        select(Frame.id, Frame.thumbnail_url, Frame.s3_key, Frame.rotation)
         .where(
             Frame.event_id == event_id,
             Frame.status == FrameStatus.UPLOADED,
@@ -94,7 +94,7 @@ async def _fetch_thumbs_for_event(
     )
     rows = (await session.execute(stmt)).all()
     thumbs: list[MemoryThumb] = []
-    for frame_id, thumbnail_url, s3_key in rows:
+    for frame_id, thumbnail_url, s3_key, rotation in rows:
         key = thumbnail_url or s3_key
         if not key:
             continue
@@ -103,6 +103,7 @@ async def _fetch_thumbs_for_event(
                 url=s3_client.presign_get(key, expires_in=86400),
                 event_id=event_id,
                 frame_id=frame_id,
+                rotation=rotation or 0,
             )
         )
     return thumbs

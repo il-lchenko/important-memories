@@ -285,7 +285,7 @@ class _NoCameraView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Разрешите доступ в настройках телефона.',
+              'Разрешите доступ в настройках телефона',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Inter',

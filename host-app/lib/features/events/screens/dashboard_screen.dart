@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,7 +16,8 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with WidgetsBindingObserver {
   int _tab = 0; // 0 = мои, 1 = приглашённые
   String _selectedFilter = 'all';
   String _searchQuery = '';
@@ -22,6 +26,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   bool _chipsCollapsed = false;
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  // Периодическая инвалидация — статусы событий могут меняться на бэкенде
+  // (auto_complete по end_at), а провайдер keepAlive: true — сам не обновится.
+  Timer? _refreshTimer;
 
   static const _collapseThreshold = 16.0;
 
@@ -29,6 +36,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
+    // При каждом открытии dashboard — тянем свежие статусы.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(eventsProvider);
+    });
+    // И далее — раз в минуту, пока пользователь на dashboard.
+    _refreshTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) ref.invalidate(eventsProvider);
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Приложение вернулось из фона → бекенд мог уже закрыть событие.
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.invalidate(eventsProvider);
+    }
   }
 
   void _onScroll() {
@@ -40,6 +64,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
@@ -141,7 +167,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 18),
                 Text(
                   'Фильтры',
-                  style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink),
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink),
                 ),
                 const SizedBox(height: 20),
                 Text(
@@ -326,11 +352,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 Flexible(
                                   child: Text(
                                     _tabLabel,
-                                    style: GoogleFonts.playfairDisplay(
+                                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()],
                                       fontSize: 32,
                                       fontWeight: FontWeight.w500,
                                       color: AppColors.ink,
-                                      letterSpacing: -0.7,
+                                      letterSpacing: -0.9,
                                       height: 1.05,
                                     ),
                                     overflow: TextOverflow.ellipsis,
@@ -338,7 +364,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 2),
-                                const Icon(Icons.arrow_drop_down, size: 30, color: AppColors.ink2),
+                                const Icon(Icons.arrow_drop_down, size: 24, color: AppColors.ink2),
                               ],
                             ),
                           ),
@@ -347,13 +373,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           selected: _selectedFilter,
                           onSelect: (v) => setState(() => _selectedFilter = v),
                         ),
-                        const SizedBox(width: 2),
-                        IconButton(
-                          onPressed: () => setState(() => _isSearching = true),
-                          icon: const Icon(Icons.search, size: 26, color: AppColors.ink2),
-                          tooltip: 'Поиск',
-                          padding: const EdgeInsets.all(6),
-                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(() => _isSearching = true),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            child: Icon(Icons.search, size: 24, color: AppColors.ink2),
+                          ),
                         ),
                       ],
                     ),
@@ -367,11 +393,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 8),
             // Список ивентов
             Expanded(
-              child: eventsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.amber)),
-                error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(eventsProvider)),
-                data: (events) {
-                  final visible = events.where((e) => (e['status'] as String?) != 'cancelled').toList();
+              child: Builder(builder: (_) {
+                final events = eventsAsync.valueOrNull;
+                if (events == null) {
+                  if (eventsAsync.hasError) return _ErrorState(onRetry: () => ref.invalidate(eventsProvider));
+                  return const Center(child: CircularProgressIndicator(color: AppColors.amber));
+                }
+                final visible = events.where((e) => (e['status'] as String?) != 'cancelled').toList();
                   final filtered = visible.where(_matchesFilters).toList();
                   return RefreshIndicator(
                     color: AppColors.amber,
@@ -419,18 +447,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                                 ),
                               ),
                   );
-                },
-              ),
+              }),
             ),
             ], // end else (tab == 0)
           ],
         ),
       ),
-      floatingActionButton: _tab != 1 ? eventsAsync.maybeWhen(
-        data: (events) => events.isEmpty ? null : const _CreateAlbumFab(),
-        orElse: () => null,
-      ) : null,
-      floatingActionButtonLocation: _CreateAlbumFabLocation(),
+      floatingActionButton: _tab != 1 ? eventsAsync.valueOrNull?.isNotEmpty == true ? const _CreateAlbumFab() : null : null,
+      floatingActionButtonLocation: const _CreateAlbumFabLocation(),
       // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
     );
   }
@@ -649,7 +673,7 @@ class _InvitedEmpty extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Нет других событий',
-              style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink2),
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink2),
             ),
             const SizedBox(height: 8),
             Text(
@@ -729,8 +753,9 @@ class _InvitedEventCard extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (coverUrl != null)
-                Image.network(coverUrl, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _InvitedCoverPlaceholder())
+                CachedNetworkImage(imageUrl: coverUrl, cacheKey: Uri.parse(coverUrl).path, fit: BoxFit.cover,
+                  fadeInDuration: Duration.zero,
+                  errorWidget: (_, __, ___) => _InvitedCoverPlaceholder())
               else
                 _InvitedCoverPlaceholder(),
               // Dark gradient below
@@ -927,8 +952,9 @@ class _EventCard extends StatelessWidget {
         children: [
             // Обложка
             if (coverUrl != null)
-              Image.network(coverUrl, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const _CoverPlaceholder())
+              CachedNetworkImage(imageUrl: coverUrl, cacheKey: Uri.parse(coverUrl).path, fit: BoxFit.cover,
+                fadeInDuration: Duration.zero,
+                errorWidget: (_, __, ___) => const _CoverPlaceholder())
             else
               const _CoverPlaceholder(),
             // Экспоненциальный затемняющий градиент снизу — без blur
@@ -1085,7 +1111,7 @@ class _EmptyState extends StatelessWidget {
                   Text(
                     'Создайте первый\nальбом',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                       fontWeight: FontWeight.w700,
                       fontSize: 24,
                       letterSpacing: -0.01 * 24,
@@ -1339,7 +1365,7 @@ class _CreateAlbumFab extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.add, size: 32, color: Colors.white),
+        child: const Icon(Icons.add_photo_alternate_outlined, size: 28, color: Colors.white),
       ),
     );
   }
@@ -1419,18 +1445,19 @@ class _StatusFilterButton extends StatelessWidget {
       return Stack(
         clipBehavior: Clip.none,
         children: [
-          IconButton(
-            onPressed: () => _open(btnCtx),
-            icon: const Icon(Icons.filter_alt_outlined, size: 26, color: AppColors.ink2),
-            tooltip: 'Фильтр',
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _open(btnCtx),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Icon(Icons.filter_alt_outlined, size: 24, color: AppColors.ink2),
+            ),
           ),
           if (dot != null)
             Positioned(
-              right: 8, top: 8,
+              right: 4, top: 6,
               child: Container(
-                width: 10, height: 10,
+                width: 9, height: 9,
                 decoration: BoxDecoration(
                   color: dot,
                   shape: BoxShape.circle,

@@ -163,30 +163,30 @@ export default function CaptionScreen() {
             <div style={{ width: 220, aspectRatio: String(state.ratio), background: '#000', borderRadius: 2, overflow: 'hidden' }}>
               <img src={state.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
-            <div style={{ height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Caveat, cursive', fontSize: 20, color: 'var(--ink-2)' }}>
-              {state.guestName ?? 'Гость'}
+            <div style={{
+              minHeight: 44, padding: '8px 12px 12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'Caveat, cursive', fontStyle: 'italic',
+              fontSize: 18, lineHeight: 1.22, color: 'var(--ink-2)',
+              wordBreak: 'break-word', overflowWrap: 'anywhere',
+              textAlign: 'center',
+            }}>
+              {savedText}
             </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '26px 24px 0' }}>
-          <div style={{ fontFamily: 'Caveat, cursive', fontStyle: 'italic', fontSize: 24, lineHeight: 1.2, color: 'var(--ink-2)', textAlign: 'center' }}>
-            {savedText}
           </div>
         </div>
 
         <div style={{ flex: 1 }} />
 
         <div style={{ padding: '12px 16px max(env(safe-area-inset-bottom, 16px), 16px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button onClick={() => navigate(`/g/${shortCode}/camera`)}
-            style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'var(--amber)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
+          <button className="btn-compact btn-compact-amber" onClick={() => navigate(`/g/${shortCode}/camera`)}>
             Вернуться к съёмке
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>
           </button>
-          <button onClick={() => navigate(`/g/${shortCode}/waiting`)}
-            style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'transparent', color: 'var(--ink-3)', border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14 }}
-          >
+          <button className="btn-compact btn-compact-ghost" onClick={() => { setText(savedText ?? ''); setSavedText(null) }}>
+            Изменить подпись
+          </button>
+          <button className="btn-compact btn-compact-ink3" onClick={() => navigate(`/g/${shortCode}/waiting`)}>
             К альбому
           </button>
         </div>
@@ -246,14 +246,10 @@ export default function CaptionScreen() {
       <div style={{ flex: 1 }} />
 
       <div style={{ padding: '12px 16px max(env(safe-area-inset-bottom, 16px), 16px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button onClick={handleSave} disabled={!text.trim() || saving}
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'var(--amber)', color: '#fff', border: 'none', cursor: (!text.trim() || saving) ? 'not-allowed' : 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14, opacity: (!text.trim() || saving) ? 0.5 : 1 }}
-        >
+        <button className="btn-compact btn-compact-amber" onClick={handleSave} disabled={!text.trim() || saving}>
           {saving ? 'Сохраняем…' : 'Сохранить подпись'}
         </button>
-        <button onClick={handleBack}
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'transparent', color: 'var(--ink-3)', border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14 }}
-        >
+        <button className="btn-compact btn-compact-ghost" onClick={handleBack}>
           Пропустить
         </button>
       </div>

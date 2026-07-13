@@ -24,6 +24,7 @@ class MemoryThumb(BaseModel):
     url: str
     event_id: UUID
     frame_id: UUID
+    rotation: int = 0
 
 
 class MemoryBlock(BaseModel):

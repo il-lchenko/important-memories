@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../auth/auth_provider.dart';
+import '../../events/events_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -32,16 +33,26 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.paper2,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.only(bottom: 16, left: 0, right: 0),
-              padding: const EdgeInsets.only(top: 10, bottom: 16),
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    offset: const Offset(0, 3),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
               child: Text(
                 'Профиль',
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()],
                   fontWeight: FontWeight.w500,
                   fontSize: 32,
                   letterSpacing: -0.7,
@@ -49,6 +60,9 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            Expanded(child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          children: [
 
             _UserCard(
               initial: initial,
@@ -62,6 +76,13 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+
+            const _SectionTitle('Альбом'),
+            _NavRow(
+              label: 'Расширенные настройки',
+              desc: 'План, продление, ссылки альбома',
+              onTap: () => _openAlbumSettingsPicker(context, ref),
+            ),
 
             const _SectionTitle('Уведомления'),
             const _ToggleRow(
@@ -87,7 +108,7 @@ class ProfileScreen extends ConsumerWidget {
                   'Как настоящая плёночная камера — снимки не показываются сразу. '
                   'Вы выбираете при создании альбома, когда «плёнку проявить»: '
                   'сразу после каждого кадра или в конкретное время после события. '
-                  'До проявки гости видят только чёрные квадраты — так интереснее ждать.',
+                  'До проявки гости видят только чёрные квадраты — так интереснее ждать',
             ),
             _FaqRow(
               question: 'Можно ли изменить плёнку?',
@@ -95,21 +116,21 @@ class ProfileScreen extends ConsumerWidget {
                   'Плёнка (Portra 400, Fuji 400H, Cinestill, Ilford HP5) выбирается при '
                   'создании альбома и применяется ко всем кадрам этого события. '
                   'Поменять уже после создания нельзя, чтобы стиль альбома оставался цельным. '
-                  'Для нового ощущения — создайте новое событие с другой плёнкой.',
+                  'Для нового ощущения — создайте новое событие с другой плёнкой',
             ),
             _FaqRow(
               question: 'Кто видит фотографии?',
               answer:
                   'Только участники события, у которых есть ссылка или QR-код от вас. '
                   'Все фото хранятся приватно, никаких «публичных лент» или поиска по кадрам. '
-                  'Скачать оригиналы могут владелец альбома и авторы своих кадров.',
+                  'Скачать оригиналы могут владелец альбома и авторы своих кадров',
             ),
             _FaqRow(
               question: 'Сколько хранятся альбомы?',
               answer:
                   'Срок хранения зависит от тарифа: FREE — 14 дней, платные — от 30 до 365 дней. '
                   'Мы напоминаем за 7, 3 и 1 день до истечения. Продлить хранение можно в любой момент '
-                  'из настроек альбома (от 490 ₽ за 3 месяца).',
+                  'из настроек альбома (от 490 ₽ за 3 месяца)',
             ),
             _FaqRow(
               question: 'Как работает возврат денег?',
@@ -117,7 +138,7 @@ class ProfileScreen extends ConsumerWidget {
                   'Если событие не активировано — возможен возврат в течение 14 дней. '
                   'После активации (получения QR-кода) услуга считается оказанной. '
                   'При техническом сбое на нашей стороне вернём деньги полностью. '
-                  'Заявку на возврат отправьте на support@impomento.pro.',
+                  'Заявку на возврат отправьте на support@impomento.pro',
             ),
 
             const _SectionTitle('О проекте'),
@@ -126,7 +147,7 @@ class ProfileScreen extends ConsumerWidget {
               answer:
                   'Цифровая одноразовая камера для свадеб, ДР, корпоративов и любых событий. '
                   'Гости сканируют QR — снимают моменты — вы получаете один общий альбом с плёночной эстетикой. '
-                  'Без загрузок, без облачных папок, без каши в чатах.',
+                  'Без загрузок, без облачных папок, без каши в чатах',
             ),
             _FaqRow(
               question: 'Правила использования',
@@ -134,14 +155,14 @@ class ProfileScreen extends ConsumerWidget {
                   'Публичная оферта: https://impomento.pro/offer\n'
                   'Политика конфиденциальности: https://impomento.pro/privacy\n\n'
                   'Возраст: 14+. Запрещён контент, нарушающий закон РФ. '
-                  'Спорные материалы удаляем по жалобам от пользователей.',
+                  'Спорные материалы удаляем по жалобам от пользователей',
             ),
             _FaqRow(
               question: 'Связаться с поддержкой',
               answer:
                   'Email: support@impomento.pro\n\n'
                   'В теме письма укажите категорию — «Возврат», '
-                  '«Технический вопрос», «ПД» или «Другое» — так проще разобрать обращение быстрее.',
+                  '«Технический вопрос», «ПД» или «Другое» — так проще разобрать обращение быстрее',
             ),
 
             const SizedBox(height: 18),
@@ -155,7 +176,7 @@ class ProfileScreen extends ConsumerWidget {
 
             const Center(
               child: Text(
-                'IM · V0.1 · 2026',
+                'IM · v1.0.53 · 2026',
                 style: TextStyle(
                   fontFamily: 'JetBrains Mono',
                   fontSize: 10,
@@ -165,9 +186,156 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
           ],
+        )),    // ListView + Expanded
+      ],
+    ),         // Column
+  ),           // SafeArea
+      // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
+    );
+  }
+}
+
+Future<void> _openAlbumSettingsPicker(BuildContext context, WidgetRef ref) async {
+  final eventsAsync = ref.read(eventsProvider);
+  final events = eventsAsync.valueOrNull ?? const <Map<String, dynamic>>[];
+  final active = events
+      .where((e) => (e['status'] as String?) != 'cancelled')
+      .toList();
+  if (active.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('У вас пока нет альбомов'),
+    ));
+    return;
+  }
+  if (active.length == 1) {
+    context.push('/events/${active.first['id']}/settings');
+    return;
+  }
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.paper,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) {
+      final bottom = MediaQuery.of(ctx).padding.bottom;
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 16 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.paper3,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Выберите альбом',
+                style: GoogleFonts.playfairDisplay(
+                  fontFeatures: [const FontFeature.liningFigures()],
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: active.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (_, i) {
+                    final e = active[i];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        context.push('/events/${e['id']}/settings');
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.paper2,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                (e['name'] as String?) ?? 'Без названия',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.ink,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, size: 18, color: AppColors.ink3),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _NavRow extends StatelessWidget {
+  final String label;
+  final String desc;
+  final VoidCallback onTap;
+  const _NavRow({required this.label, required this.desc, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: AppColors.paper,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.ink)),
+                  const SizedBox(height: 2),
+                  Text(desc,
+                      style: const TextStyle(
+                          fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.ink4, size: 18),
+          ],
         ),
       ),
-      // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
     );
   }
 }
@@ -205,7 +373,7 @@ class _UserCard extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               initial,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                 fontSize: 24,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
@@ -219,7 +387,7 @@ class _UserCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                     fontWeight: FontWeight.w500,
                     fontSize: 20,
                     color: AppColors.ink,
@@ -399,7 +567,7 @@ class _FaqSheet extends StatelessWidget {
           const SizedBox(height: 18),
           Text(
             question,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 22,
               fontWeight: FontWeight.w600,
               color: AppColors.ink,
@@ -520,7 +688,7 @@ class _EditNameSheetState extends ConsumerState<_EditNameSheet> {
           const SizedBox(height: 20),
           Text(
             'Имя профиля',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 22,
               fontWeight: FontWeight.w500, color: AppColors.ink,
             ),

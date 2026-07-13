@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -103,34 +104,41 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _IcBtn(icon: Icons.chevron_left, onTap: () => context.pop()),
-                      Row(
-                        children: [
-                          if (_modeIndex == 0) ...[
-                            _IcBtn(
-                              icon: Icons.dashboard_customize_outlined,
-                              onTap: () => showDialog(
-                                context: context,
-                                barrierColor: Colors.black.withValues(alpha: 0.35),
-                                builder: (_) => _GridFormatDialog(
-                                  currentColumns: _gridColumns,
-                                  onSelect: (c) => setState(() => _gridColumns = c),
+                      IgnorePointer(
+                        ignoring: _titleVisible,
+                        child: AnimatedOpacity(
+                          opacity: _titleVisible ? 0.0 : 1.0,
+                          duration: const Duration(milliseconds: 200),
+                          child: Row(
+                            children: [
+                              if (_modeIndex == 0) ...[
+                                _IcBtn(
+                                  icon: Icons.dashboard_customize_outlined,
+                                  onTap: () => showDialog(
+                                    context: context,
+                                    barrierColor: Colors.black.withValues(alpha: 0.35),
+                                    builder: (_) => _GridFormatDialog(
+                                      currentColumns: _gridColumns,
+                                      onSelect: (c) => setState(() => _gridColumns = c),
+                                    ),
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
+                              ],
+                              _IcBtn(
+                                icon: Icons.ios_share,
+                                onTap: shareUrl != null
+                                    ? () => Share.share('Посмотри нашу плёнку «$title»!\n$shareUrl', subject: title)
+                                    : () {},
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          _IcBtn(
-                            icon: Icons.ios_share,
-                            onTap: shareUrl != null
-                                ? () => Share.share('Посмотри нашу плёнку «$title»!\n$shareUrl', subject: title)
-                                : () {},
+                              const SizedBox(width: 8),
+                              _IcBtn(
+                                icon: Icons.tune,
+                                onTap: () => context.push('/events/${widget.eventId}/settings'),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          _IcBtn(
-                            icon: Icons.tune,
-                            onTap: () => context.push('/events/${widget.eventId}/settings'),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -193,7 +201,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                                   children: [
                                     Text(
                                       title,
-                                      style: GoogleFonts.playfairDisplay(
+                                      style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                                         fontSize: 30, fontWeight: FontWeight.w700,
                                         letterSpacing: -0.5, height: 1.1, color: AppColors.ink,
                                       ),
@@ -252,7 +260,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('current_guest_event_id', widget.eventId);
       if (!mounted) return;
-      context.push('/guest/camera/${widget.eventId}');
+      await context.push('/guest/camera/${widget.eventId}');
+      // После возврата с камеры — обновить альбом (новые кадры).
+      if (mounted) {
+        ref.invalidate(eventAlbumProvider(widget.eventId));
+        ref.invalidate(eventAlbumMetaProvider(widget.eventId));
+      }
       return;
     }
 
@@ -277,10 +290,15 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       );
       final data = Map<String, dynamic>.from(resp.data as Map);
       final token = data['guest_token'] as String?;
-      final framesRemaining = data['frames_remaining'] as int? ?? 0;
       final event = data['event'] as Map?;
       final settings = event == null ? null : event['settings'] as Map?;
       final lutPreset = settings == null ? null : settings['lut_preset'] as String?;
+      // frames_remaining из backend; если 0 — берём frames_per_guest как стартовое значение
+      var framesRemaining = data['frames_remaining'] as int? ?? 0;
+      if (framesRemaining == 0) {
+        final fpg = settings?['frames_per_guest'] as int?;
+        if (fpg != null && fpg > 0) framesRemaining = fpg;
+      }
 
       if (token == null) throw StateError('Empty guest_token in response');
 
@@ -292,7 +310,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       );
 
       if (!mounted) return;
-      context.push('/guest/camera/${widget.eventId}');
+      await context.push('/guest/camera/${widget.eventId}');
+      // После возврата с камеры — обновить альбом (новые кадры).
+      if (mounted) {
+        ref.invalidate(eventAlbumProvider(widget.eventId));
+        ref.invalidate(eventAlbumMetaProvider(widget.eventId));
+      }
     } on DioException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -349,6 +372,14 @@ const _filmGrads = <List<Color>>[
 ];
 
 String _guestName(Map<String, dynamic> f) => f['guest_name'] as String? ?? '';
+String _caption(Map<String, dynamic> f) => (f['caption'] as String? ?? '').trim();
+
+/// Возвращает caption (если есть) или имя гостя. Используется во всех местах,
+/// где на полароидах/оверлеях раньше писалось только имя.
+String _captionOrName(Map<String, dynamic> f) {
+  final c = _caption(f);
+  return c.isNotEmpty ? c : _guestName(f);
+}
 
 String _frameTime(Map<String, dynamic> f) {
   final raw = f['captured_at'] as String?;
@@ -386,7 +417,7 @@ class _EmptyAlbum extends StatelessWidget {
             const SizedBox(height: 28),
             Text(
               'Плёнка ещё пуста',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                 fontSize: 22, fontWeight: FontWeight.w600,
                 color: AppColors.ink2, letterSpacing: -0.3,
               ),
@@ -429,16 +460,26 @@ class _FrameImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = frame?['thumbnail_url'] as String? ?? frame?['full_url'] as String?;
+    // Приоритет: preview (2560px q=92) → thumbnail (сжатый) → full. Preview даёт
+    // хорошее качество даже в маленькой сетке — иначе видно артефакты JPEG.
+    final url = (frame?['preview_url'] as String?)
+        ?? (frame?['thumbnail_url'] as String?)
+        ?? (frame?['full_url'] as String?);
     final grad = _filmGrads[fallbackIndex % _filmGrads.length];
+    final quarterTurns = ((frame?['rotation'] as num?)?.toInt() ?? 0) ~/ 90;
 
     if (url != null) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _GradientFill(grad: grad, index: fallbackIndex),
-        loadingBuilder: (_, child, progress) =>
-            progress == null ? child : _GradientFill(grad: grad, index: fallbackIndex),
+      return RotatedBox(
+        quarterTurns: quarterTurns,
+        child: CachedNetworkImage(
+          imageUrl: url,
+          cacheKey: Uri.parse(url).path,
+          fit: BoxFit.cover,
+          fadeInDuration: Duration.zero,
+          fadeOutDuration: Duration.zero,
+          placeholder: (_, __) => _GradientFill(grad: grad, index: fallbackIndex),
+          errorWidget: (_, __, ___) => _GradientFill(grad: grad, index: fallbackIndex),
+        ),
       );
     }
     return _GradientFill(grad: grad, index: fallbackIndex);
@@ -659,7 +700,8 @@ class _MagazineGrid extends StatelessWidget {
           itemBuilder: (ctx, i) {
             final frame = i < frames.length ? frames[i] : null;
             final time = (frame != null && isLarge) ? _frameTime(frame) : '';
-            final name = (frame != null && isLarge) ? _guestName(frame) : '';
+            final label = (frame != null && isLarge) ? _captionOrName(frame) : '';
+            final isCaption = frame != null && isLarge && _caption(frame).isNotEmpty;
             return GestureDetector(
               onTap: () => context.push('/events/$eventId/album/frame/$i'),
               child: Container(
@@ -698,13 +740,18 @@ class _MagazineGrid extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (name.isNotEmpty)
+                      if (label.isNotEmpty)
                         Positioned(
-                          bottom: 8, left: 10,
+                          bottom: 8, left: 10, right: 10,
                           child: Text(
-                            name,
+                            label,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.caveat(
-                              fontSize: 25, color: Colors.white,
+                              fontSize: isCaption ? 18 : 19,
+                              fontStyle: isCaption ? FontStyle.italic : FontStyle.normal,
+                              height: 1.15,
+                              color: Colors.white,
                               shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4, offset: Offset(0, 1))],
                             ),
                           ),
@@ -731,7 +778,12 @@ class _RetroLayout extends StatelessWidget {
   Map<String, dynamic>? _f(int i) => i < frames.length ? frames[i] : null;
   String _hw(int i) {
     final f = _f(i);
-    return f != null ? _guestName(f) : '';
+    if (f == null) return '';
+    return _caption(f);
+  }
+  bool _isCaption(int i) {
+    final f = _f(i);
+    return f != null && _caption(f).isNotEmpty;
   }
 
   @override
@@ -809,6 +861,7 @@ class _RetroLayout extends StatelessWidget {
             w: w, h: h, deg: deg, gi: i % 6, frame: _f(i),
             allCorners: allCorners, tape: tape,
             hw: hw.isNotEmpty ? hw : null,
+            hwItalic: _isCaption(i),
             onTap: () => context.push('/events/$eventId/album/frame/$i'),
           ),
         ),
@@ -837,6 +890,7 @@ class _RetroLayout extends StatelessWidget {
       w: wL, h: hL, deg: degL, gi: i % 6, frame: _f(i),
       allCorners: allCornersL, tape: tapeL,
       hw: _hw(i).isNotEmpty ? _hw(i) : null,
+      hwItalic: _isCaption(i),
       onTap: () => context.push('/events/$eventId/album/frame/$i'),
     );
     final cardJ = Padding(
@@ -845,6 +899,7 @@ class _RetroLayout extends StatelessWidget {
         w: wR, h: hR, deg: degR, gi: (i + 1) % 6, frame: _f(i + 1),
         tape: tapeR,
         hw: _hw(i + 1).isNotEmpty ? _hw(i + 1) : null,
+        hwItalic: _isCaption(i + 1),
         onTap: () => context.push('/events/$eventId/album/frame/${i + 1}'),
       ),
     );
@@ -867,12 +922,13 @@ class _RetroCard extends StatelessWidget {
   final bool allCorners;
   final Color? tape;
   final String? hw;
+  final bool hwItalic;
   final VoidCallback? onTap;
 
   const _RetroCard({
     required this.w, required this.h, required this.deg, required this.gi,
     this.frame, this.allCorners = false,
-    this.tape, this.hw, this.onTap,
+    this.tape, this.hw, this.hwItalic = false, this.onTap,
   });
 
   @override
@@ -902,13 +958,19 @@ class _RetroCard extends StatelessWidget {
               ),
               if (hw != null)
                 Positioned(
-                  bottom: 6, right: 10,
+                  bottom: 6, left: 10, right: 10,
                   child: Transform.rotate(
                     angle: -2 * math.pi / 180,
                     child: Text(
                       hw!,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
                       style: GoogleFonts.caveat(
-                        fontSize: 18, color: Colors.white,
+                        fontSize: hwItalic ? 15 : 18,
+                        fontStyle: hwItalic ? FontStyle.italic : FontStyle.normal,
+                        height: 1.15,
+                        color: Colors.white,
                         shadows: const [Shadow(color: Color(0x99000000), blurRadius: 4)],
                       ),
                     ),
@@ -1012,8 +1074,10 @@ class _PolaroidFeed extends StatelessWidget {
   Widget _buildCard(BuildContext context, int i) {
     final deg = _rots[i % _rots.length];
     final frame = i < frames.length ? frames[i] : null;
+    final caption = frame != null ? _caption(frame) : '';
     final name = frame != null ? _guestName(frame) : '';
     final time = frame != null ? _frameTime(frame) : '';
+    final hasCaption = caption.isNotEmpty;
 
     return Center(
       child: Transform.rotate(
@@ -1042,27 +1106,40 @@ class _PolaroidFeed extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 44,
-                  child: Stack(
-                    fit: StackFit.expand,
+                // Белая зона полароида: только caption (растёт по длине). Имя не пишем.
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Center(
-                        child: Text(
-                          name.isNotEmpty ? name : '—',
-                          style: GoogleFonts.caveat(fontSize: 24, color: AppColors.ink2),
-                        ),
-                      ),
-                      if (frame != null)
-                        Positioned(
-                          right: 14, bottom: 12,
+                      if (hasCaption)
+                        Text(
+                          caption,
+                          overflow: TextOverflow.visible,
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.caveat(
+                            fontSize: 22,
+                            fontStyle: FontStyle.italic,
+                            height: 1.22,
+                            color: AppColors.ink2,
+                          ),
+                        )
+                      else
+                        const SizedBox(height: 14),
+                      if (frame != null && time.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
                           child: Text(
-                            time.isNotEmpty ? time : '—',
+                            time,
                             style: const TextStyle(
-                              fontFamily: 'JetBrains Mono', fontSize: 10, color: AppColors.ink3,
+                              fontFamily: 'JetBrains Mono', fontSize: 10,
+                              letterSpacing: 0.6, color: AppColors.ink3,
                             ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -1117,7 +1194,7 @@ class _GridFormatDialogState extends State<_GridFormatDialog> {
               children: [
                 Text(
                   'Формат журнала',
-                  style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.ink),
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.ink),
                 ),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),

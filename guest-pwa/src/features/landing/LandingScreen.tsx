@@ -164,24 +164,28 @@ function NameStep({
   onBack: () => void; onNext: () => void; loading: boolean; error: string | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 100)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
       {/* Back link */}
-      <button onClick={onBack} style={{ padding: '12px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start' }}>
+      <button onClick={onBack} style={{ padding: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
         {eventTitle || 'Назад'}
       </button>
 
-      <div style={{ padding: '24px 24px 0' }}>
+      {/* Main content — grows, no overflow */}
+      <div style={{ flex: 1, padding: '20px 24px 0', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           Шаг 1 из 2
         </div>
         <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 36, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           Как вас<br />подписать?
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 24px' }}>
+        <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 20px' }}>
           Имя появится под каждым вашим кадром в общем альбоме. Можно псевдоним.
         </p>
 
@@ -196,15 +200,17 @@ function NameStep({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !loading && name.trim() && onNext()}
           maxLength={40}
+          style={{ flexShrink: 0 }}
         />
         {error && <p style={{ color: 'var(--shutter)', fontSize: 13, marginTop: 8 }}>{error}</p>}
 
-        <p style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 14, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 11, color: 'var(--ink-4)', marginTop: 12, lineHeight: 1.5 }}>
           Гостю не нужен аккаунт. Имя видят только организатор и&nbsp;участники.
         </p>
       </div>
 
-      <div className="footer-gradient">
+      {/* Button — always visible at bottom, doesn't overlap content */}
+      <div style={{ padding: '16px 20px', paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)', background: 'var(--paper)', flexShrink: 0 }}>
         <button className="btn" onClick={onNext} disabled={loading || !name.trim()}>
           {loading ? 'Входим...' : 'Дальше'}
           {!loading && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>}
@@ -323,13 +329,13 @@ export default function LandingScreen() {
             navigate(`/g/${shortCode}/camera`, { replace: true })
           }
         })
-        .catch(() => navigate(`/g/${shortCode}/camera`, { replace: true }))
+        .catch((e) => { console.error('session_restore_failed', e); navigate(`/g/${shortCode}/camera`, { replace: true }) })
       return
     }
     // First-time guest: fetch event preview for landing page
     api.get<EventPreview>(`/guest/events/${shortCode}`)
       .then(({ data }) => setPreview(data))
-      .catch(() => {})
+      .catch((e) => console.error('event_preview_failed', e))
   }, [shortCode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleJoin = async () => {
@@ -341,20 +347,38 @@ export default function LandingScreen() {
       saveSession(shortCode, data.guest_token, data.guest_id, name.trim(), data.event)
       setStep('permission')
     } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { error?: { message?: string }; detail?: string } } }
+      const e = err as { response?: { status?: number; data?: { error?: { message?: string; details?: Record<string, unknown> }; detail?: string } } }
       const status = e?.response?.status
-      // Event completed/cancelled — backend rejects new sessions. Refetch preview and bounce back.
+      const backendMsg = e?.response?.data?.error?.message ?? e?.response?.data?.detail ?? ''
       if (status === 409) {
+        // Refetch preview so landing shows fresh status/max_guests state.
         try {
           const { data: fresh } = await api.get<EventPreview>(`/guest/events/${shortCode}`)
           setPreview(fresh)
         } catch {}
-        setStep('landing')
+        // Categorise the error for a human message.
+        const details = e?.response?.data?.error?.details ?? {}
+        const msg = String(backendMsg)
+        if (/лимит|limit/i.test(msg) || 'max_guests' in details) {
+          setError('Достигнут лимит гостей на этом альбоме. Попроси хоста расширить.')
+          setLoading(false)
+          return
+        }
+        if (/не начал/i.test(msg) || 'start_at' in details) {
+          navigate(`/g/${shortCode}/not-started`, { replace: true })
+          return
+        }
+        if (/заверш|закрыт/i.test(msg) || (typeof (details as Record<string, unknown>).status === 'string' && ['completed', 'cancelled'].includes(String((details as Record<string, unknown>).status)))) {
+          setError('Альбом уже закрыт. Если у вас есть публичная ссылка от хоста — откройте её.')
+          setStep('landing')
+          setLoading(false)
+          return
+        }
+        setError(msg || 'Не удалось войти в альбом.')
         setLoading(false)
         return
       }
-      const msg = e?.response?.data?.error?.message ?? e?.response?.data?.detail ?? 'Не удалось войти. Попробуйте ещё раз.'
-      setError(msg)
+      setError(backendMsg || 'Не удалось войти. Попробуйте ещё раз.')
     } finally {
       setLoading(false)
     }

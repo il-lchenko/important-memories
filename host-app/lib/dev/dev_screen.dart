@@ -42,7 +42,7 @@ class DevScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Important\nMemories',
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                 fontWeight: FontWeight.w500,
                 fontSize: 36,
                 height: 1.05,

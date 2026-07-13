@@ -1,3 +1,4 @@
+from secrets import token_urlsafe
 from uuid import UUID
 
 from sqlalchemy import select
@@ -28,6 +29,8 @@ async def execute_reveal(ctx: dict, event_id: str) -> None:
             )
             return
         event.status = EventStatus.COMPLETED
+        if event.public_share_token is None:
+            event.public_share_token = token_urlsafe(24)
         await session.commit()
         logger.info("reveal_executed", event_id=event_id)
 

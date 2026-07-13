@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../album_provider.dart';
+
+const _publicShareBase = String.fromEnvironment(
+  'PUBLIC_SHARE_BASE',
+  defaultValue: 'https://impomento.pro',
+);
 
 /// Настройки существующего альбома — расширение лимитов и продление хранения.
 /// Открывается из шестерёнки в шапке AlbumScreen.
@@ -27,13 +34,14 @@ class AlbumSettingsScreen extends ConsumerWidget {
         ),
         title: Text(
           'Настройки альбома',
-          style: GoogleFonts.playfairDisplay(
-            fontSize: 20,
+          style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()],
+            fontSize: 26,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,
-            letterSpacing: -0.3,
+            letterSpacing: -0.5,
           ),
         ),
+        toolbarHeight: 64,
       ),
       body: eventAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.amber)),
@@ -78,6 +86,7 @@ class _Content extends StatelessWidget {
     final guestsCount = event['guests_count'] as int? ?? 0;
     final framesCount = event['frames_count'] as int? ?? 0;
     final expiresAt = event['expires_at'] as String?;
+    final shortCode = event['short_code'] as String? ?? '';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -95,6 +104,19 @@ class _Content extends StatelessWidget {
             framesCount: framesCount,
             expiresAt: expiresAt,
           ),
+          if (shortCode.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const _Kicker('ССЫЛКИ АЛЬБОМА'),
+            const SizedBox(height: 12),
+            _GuestLinkBlock(shortCode: shortCode),
+            if (status == 'completed' || status == 'cancelled') ...[
+              const SizedBox(height: 10),
+              _PublicShareBlock(eventId: eventId),
+            ] else ...[
+              const SizedBox(height: 10),
+              _PublicShareHint(),
+            ],
+          ],
           const SizedBox(height: 24),
           _Kicker('РАСШИРИТЬ ЛИМИТЫ'),
           const SizedBox(height: 12),
@@ -132,10 +154,10 @@ class _Content extends StatelessWidget {
                 Text(
                   'ОПАСНАЯ ЗОНА',
                   style: TextStyle(
-                    fontFamily: 'JetBrains Mono', fontSize: 11,
-                    letterSpacing: 0.18,
+                    fontFamily: 'JetBrains Mono', fontSize: 12,
+                    letterSpacing: 1.6,
                     color: AppColors.shutter,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -228,9 +250,9 @@ class _Content extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.paper,
         title: Text('Удалить событие?',
-            style: GoogleFonts.playfairDisplay(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink)),
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink)),
         content: const Text(
-          'Все фото, голосовые заметки и подписи будут удалены безвозвратно.',
+          'Все фото, голосовые заметки и подписи будут удалены безвозвратно',
           style: TextStyle(fontFamily: 'Inter', color: AppColors.ink2),
         ),
         actions: [
@@ -261,8 +283,8 @@ class _Kicker extends StatelessWidget {
   Widget build(BuildContext context) => Text(
         text,
         style: const TextStyle(
-          fontFamily: 'JetBrains Mono', fontSize: 11, letterSpacing: 0.18,
-          color: AppColors.amber, fontWeight: FontWeight.w500,
+          fontFamily: 'JetBrains Mono', fontSize: 12, letterSpacing: 1.6,
+          color: AppColors.amber, fontWeight: FontWeight.w600,
         ),
       );
 }
@@ -330,7 +352,7 @@ class _CurrentCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             title,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 24, fontWeight: FontWeight.w600,
               color: AppColors.ink, letterSpacing: -0.4, height: 1.15,
             ),
@@ -572,7 +594,7 @@ class _GuestsUpgradeSheet extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'Расширить до',
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                   fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.4,
                 ),
               ),
@@ -628,5 +650,342 @@ class _GuestsUpgradeSheet extends StatelessWidget {
     if (n <= 200) return 6290;
     if (n <= 250) return 7690;
     return 7690 + (n - 250) * 30;
+  }
+}
+
+// ── Public share block (виден только когда альбом COMPLETED/CANCELLED) ───────
+// ── Гостевая ссылка (для QR / съёмки) ─────────────────────────────────────────
+class _GuestLinkBlock extends StatelessWidget {
+  final String shortCode;
+  const _GuestLinkBlock({required this.shortCode});
+
+  String get _url => '$_publicShareBase/g/$shortCode';
+
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: _url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ссылка скопирована')),
+    );
+  }
+
+  Future<void> _share(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: _url));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ссылка скопирована — вставь в мессенджер')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+      decoration: BoxDecoration(
+        color: AppColors.paper2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.amber.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.qr_code_2, color: AppColors.amber, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Гостевая ссылка',
+                      style: GoogleFonts.playfairDisplay(
+                        fontFeatures: [const FontFeature.liningFigures()],
+                        fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Гости присоединяются и снимают по этой ссылке',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Text(
+              _url,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: AppColors.ink2),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _copy(context),
+                  icon: const Icon(Icons.copy_outlined, size: 15, color: AppColors.ink),
+                  label: const Text('Скопировать',
+                    style: TextStyle(color: AppColors.ink, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    side: const BorderSide(color: AppColors.line),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _share(context),
+                  icon: const Icon(Icons.share_outlined, size: 15, color: AppColors.amber),
+                  label: const Text('Поделиться',
+                    style: TextStyle(color: AppColors.amber, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    side: BorderSide(color: AppColors.amber.withValues(alpha: 0.35)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Пояснение: публичная ссылка появится после завершения альбома ────────────
+class _PublicShareHint extends StatelessWidget {
+  const _PublicShareHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+      decoration: BoxDecoration(
+        color: AppColors.paper2.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line.withValues(alpha: 0.5), style: BorderStyle.solid),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32, height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.ink3.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.public_off_outlined, color: AppColors.ink3, size: 18),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Открытая ссылка появится после проявки',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.ink2),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Это read-only ссылка для тех, кто не был гостем. Хост генерирует её после завершения альбома и рассылает кому угодно.',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PublicShareBlock extends ConsumerStatefulWidget {
+  final String eventId;
+  const _PublicShareBlock({required this.eventId});
+
+  @override
+  ConsumerState<_PublicShareBlock> createState() => _PublicShareBlockState();
+}
+
+class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
+  String? _token;
+  bool _loading = true;
+  bool _regenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final dio = ref.read(dioProvider);
+      final resp = await dio.get('events/${widget.eventId}/public-share');
+      if (mounted) {
+        setState(() {
+          _token = resp.data['public_share_token'] as String?;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _regenerate() async {
+    setState(() => _regenerating = true);
+    try {
+      final dio = ref.read(dioProvider);
+      final resp = await dio.post('events/${widget.eventId}/public-share/regenerate');
+      if (!mounted) return;
+      setState(() {
+        _token = resp.data['public_share_token'] as String?;
+        _regenerating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ссылка обновлена — старая больше не работает')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _regenerating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось обновить ссылку')),
+      );
+    }
+  }
+
+  Future<void> _copy(String url) async {
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ссылка скопирована')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.paper2,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.amber))),
+      );
+    }
+    final url = _token != null ? '$_publicShareBase/a/$_token' : '';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+      decoration: BoxDecoration(
+        color: AppColors.paper2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Открытая ссылка',
+            style: GoogleFonts.playfairDisplay(
+              fontFeatures: [const FontFeature.liningFigures()],
+              fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Отправьте её любому — альбом откроется в режиме просмотра, без ввода имени.',
+            style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Text(
+              url,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'JetBrains Mono', fontSize: 12, color: AppColors.ink2),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _token != null ? () => _copy(url) : null,
+                  icon: const Icon(Icons.copy_outlined, size: 15, color: AppColors.ink),
+                  label: const Text('Скопировать',
+                    style: TextStyle(color: AppColors.ink, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    side: const BorderSide(color: AppColors.line),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _regenerating ? null : _regenerate,
+                  icon: _regenerating
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.shutter))
+                      : const Icon(Icons.refresh, size: 15, color: AppColors.shutter),
+                  label: const Text('Обновить',
+                    style: TextStyle(color: AppColors.shutter, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    side: BorderSide(color: AppColors.shutter.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'При обновлении старая ссылка перестанет работать.',
+            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
   }
 }

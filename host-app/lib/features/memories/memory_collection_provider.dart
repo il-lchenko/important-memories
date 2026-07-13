@@ -7,6 +7,7 @@ import '../../core/api_client.dart';
 /// Key: comma-joined event UUIDs (Riverpod family requires a single hashable arg).
 final memoryCollectionProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
+  ref.keepAlive();
   final dio = ref.watch(dioProvider);
   final ids = key.split(',').where((s) => s.isNotEmpty).toList();
   if (ids.isEmpty) return [];

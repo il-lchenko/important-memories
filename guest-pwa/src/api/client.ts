@@ -5,8 +5,43 @@ const BASE = import.meta.env.VITE_API_URL ?? '/api'
 export const api = axios.create({
   baseURL: BASE,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30_000,
+  timeout: 60_000,
 })
+
+export class UploadError extends Error {
+  readonly stage: 'presign' | 's3_put' | 'register'
+  readonly status?: number
+  readonly retryable: boolean
+  constructor(stage: 'presign' | 's3_put' | 'register', message: string, opts: { status?: number; retryable?: boolean } = {}) {
+    super(message)
+    this.name = 'UploadError'
+    this.stage = stage
+    this.status = opts.status
+    this.retryable = opts.retryable ?? true
+  }
+}
+
+export async function uploadPutBlob(url: string, blob: Blob, signal: AbortSignal): Promise<void> {
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'PUT',
+      body: blob,
+      headers: { 'Content-Type': blob.type || 'image/jpeg' },
+      signal,
+      cache: 'no-store',
+      credentials: 'omit',
+      mode: 'cors',
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'network error'
+    throw new UploadError('s3_put', `network: ${msg}`, { retryable: true })
+  }
+  if (!res.ok) {
+    // 4xx (кроме 408/429) — presigned URL истёк, надо запросить новый (retryable=true, но выше слой попросит новый presign)
+    throw new UploadError('s3_put', `s3 ${res.status}`, { status: res.status, retryable: true })
+  }
+}
 
 // Guest token goes in X-Guest-Token (not Authorization Bearer)
 api.interceptors.request.use((config) => {
@@ -67,6 +102,8 @@ export interface GuestSessionResponse {
   guest_token: string
   guest_id: string
   name?: string
+  avatar_url?: string | null
+  bio?: string | null
   frames_used: number
   frames_remaining: number
   event: {
@@ -106,6 +143,47 @@ export interface FrameUpdatePayload {
   clear_voice?: boolean
 }
 
+export interface PublicAlbumMeta {
+  id: string
+  title: string
+  status: string
+  cover_url: string | null
+  total_frames: number
+  revealed: boolean
+}
+
+export const publicApi = {
+  getAlbumMeta(token: string) {
+    return api.get<PublicAlbumMeta>(`/public/albums/${token}`)
+  },
+  listFrames(token: string, cursor?: string | null, limit = 30) {
+    const params: Record<string, string | number> = { limit }
+    if (cursor) params.cursor = cursor
+    return api.get(`/public/albums/${token}/frames`, { params })
+  },
+}
+
+export const hostApi = {
+  getPublicShare(eventId: string) {
+    return api.get<{ public_share_token: string }>(`/events/${eventId}/public-share`)
+  },
+  regeneratePublicShare(eventId: string) {
+    return api.post<{ public_share_token: string }>(`/events/${eventId}/public-share/regenerate`)
+  },
+}
+
+export interface AvatarPresignResponse {
+  avatar_key: string
+  upload_url: string
+  expires_in: number
+}
+
+export interface GuestProfileUpdatePayload {
+  name?: string
+  avatar_key?: string
+  bio?: string | null
+}
+
 export const guestApi = {
   createSession(shortCode: string, guestName: string) {
     return api.post<GuestSessionResponse>('/guest/sessions', {
@@ -116,6 +194,21 @@ export const guestApi = {
   },
   getSession() {
     return api.get<GuestSessionResponse>('/guest/sessions/me')
+  },
+  updateProfile(payload: GuestProfileUpdatePayload) {
+    return api.patch<GuestSessionResponse & { avatar_url?: string | null; bio?: string | null }>(
+      '/guest/profile',
+      payload,
+    )
+  },
+  updateName(name: string) {
+    return api.patch<GuestSessionResponse>('/guest/sessions/me', { name })
+  },
+  avatarPresign(sizeBytes: number, contentType = 'image/jpeg') {
+    return api.post<AvatarPresignResponse>('/guest/avatar/presign', {
+      content_type: contentType,
+      size_bytes: sizeBytes,
+    })
   },
   presign(sizeBytes: number, mimeType = 'image/jpeg') {
     return api.post<PresignResponse>('/guest/frames/presign', {

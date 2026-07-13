@@ -57,7 +57,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   Text(
                     'Important\nMemories',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -0.64,
@@ -98,7 +98,7 @@ class RoleSelectionScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    'Без регистрации — снимать и смотреть один альбом.\nС аккаунтом — создавать события и видеть историю.',
+                    'Без регистрации — снимать и смотреть один альбом.\nС аккаунтом — создавать события и видеть историю',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Inter',

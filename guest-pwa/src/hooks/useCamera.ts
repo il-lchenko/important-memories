@@ -7,7 +7,23 @@ export function useCamera() {
   const [error, setError] = useState<string | null>(null)
   const [torchSupported, setTorchSupported] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
+  // Hardware zoom: реальный zoom через MediaTrack constraints (не CSS transform).
+  // Первые уровни (до 2-3x) на большинстве Android — оптика/sensor-crop, лучше качество.
+  const [zoomSupported, setZoomSupported] = useState(false)
+  const [minZoom, setMinZoom] = useState(1)
+  const [maxZoom, setMaxZoom] = useState(1)
+  const [zoom, setZoomState] = useState(1)
   const streamRef = useRef<MediaStream | null>(null)
+  // Track latest gamma to determine CW vs CCW landscape rotation
+  const gammaRef = useRef<number>(0)
+
+  useEffect(() => {
+    const handler = (e: DeviceOrientationEvent) => {
+      if (e.gamma !== null) gammaRef.current = e.gamma
+    }
+    window.addEventListener('deviceorientation', handler, { passive: true })
+    return () => window.removeEventListener('deviceorientation', handler)
+  }, [])
 
   const start = useCallback(async (
     facingMode: 'environment' | 'user' = 'environment',
@@ -22,8 +38,8 @@ export function useCamera() {
       {
         video: {
           facingMode,
-          width: { ideal: 4096 },
-          height: { ideal: 3072 },
+          width: { ideal: 2048 },
+          height: { ideal: 1536 },
         },
         audio: false,
       },
@@ -38,12 +54,23 @@ export function useCamera() {
           videoRef.current.srcObject = stream
           await videoRef.current.play()
         }
-        // Detect torch (Android Chrome only — iOS Safari doesn't expose it)
+        // Detect torch + zoom capabilities (Android Chrome only — iOS Safari не отдаёт).
         try {
           const track = stream.getVideoTracks()[0]
-          const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { torch?: boolean }
+          const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
+            torch?: boolean; zoom?: { min: number; max: number; step: number }
+          }
           setTorchSupported(Boolean(caps.torch))
-        } catch { setTorchSupported(false) }
+          if (caps.zoom && caps.zoom.max > caps.zoom.min + 0.01) {
+            setZoomSupported(true)
+            setMinZoom(caps.zoom.min)
+            setMaxZoom(caps.zoom.max)
+            setZoomState(caps.zoom.min)
+          } else {
+            setZoomSupported(false)
+            setMinZoom(1); setMaxZoom(1); setZoomState(1)
+          }
+        } catch { setTorchSupported(false); setZoomSupported(false) }
         setTorchOn(false)
         setReady(true)
         setError(null)
@@ -70,6 +97,21 @@ export function useCamera() {
       return true
     } catch { return false }
   }, [])
+
+  // Устанавливает zoom реально в самой камере (не CSS-скейл на элементе).
+  // На Android Chrome вызовет sensor-crop / оптический zoom (если есть tele-линза).
+  const setZoom = useCallback(async (level: number) => {
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!track) return false
+    try {
+      const clamped = Math.max(minZoom, Math.min(maxZoom, level))
+      await track.applyConstraints({
+        advanced: [{ zoom: clamped } as MediaTrackConstraintSet & { zoom: number }],
+      })
+      setZoomState(clamped)
+      return true
+    } catch { return false }
+  }, [minZoom, maxZoom])
 
   /**
    * Capture a center-cropped frame matching targetRatio (w/h).
@@ -123,23 +165,35 @@ export function useCamera() {
     const ctx = canvas.getContext('2d')!
 
     if (needsRotation) {
-      // Crop a landscape region from the stream (sh wide × sw tall) then rotate 90°
+      // Crop a portrait region from the stream (cropW × cropH) then rotate to landscape
       const cropW = sh
       const cropH = sw
       const origSx = Math.round((vw - cropW) / 2)
       const origSy = Math.round((vh - cropH) / 2)
       if (mirror) {
-        // Rotate 90° CCW — equivalent to CW + horizontal flip for front camera
-        ctx.translate(0, sh)
-        ctx.rotate(-Math.PI / 2)
-      } else {
-        // Rotate 90° CW
+        // Front camera: 90° CW rotation
         ctx.translate(sw, 0)
         ctx.rotate(Math.PI / 2)
+      } else {
+        // Back camera: determine CW vs CCW from device gamma.
+        // gamma < 0 → phone rotated CW (right side down) → scene UP is at LEFT of stream → rotate 90° CW
+        // gamma > 0 → phone rotated CCW (left side down) → scene UP is at RIGHT of stream → rotate 90° CCW
+        if (gammaRef.current < 0) {
+          // CW landscape (most common: right thumb up)
+          ctx.translate(sw, 0)
+          ctx.rotate(Math.PI / 2)
+        } else {
+          // CCW landscape
+          ctx.translate(0, sh)
+          ctx.rotate(-Math.PI / 2)
+        }
       }
       ctx.drawImage(video, origSx, origSy, cropW, cropH, 0, 0, cropW, cropH)
     } else {
-      // Stream and target orientations match — plain center-crop
+      // Stream and target orientations match — plain center-crop.
+      // Но для landscape нужно проверить: пользователь мог держать телефон
+      // «перевёрнутым» landscape (secondary orientation) → камера отдаст
+      // upside-down поток. Тогда rotate 180° чтобы верх фото был вверху сцены.
       let sx: number, sy: number
       if (vw / vh > targetRatio) {
         sx = Math.round((vw - sw) / 2)
@@ -147,6 +201,16 @@ export function useCamera() {
       } else {
         sx = 0
         sy = Math.round((vh - sh) / 2)
+      }
+      const isSecondaryLandscape = targetIsLandscape && (() => {
+        const type = (screen.orientation?.type as string | undefined) ?? ''
+        if (type === 'landscape-secondary') return true
+        // Fallback через gamma: |gamma|>20 и gamma<0 в secondary-landscape
+        return Math.abs(gammaRef.current) > 20 && gammaRef.current < 0
+      })()
+      if (isSecondaryLandscape) {
+        ctx.translate(sw, sh)
+        ctx.rotate(Math.PI)
       }
       if (mirror) {
         ctx.translate(sw, 0)
@@ -166,5 +230,9 @@ export function useCamera() {
 
   useEffect(() => () => stop(), [stop])
 
-  return { videoRef, ready, error, start, stop, capture, torchSupported, torchOn, setTorch }
+  return {
+    videoRef, ready, error, start, stop, capture,
+    torchSupported, torchOn, setTorch,
+    zoomSupported, minZoom, maxZoom, zoom, setZoom,
+  }
 }

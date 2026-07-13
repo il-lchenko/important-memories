@@ -6,6 +6,7 @@ interface Frame {
   id: string
   guest_id: string
   guest_name: string
+  guest_avatar_url?: string | null
   captured_at: string
   thumbnail_url: string | null
   preview_url: string | null
@@ -61,6 +62,11 @@ export default function FrameFullscreen() {
 
   const hasPrev = currentIndex > 0
   const hasNext = currentIndex < frames.length - 1
+
+  // Sync rotation from frame data whenever the displayed frame changes
+  useEffect(() => {
+    setRotation(frame?.rotation ?? 0)
+  }, [frame?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const goTo = useCallback((idx: number) => {
     if (idx >= 0 && idx < frames.length) setCurrentIndex(idx)
@@ -242,18 +248,22 @@ export default function FrameFullscreen() {
 
       </div>
 
-      {/* Caption — between photo and guest meta */}
+      {/* Caption — сразу под фото, с воздухом. */}
       {frame.caption && (
-        <div style={{ flexShrink: 0, padding: '14px 24px 2px', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Caveat, cursive', fontStyle: 'italic', fontSize: 22, lineHeight: 1.2, color: 'rgba(255,179,71,.95)' }}>
+        <div style={{ flexShrink: 0, padding: '22px 26px 10px', textAlign: 'center' }}>
+          <div style={{
+            fontFamily: 'Caveat, cursive', fontStyle: 'italic',
+            fontSize: 26, lineHeight: 1.28, color: 'rgba(255,179,71,.95)',
+            wordBreak: 'break-word', overflowWrap: 'anywhere',
+          }}>
             {frame.caption}
           </div>
         </div>
       )}
 
-      {/* Voice player — between photo and guest meta */}
+      {/* Voice player — сразу под фото, тот же ритм что и caption. */}
       {!frame.caption && frame.voice_url && (
-        <div style={{ flexShrink: 0, padding: '14px 20px 2px' }}>
+        <div style={{ flexShrink: 0, padding: '22px 20px 10px' }}>
           <VoicePlayer
             url={frame.voice_url}
             peaks={frame.voice_peaks ?? null}
@@ -262,16 +272,31 @@ export default function FrameFullscreen() {
         </div>
       )}
 
-      {/* Guest name + capture time — between photo/caption and action buttons */}
-      <div style={{ flexShrink: 0, padding: '12px 20px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <span style={{
-          fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1,
-          color: 'rgba(246,242,232,.92)',
-          textShadow: '0 1px 3px rgba(0,0,0,.4)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {frame.guest_name}
-        </span>
+      {/* Guest name + capture time — отдельная нижняя мета-полоса. */}
+      <div style={{ flexShrink: 0, padding: '18px 20px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%',
+            background: frame.guest_avatar_url ? undefined : 'rgba(255,179,71,0.14)',
+            backgroundImage: frame.guest_avatar_url ? `url(${frame.guest_avatar_url})` : undefined,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+            border: '1px solid rgba(255,179,71,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+            fontFamily: 'Playfair Display, serif', fontSize: 13, fontWeight: 600,
+            color: '#FFB347',
+          }}>
+            {!frame.guest_avatar_url && (frame.guest_name?.[0]?.toUpperCase() ?? '?')}
+          </div>
+          <span style={{
+            fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1,
+            color: 'rgba(246,242,232,.92)',
+            textShadow: '0 1px 3px rgba(0,0,0,.4)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {frame.guest_name}
+          </span>
+        </div>
         <span style={{
           fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
           color: 'rgba(255,179,71,.85)', letterSpacing: '.1em',

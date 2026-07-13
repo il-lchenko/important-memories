@@ -53,6 +53,47 @@ class GuestNameUpdateIn(BaseModel):
         return clean
 
 
+class GuestProfileUpdateIn(BaseModel):
+    """Обновление публичного профиля гостя: имя, аватар, био.
+    Все поля опциональные — можно менять по одному."""
+    name: str | None = Field(default=None, max_length=40)
+    avatar_key: str | None = Field(default=None, max_length=512)
+    bio: str | None = Field(default=None, max_length=160)
+
+    @field_validator("name")
+    @classmethod
+    def _sanitize_name_field(cls, v: str | None) -> str | None:
+        return _sanitize_name(v)
+
+    @field_validator("bio")
+    @classmethod
+    def _sanitize_bio(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        stripped = v.strip()
+        return stripped or None
+
+
+class GuestAvatarPresignIn(BaseModel):
+    content_type: str = Field(default="image/jpeg", max_length=64)
+    size_bytes: int = Field(gt=0, le=2 * 1024 * 1024)  # ≤ 2 MB
+
+
+class GuestAvatarPresignOut(BaseModel):
+    avatar_key: str
+    upload_url: str
+    expires_in: int
+
+
+class GuestPublicProfileOut(BaseModel):
+    id: UUID
+    name: str
+    avatar_url: str | None = None
+    bio: str | None = None
+    frames_count: int
+    joined_at: datetime
+
+
 class InvitedEventOut(BaseModel):
     id: UUID
     short_code: str
@@ -80,6 +121,8 @@ class GuestSessionOut(BaseModel):
     guest_id: UUID
     guest_token: str
     name: str
+    avatar_url: str | None = None
+    bio: str | None = None
     event: GuestEventOut
     frames_used: int
     frames_remaining: int

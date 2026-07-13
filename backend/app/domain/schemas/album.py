@@ -8,6 +8,7 @@ class AlbumFrameOut(BaseModel):
     id: UUID
     guest_id: UUID
     guest_name: str
+    guest_avatar_url: str | None = None
     captured_at: datetime
     thumbnail_url: str | None
     preview_url: str | None

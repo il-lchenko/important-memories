@@ -3,10 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api, guestApi } from '../../api/client'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
-interface Frame {
+export interface Frame {
   id: string
   guest_id: string
   guest_name: string
+  guest_avatar_url?: string | null
   captured_at: string
   thumbnail_url: string | null
   preview_url: string | null
@@ -14,16 +15,18 @@ interface Frame {
   width: number
   height: number
   is_mine: boolean
+  rotation?: number
+  caption?: string | null
 }
 
-interface AlbumOut {
+export interface AlbumOut {
   items: Frame[]
   next_cursor: string | null
   revealed: boolean
   total_frames: number
 }
 
-type ViewMode = 'magazine' | 'retro' | 'polaroid'
+export type ViewMode = 'magazine' | 'retro' | 'polaroid'
 
 function getEventMeta() {
   try { return JSON.parse(sessionStorage.getItem('event') ?? '{}') } catch { return {} }
@@ -69,17 +72,29 @@ const FILM_GRADS: [string, string, string][] = [
 ]
 
 // ── FrameImage ──────────────────────────────────────────────────────────────
+// В сетках используем preview_url (2560px) → full_url. thumbnail_url (маленький)
+// давал заметное падение качества на полароид/журнал/ретро — отказались.
 function FrameImage({ frame, fallbackIndex }: { frame: Frame | null; fallbackIndex: number }) {
-  const url = frame?.thumbnail_url ?? frame?.full_url ?? null
+  const [previewFailed, setPreviewFailed] = useState(false)
+  const rotation = frame?.rotation ?? 0
+  const url = (previewFailed || !frame?.preview_url)
+    ? (frame?.full_url ?? null)
+    : frame.preview_url
   const grad = FILM_GRADS[fallbackIndex % FILM_GRADS.length]
+  const rotStyle: React.CSSProperties = rotation
+    ? { transform: `rotate(${rotation}deg)`, transformOrigin: 'center' }
+    : {}
   if (url) {
     return (
       <img
+        key={url}
         src={url}
         alt=""
         loading="lazy"
-        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...rotStyle }}
+        onError={() => {
+          if (!previewFailed && frame?.preview_url) setPreviewFailed(true)
+        }}
       />
     )
   }
@@ -98,7 +113,7 @@ const MODES: { id: ViewMode; label: string }[] = [
   { id: 'polaroid', label: 'Полароид' },
 ]
 
-function ViewSwitcher({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
+export function ViewSwitcher({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
   return (
     <div style={{
       display: 'flex', padding: 4, gap: 4,
@@ -129,7 +144,7 @@ function ViewSwitcher({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMo
 }
 
 // ── GridFormatDialog ────────────────────────────────────────────────────────
-function GridFormatDialog({ current, onSelect, onClose }: {
+export function GridFormatDialog({ current, onSelect, onClose }: {
   current: number; onSelect: (c: number) => void; onClose: () => void;
 }) {
   const [selected, setSelected] = useState(current)
@@ -197,12 +212,9 @@ function GridFormatDialog({ current, onSelect, onClose }: {
           })}
         </div>
         <button
+          className="btn-modal"
           onClick={() => { onSelect(selected); onClose() }}
-          style={{
-            marginTop: 24, width: '100%', height: 50, borderRadius: 14,
-            background: 'var(--amber)', color: '#fff', border: 'none',
-            fontFamily: 'Inter, sans-serif', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-          }}
+          style={{ marginTop: 24 }}
         >
           Выбрать
         </button>
@@ -212,7 +224,7 @@ function GridFormatDialog({ current, onSelect, onClose }: {
 }
 
 // ── MagazineGrid (with 2/3/4 columns + pinch) ───────────────────────────────
-function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: {
+export function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: {
   frames: Frame[]; columns: number; onOpenFrame: (i: number) => void;
   onColumnsChange: (c: number) => void;
 }) {
@@ -290,11 +302,16 @@ function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: {
                 {formatTime(frame.captured_at)}
               </div>
               <div style={{
-                position: 'absolute', bottom: 8, left: 10,
-                fontFamily: 'Caveat, cursive', fontSize: 22, color: '#fff',
-                textShadow: '0 1px 4px rgba(0,0,0,.55)',
+                position: 'absolute', bottom: 8, left: 10, right: 10,
+                fontFamily: 'Caveat, cursive',
+                fontStyle: (frame.caption ?? '').trim() ? 'italic' : 'normal',
+                fontSize: (frame.caption ?? '').trim() ? 18 : 19,
+                color: '#fff', lineHeight: 1.15,
+                textShadow: '0 1px 4px rgba(0,0,0,.65)',
+                display: '-webkit-box', WebkitBoxOrient: 'vertical' as const,
+                WebkitLineClamp: 3, overflow: 'hidden',
               }}>
-                {frame.guest_name}
+                {(frame.caption ?? '').trim() || frame.guest_name}
               </div>
             </>
           )}
@@ -305,7 +322,7 @@ function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: {
 }
 
 // ── RetroLayout ─────────────────────────────────────────────────────────────
-function RetroLayout({ frames, eventId, onOpenFrame }: {
+export function RetroLayout({ frames, eventId, onOpenFrame }: {
   frames: Frame[]; eventId: string; onOpenFrame: (i: number) => void;
 }) {
   const rows = useMemo(() => {
@@ -376,7 +393,7 @@ function RetroSingleRow({ frameIndex, frame, layout, onOpen }: {
       }}>
         <RetroCard
           w={w} h={h} deg={deg} index={frameIndex} frame={frame}
-          tape={tape} hw={frame.guest_name}
+          tape={tape} hw={((frame.caption ?? '').trim() || null)}
           onTap={() => onOpen(frameIndex)}
         />
       </div>
@@ -409,7 +426,7 @@ function RetroDoubleRow({ indices, frames, layout, onOpen }: {
   const cardL = (
     <RetroCard
       w={wL} h={hL} deg={degL} index={iL} frame={fL}
-      tape={tapeL} hw={fL.guest_name}
+      tape={tapeL} hw={((fL.caption ?? '').trim() || null)}
       onTap={() => onOpen(iL)}
     />
   )
@@ -417,7 +434,7 @@ function RetroDoubleRow({ indices, frames, layout, onOpen }: {
     <div style={{ marginTop: topOffset }}>
       <RetroCard
         w={wR} h={hR} deg={degR} index={iR} frame={fR}
-        tape={tapeR} hw={fR.guest_name}
+        tape={tapeR} hw={((fR.caption ?? '').trim() || null)}
         onTap={() => onOpen(iR)}
       />
     </div>
@@ -461,10 +478,14 @@ function RetroCard({ w, h, deg, index, frame, tape, hw, onTap }: {
       </div>
       {hw && (
         <div style={{
-          position: 'absolute', bottom: 6, right: 10,
+          position: 'absolute', bottom: 6, left: 10, right: 10,
           transform: 'rotate(-2deg)',
-          fontFamily: 'Caveat, cursive', fontSize: 18, color: '#fff',
-          textShadow: '0 1px 4px rgba(0,0,0,.6)',
+          fontFamily: 'Caveat, cursive', fontStyle: 'italic',
+          fontSize: 16, color: '#fff', lineHeight: 1.15,
+          textShadow: '0 1px 4px rgba(0,0,0,.65)',
+          display: '-webkit-box', WebkitBoxOrient: 'vertical' as const,
+          WebkitLineClamp: 3, overflow: 'hidden',
+          textAlign: 'right',
         }}>
           {hw}
         </div>
@@ -482,10 +503,58 @@ function RetroCard({ w, h, deg, index, frame, tape, hw, onTap }: {
   )
 }
 
+// ── PolaroidCaption ─────────────────────────────────────────────────────────
+// Универсальная белая зона внизу полароида: показывает только caption (растёт
+// по длине). Если caption нет — рисуем компактную пустую полоску (классический
+// полароид). Имя гостя здесь не пишем — оно живёт в мета-полосе полноэкрана.
+// Используется в PolaroidFeed, MagazineGrid (крупная сетка), CameraScreen preview,
+// CaptionScreen, FrameFullscreen.
+export function PolaroidCaption({ caption, capturedAt, compact = false }: {
+  caption?: string | null; guestName?: string | null;
+  capturedAt?: string | null; compact?: boolean;
+}) {
+  const trimmed = (caption ?? '').trim()
+  const hasCaption = trimmed.length > 0
+  const time = capturedAt ? formatTime(capturedAt) : null
+  const scale = compact ? 0.72 : 1
+  return (
+    <div style={{
+      padding: `${8 * scale}px ${14 * scale}px ${10 * scale}px`,
+      position: 'relative',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+    }}>
+      {hasCaption ? (
+        <div style={{
+          fontFamily: 'Caveat, cursive', fontStyle: 'italic',
+          fontSize: (compact ? 17 : 22),
+          lineHeight: 1.22,
+          color: 'var(--ink-2)',
+          textAlign: 'center',
+          wordBreak: 'break-word', overflowWrap: 'anywhere',
+          padding: '0 4px',
+        }}>
+          {trimmed}
+        </div>
+      ) : (
+        <div style={{ height: 12 * scale }} />
+      )}
+      {time && (
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: (compact ? 8 : 10), color: 'var(--ink-3)',
+          textAlign: 'right', marginTop: 4, letterSpacing: '.06em',
+        }}>
+          {time}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── PolaroidFeed ────────────────────────────────────────────────────────────
 const POLAROID_ROTS = [-3.5, 3.0, -2.0, 4.0, -2.8, 2.5]
 
-function PolaroidFeed({ frames, onOpenFrame }: {
+export function PolaroidFeed({ frames, onOpenFrame }: {
   frames: Frame[]; onOpenFrame: (i: number) => void;
 }) {
   return (
@@ -510,21 +579,7 @@ function PolaroidFeed({ frames, onOpenFrame }: {
                   <FrameImage frame={frame} fallbackIndex={i} />
                 </div>
               </div>
-              <div style={{ height: 44, position: 'relative' }}>
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'Caveat, cursive', fontSize: 24, color: 'var(--ink-2)',
-                }}>
-                  {frame.guest_name || '—'}
-                </div>
-                <div style={{
-                  position: 'absolute', right: 14, bottom: 12,
-                  fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--ink-3)',
-                }}>
-                  {formatTime(frame.captured_at)}
-                </div>
-              </div>
+              <PolaroidCaption caption={frame.caption} guestName={frame.guest_name} capturedAt={frame.captured_at} />
             </div>
           </div>
         )
@@ -594,7 +649,7 @@ export default function AlbumScreen() {
         .then((revealed) => {
           if (!revealed) navigate(`/g/${shortCode}/waiting`, { replace: true })
         })
-        .catch(() => {})
+        .catch((e) => console.error('album_load_failed', e))
         .finally(() => setLoading(false))
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -607,7 +662,7 @@ export default function AlbumScreen() {
         if (entries[0].isIntersecting && nextCursor && !loadingMore) {
           setLoadingMore(true)
           fetchPage(nextCursor)
-            .catch(() => {})
+            .catch((e) => console.error('album_page_failed', e))
             .finally(() => setLoadingMore(false))
         }
       },
@@ -644,30 +699,47 @@ export default function AlbumScreen() {
       )}
 
       {/* Header */}
-      <div style={{ padding: '14px 24px 8px' }}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-          letterSpacing: '.14em', textTransform: 'uppercase',
-          color: 'var(--ink-3)', marginBottom: 6,
-        }}>
-          {kicker}
+      <div style={{ padding: '14px 24px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+            letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'var(--ink-3)', marginBottom: 6,
+          }}>
+            {kicker}
+          </div>
+          <h1 style={{
+            fontFamily: 'Fraunces, serif', fontStyle: 'italic',
+            fontSize: 26, fontWeight: 500, margin: 0,
+            letterSpacing: '-.02em', lineHeight: 1.05, color: 'var(--ink)',
+          }}>
+            {eventName}
+          </h1>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
+            letterSpacing: '.14em', color: 'var(--ink-3)',
+            textTransform: 'uppercase', marginTop: 4,
+          }}>
+            {loading
+              ? '...'
+              : `${totalFrames} КАДРОВ · ${authorCount} АВТОРОВ`}
+          </div>
         </div>
-        <h1 style={{
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-          fontSize: 26, fontWeight: 500, margin: 0,
-          letterSpacing: '-.02em', lineHeight: 1.05, color: 'var(--ink)',
-        }}>
-          {eventName}
-        </h1>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace', fontSize: 11,
-          letterSpacing: '.14em', color: 'var(--ink-3)',
-          textTransform: 'uppercase', marginTop: 4,
-        }}>
-          {loading
-            ? '...'
-            : `${totalFrames} КАДРОВ · ${authorCount} АВТОРОВ`}
-        </div>
+        <button
+          onClick={() => navigate(`/g/${shortCode}/profile`)}
+          aria-label="Профиль"
+          style={{
+            width: 40, height: 40, borderRadius: 20,
+            background: 'var(--paper-2)', border: 'none', cursor: 'pointer',
+            color: 'var(--ink-2)', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+          </svg>
+        </button>
       </div>
 
       {/* Mode switcher + grid format trigger */}

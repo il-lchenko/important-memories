@@ -8,7 +8,7 @@ part 'api_client.g.dart';
 // 10.0.2.2 — стандартный адрес хост-машины из Android-эмулятора
 const _baseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://192.168.1.109:8002/api/v1/');
 
-@riverpod
+@Riverpod(keepAlive: true)
 Dio dio(Ref ref) {
   final dio = Dio(BaseOptions(
     baseUrl: _baseUrl,

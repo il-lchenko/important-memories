@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,9 +144,9 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.paper,
         title: Text('Удалить кадр?',
-          style: GoogleFonts.playfairDisplay(fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.ink)),
+          style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.ink)),
         content: const Text(
-          'Кадр пропадёт из альбома навсегда. Гости его больше не увидят.',
+          'Кадр пропадёт из альбома навсегда. Гости его больше не увидят',
           style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
         ),
         actions: [
@@ -280,6 +281,8 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
         final frame = frames[safeIdx];
         final frameId = frame['id'] as String? ?? '';
         final guestName = frame['guest_name'] as String? ?? '';
+        final guestId = frame['guest_id'] as String? ?? '';
+        final guestAvatarUrl = frame['guest_avatar_url'] as String?;
         final capturedAtRaw = frame['captured_at'];
         final uploadedAtRaw = frame['uploaded_at'];
         final dt = _frameDateTime(capturedAtRaw) ?? _frameDateTime(uploadedAtRaw);
@@ -361,22 +364,18 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            transitionBuilder: (c, a) => FadeTransition(opacity: a, child: c),
-                            child: _isPolaroid
-                                ? _PolaroidBig(
-                                    key: ValueKey('p$safeIdx'),
-                                    frame: frame,
-                                    guestName: guestName,
-                                    rotationDeg: effectiveRotation,
-                                  )
-                                : _FullFrame(
-                                    key: ValueKey('f$safeIdx'),
-                                    frame: frame,
-                                    rotationDeg: effectiveRotation,
-                                  ),
-                          ),
+                          _isPolaroid
+                              ? _PolaroidBig(
+                                  key: ValueKey('p$safeIdx'),
+                                  frame: frame,
+                                  guestName: guestName,
+                                  rotationDeg: effectiveRotation,
+                                )
+                              : _FullFrame(
+                                  key: ValueKey('f$safeIdx'),
+                                  frame: frame,
+                                  rotationDeg: effectiveRotation,
+                                ),
                           Positioned(
                             left: 0, top: 0, bottom: 0,
                             child: Center(
@@ -394,25 +393,27 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                     ),
                   ),
                 ),
-                // Caption (под фото, перед meta bar)
-                if (caption != null && caption.isNotEmpty)
+                // Caption — сразу под фото, с воздухом. Растёт по длине подписи.
+                // В полароид-режиме подпись уже РИСУЕТСЯ в белом поле _PolaroidBig,
+                // здесь не дублируем.
+                if (!_isPolaroid && caption != null && caption.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+                    padding: const EdgeInsets.fromLTRB(26, 22, 26, 10),
                     child: Text(
                       caption,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.caveat(
                         fontStyle: FontStyle.italic,
-                        fontSize: 22,
-                        height: 1.2,
+                        fontSize: 26,
+                        height: 1.28,
                         color: AppColors.ink2,
                       ),
                     ),
                   ),
-                // Voice player (только если caption отсутствует и voice_url есть)
+                // Voice player — тот же ритм что и caption: с воздухом под фото.
                 if ((caption == null || caption.isEmpty) && voiceUrl != null)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
                     child: _VoicePlayer(
                       key: ValueKey(voiceUrl),
                       url: voiceUrl,
@@ -422,17 +423,32 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                   ),
                 // Meta bar — author left, time + date right (with icons)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 6),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        guestName.isNotEmpty ? guestName.toUpperCase() : '—',
-                        style: const TextStyle(
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 10,
-                          letterSpacing: 1.4,
-                          color: AppColors.ink3,
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: guestId.isEmpty
+                            ? null
+                            : () => _showGuestProfileSheet(
+                                  context, guestId, guestName, guestAvatarUrl, frames,
+                                ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _MiniAvatar(url: guestAvatarUrl, name: guestName),
+                            const SizedBox(width: 8),
+                            Text(
+                              guestName.isNotEmpty ? guestName.toUpperCase() : '—',
+                              style: const TextStyle(
+                                fontFamily: 'JetBrains Mono',
+                                fontSize: 10,
+                                letterSpacing: 1.4,
+                                color: AppColors.ink3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       if (dt != null)
@@ -657,8 +673,12 @@ class _PolaroidBig extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = frame['full_url'] as String?;
-    // Date/time live in the meta bar below — don't duplicate them on the polaroid itself.
-    final caption = guestName.isNotEmpty ? guestName : '—';
+    final captionText = (frame['caption'] as String? ?? '').trim();
+    final hasCaption = captionText.isNotEmpty;
+    // Fallback на имя; для полароида это визуально приятнее чем прочерк.
+    final label = hasCaption
+        ? captionText
+        : (guestName.isNotEmpty ? guestName : '—');
 
     return Transform.rotate(
       angle: -1.5 * math.pi / 180,
@@ -684,7 +704,7 @@ class _PolaroidBig extends StatelessWidget {
                   turns: rotationDeg / 360.0,
                   duration: const Duration(milliseconds: 240),
                   child: url != null
-                      ? Image.network(url, fit: BoxFit.cover)
+                      ? CachedNetworkImage(imageUrl: url, cacheKey: Uri.parse(url).path, fit: BoxFit.cover, fadeInDuration: Duration.zero)
                       : Container(
                           decoration: const BoxDecoration(
                             gradient: RadialGradient(
@@ -698,15 +718,21 @@ class _PolaroidBig extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              height: 56,
-              child: Center(
-                child: Text(
-                  caption,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.caveat(fontSize: 24, color: AppColors.ink2),
-                ),
-              ),
+            // Белая зона: только caption. Если нет — короткая пустая полоска (классический полароид).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 12, 6, 16),
+              child: hasCaption
+                  ? Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.caveat(
+                        fontSize: 22,
+                        fontStyle: FontStyle.italic,
+                        height: 1.26,
+                        color: AppColors.ink2,
+                      ),
+                    )
+                  : const SizedBox(height: 20),
             ),
           ],
         ),
@@ -726,49 +752,43 @@ class _FullFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Prefer preview (1600px, ~500KB) for fast display; fall back to full_url for legacy frames.
     final url = (frame['preview_url'] as String?) ?? (frame['full_url'] as String?);
     final w = (frame['width'] as num?)?.toDouble() ?? 3.0;
     final h = (frame['height'] as num?)?.toDouble() ?? 4.0;
-    final ratio = w / h;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxW = constraints.maxWidth * 0.95;
-        final maxH = constraints.maxHeight * 0.95;
-        double fw, fh;
-        if (ratio <= 1.0) {
-          fh = maxH; fw = fh * ratio;
-          if (fw > maxW) { fw = maxW; fh = fw / ratio; }
-        } else {
-          fw = maxW; fh = fw / ratio;
-          if (fh > maxH) { fh = maxH; fw = fh * ratio; }
-        }
-        return Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: AnimatedRotation(
-              turns: rotationDeg / 360.0,
-              duration: const Duration(milliseconds: 240),
-              child: SizedBox(
-                width: fw, height: fh,
-                child: url != null
-                    ? Image.network(url, fit: BoxFit.cover, width: fw, height: fh)
-                    : Container(
-                        decoration: const BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment(0, -0.2),
-                            radius: 1.2,
-                            colors: _fallback,
-                            stops: [0.0, 0.4, 0.8, 1.0],
-                          ),
+    // RotatedBox changes the layout box (unlike Transform.rotate which is paint-only).
+    // This prevents ClipRect from clipping pre-rotation content at the wrong axis.
+    return FractionallySizedBox(
+      widthFactor: 0.95,
+      heightFactor: 0.95,
+      child: Center(
+        child: RotatedBox(
+          quarterTurns: rotationDeg ~/ 90,
+          child: AspectRatio(
+            aspectRatio: w / h,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: url != null
+                  ? CachedNetworkImage(
+                      imageUrl: url,
+                      cacheKey: Uri.parse(url).path,
+                      fit: BoxFit.cover,
+                      fadeInDuration: Duration.zero,
+                    )
+                  : Container(
+                      decoration: const BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment(0, -0.2),
+                          radius: 1.2,
+                          colors: _fallback,
+                          stops: [0.0, 0.4, 0.8, 1.0],
                         ),
                       ),
-              ),
+                    ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -953,4 +973,127 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveformPainter old) => old.progress != progress || old.peaks != peaks;
+}
+
+// ─── Guest avatar + profile sheet ──────────────────────────────────────────────
+class _MiniAvatar extends StatelessWidget {
+  final String? url;
+  final String name;
+  final double size;
+  const _MiniAvatar({required this.url, required this.name, this.size = 22});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name.characters.first.toUpperCase() : '?';
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.paper2,
+        border: Border.all(
+          color: AppColors.amber.withValues(alpha: 0.35),
+          width: 1,
+        ),
+        image: url != null
+            ? DecorationImage(image: NetworkImage(url!), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: url == null
+          ? Text(
+              initial,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: size * 0.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.amber,
+              ),
+            )
+          : null,
+    );
+  }
+}
+
+void _showGuestProfileSheet(
+  BuildContext context,
+  String guestId,
+  String guestName,
+  String? avatarUrl,
+  List<Map<String, dynamic>> frames,
+) {
+  final myFrames = frames.where((f) => f['guest_id'] == guestId).toList();
+  final framesCount = myFrames.length;
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: AppColors.paper,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      final bottom = MediaQuery.of(ctx).padding.bottom;
+      return Padding(
+        padding: EdgeInsets.fromLTRB(24, 20, 24, 20 + bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.ink4,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            _MiniAvatar(url: avatarUrl, name: guestName, size: 84),
+            const SizedBox(height: 14),
+            Text(
+              guestName.isNotEmpty ? guestName : 'Гость',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              framesCount == 1
+                  ? '1 кадр в этом альбоме'
+                  : '$framesCount кадров в этом альбоме',
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: AppColors.ink3,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (framesCount > 0)
+              SizedBox(
+                height: 76,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: math.min(framesCount, 12),
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final f = myFrames[i];
+                    final url = (f['thumbnail_url'] ?? f['preview_url']) as String?;
+                    return Container(
+                      width: 76, height: 76,
+                      decoration: BoxDecoration(
+                        color: AppColors.paper2,
+                        borderRadius: BorderRadius.circular(6),
+                        image: url != null
+                            ? DecorationImage(
+                                image: NetworkImage(url),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }

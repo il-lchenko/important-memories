@@ -93,7 +93,8 @@ async def create_checkout(
         )
 
     user = await user_repo.get_by_id(session, user_id)
-    assert user is not None
+    if user is None:
+        raise NotFoundError("User not found")
 
     yk = await yookassa_client.create_payment(
         event_id=event.id,
@@ -167,7 +168,8 @@ async def create_extend_checkout(
         )
 
     user = await user_repo.get_by_id(session, user_id)
-    assert user is not None
+    if user is None:
+        raise NotFoundError("User not found")
 
     yk = await yookassa_client.create_payment(
         event_id=event.id,
@@ -269,7 +271,8 @@ async def create_upgrade_checkout(
         return _upgrade_out_from_payment(existing, event, kind, meta)
 
     user = await user_repo.get_by_id(session, user_id)
-    assert user is not None
+    if user is None:
+        raise NotFoundError("User not found")
 
     yk = await yookassa_client.create_payment(
         event_id=event.id,

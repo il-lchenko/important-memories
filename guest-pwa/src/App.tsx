@@ -3,6 +3,7 @@ import HomeScreen from './features/home/HomeScreen'
 import LandingScreen from './features/landing/LandingScreen'
 import CameraScreen from './features/camera/CameraScreen'
 import AlbumScreen from './features/album/AlbumScreen'
+import PublicAlbumScreen from './features/album/PublicAlbumScreen'
 import FrameFullscreen from './features/album/FrameFullscreen'
 import DoneScreen from './features/shared/DoneScreen'
 import WaitingScreen from './features/shared/WaitingScreen'
@@ -11,6 +12,7 @@ import NotStartedScreen from './features/shared/NotStartedScreen'
 import SignChoiceScreen from './features/sign/SignChoiceScreen'
 import CaptionScreen from './features/sign/CaptionScreen'
 import VoiceScreen from './features/sign/VoiceScreen'
+import ProfileScreen from './features/profile/ProfileScreen'
 
 export default function App() {
   return (
@@ -24,10 +26,12 @@ export default function App() {
         <Route path="/g/:shortCode/sign/:frameId"            element={<SignChoiceScreen />} />
         <Route path="/g/:shortCode/sign/:frameId/text"       element={<CaptionScreen />} />
         <Route path="/g/:shortCode/sign/:frameId/voice"      element={<VoiceScreen />} />
+        <Route path="/g/:shortCode/profile"                  element={<ProfileScreen />} />
         <Route path="/g/:shortCode/done"                     element={<DoneScreen />} />
         <Route path="/g/:shortCode/waiting"                  element={<WaitingScreen />} />
         <Route path="/g/:shortCode/ended"                    element={<EventEndedScreen />} />
         <Route path="/g/:shortCode/not-started"              element={<NotStartedScreen />} />
+        <Route path="/a/:token"                              element={<PublicAlbumScreen />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

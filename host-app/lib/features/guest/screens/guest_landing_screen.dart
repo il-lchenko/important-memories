@@ -182,6 +182,7 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
     final previewAsync = ref.watch(guestEventPreviewProvider(widget.code));
     final authAsync = ref.watch(authProvider);
     final isAuthed = authAsync.valueOrNull ?? false;
+    final userAsync = isAuthed ? ref.watch(currentUserProvider) : null;
     final bottom = MediaQuery.of(context).padding.bottom;
     final top = MediaQuery.of(context).padding.top;
 
@@ -195,8 +196,7 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
         data: (event) {
           // Pre-fill name from user profile (if authenticated and name not already set)
           if (isAuthed && _nameCtrl.text.isEmpty) {
-            final userAsync = ref.watch(currentUserProvider);
-            userAsync.whenData((user) {
+            userAsync?.whenData((user) {
               final dn = user['display_name'] as String? ?? '';
               if (_nameCtrl.text.isEmpty && dn.isNotEmpty) {
                 _nameCtrl.text = dn;
@@ -291,7 +291,7 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
                       const SizedBox(height: 4),
                       Text(
                         title,
-                        style: GoogleFonts.playfairDisplay(
+                        style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                           fontSize: 28,
                           fontWeight: FontWeight.w500,
                           height: 1.1,

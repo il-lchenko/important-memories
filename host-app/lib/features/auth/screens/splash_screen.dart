@@ -145,7 +145,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                 Text(
                   'Important\nMemories',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                     fontSize: 32,
                     fontWeight: FontWeight.w500,
                     letterSpacing: -0.64,

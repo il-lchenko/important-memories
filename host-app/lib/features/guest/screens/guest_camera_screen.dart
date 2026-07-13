@@ -87,10 +87,12 @@ Future<void> _saveRecentShots(String eventId, List<_RecentShot> shots) async {
   await prefs.setString(_recentKey(eventId), raw);
 }
 
-// Top-level for compute() — builds 160px thumbnail from jpeg bytes.
+// Top-level for compute() — builds ~512px preview thumbnail from jpeg bytes.
+// 512×q=82 нужен для когда пользователь тапает по «последним 3 фото» — если
+// на диске файл потерян и надо fallback на этот data-url, качество приемлемое.
 String _buildThumbDataUrl(Map<String, Object> params) {
   final bytes = params['bytes'] as Uint8List;
-  final maxSize = (params['maxSize'] as int?) ?? 160;
+  final maxSize = (params['maxSize'] as int?) ?? 512;
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return '';
   final longer = decoded.width > decoded.height ? decoded.width : decoded.height;
@@ -103,12 +105,14 @@ String _buildThumbDataUrl(Map<String, Object> params) {
           interpolation: img.Interpolation.linear,
         )
       : decoded;
-  final jpg = img.encodeJpg(thumb, quality: 70);
+  final jpg = img.encodeJpg(thumb, quality: 82);
   return 'data:image/jpeg;base64,${base64Encode(jpg)}';
 }
 
 // ─── Quarter → isLandscape helper ────────────────────────────────────────────
 bool _quarterIsLandscape(int q) => q == 1 || q == 3;
+
+enum _AspectMode { ratio34, full }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main camera screen
@@ -136,22 +140,53 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   List<_RecentShot> _recentShots = [];
   _PreviewData? _preview;
 
+  // Hardware zoom — реальный zoom через камеру (не CSS-скейл).
+  // Первые уровни на Android — оптика/hardware digital (лучше качество),
+  // выше — обычный digital. Пользуемся тем что даёт camera-plugin.
+  double _minZoom = 1.0;
+  double _maxZoom = 1.0;
+  double _zoom = 1.0;
+  double _pinchBaseZoom = 1.0;
+
+  // Соотношение кадра: 3:4 (film-style) или полноэкран (по экрану устройства).
+  _AspectMode _aspectMode = _AspectMode.ratio34;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _loadPrefs().then((_) => _initCamera());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showPendingToast());
   }
 
   Future<void> _loadPrefs() async {
-    final frames = await GuestPrefs.framesRemainingFor(widget.eventId);
+    var frames = await GuestPrefs.framesRemainingFor(widget.eventId);
     final lut = await GuestPrefs.lutPresetFor(widget.eventId);
     final recent = await _loadRecentShots(widget.eventId);
     // Закрепляем event как «текущий» — нужен sign/caption/voice экранам.
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('current_guest_event_id', widget.eventId);
     final total = prefs.getInt('gs_frames_total_${widget.eventId}') ?? frames;
+
+    // Если кадры не закешированы (0) но токен есть — запрашиваем с backend.
+    if (frames == 0) {
+      final token = await GuestPrefs.tokenFor(widget.eventId);
+      if (token.isNotEmpty) {
+        try {
+          final resp = await ref.read(dioProvider).get(
+            'guest/session',
+            options: Options(headers: {'X-Guest-Token': token}),
+          );
+          final remaining = resp.data['frames_remaining'] as int? ?? 0;
+          if (remaining > 0) {
+            frames = remaining;
+            await GuestPrefs.setFramesRemainingFor(widget.eventId, frames);
+          }
+        } catch (_) {}
+      }
+    }
+
     if (!mounted) return;
     setState(() {
       _framesRemaining = frames;
@@ -196,18 +231,14 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 
   /// Показывает SnackBar с подтверждением «Подписано» / «Голос записан»
   /// после возврата с caption/voice экранов.
-  bool _toastShown = false;
-  void _showPendingToast() {
-    if (_toastShown) return;
-    _toastShown = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      final prefs = await SharedPreferences.getInstance();
-      final txt = prefs.getString('pending_sign_toast');
-      if (txt == null || txt.isEmpty) return;
-      await prefs.remove('pending_sign_toast');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+  Future<void> _showPendingToast() async {
+    if (!mounted) return;
+    final prefs = await SharedPreferences.getInstance();
+    final txt = prefs.getString('pending_sign_toast');
+    if (txt == null || txt.isEmpty) return;
+    await prefs.remove('pending_sign_toast');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
@@ -233,7 +264,6 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           margin: const EdgeInsets.all(16),
         ),
       );
-    });
   }
 
   DeviceOrientation _orientationFor(int quarter) {
@@ -264,7 +294,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       try {
         ctrl = CameraController(
           _cameras[idx],
-          ResolutionPreset.max,
+          ResolutionPreset.high,
           enableAudio: false,
           imageFormatGroup: ImageFormatGroup.jpeg,
         );
@@ -282,15 +312,49 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       return;
     }
     await ctrl.setFlashMode(_flash);
+    // Считываем реальные пределы zoom с камеры. На части устройств
+    // getMaxZoomLevel возвращает 1.0 (значит зум недоступен) — тогда UI зума скрываем.
+    double minZ = 1.0, maxZ = 1.0;
+    try {
+      minZ = await ctrl.getMinZoomLevel();
+      maxZ = await ctrl.getMaxZoomLevel();
+    } catch (_) {}
+    if (!mounted) {
+      ctrl.dispose();
+      return;
+    }
     setState(() {
       _ctrl = ctrl;
       _initialized = true;
+      _minZoom = minZ;
+      _maxZoom = maxZ;
+      _zoom = minZ;
+    });
+  }
+
+  Future<void> _setZoom(double v) async {
+    final ctrl = _ctrl;
+    if (ctrl == null || !_initialized) return;
+    final clamped = v.clamp(_minZoom, _maxZoom);
+    try {
+      await ctrl.setZoomLevel(clamped);
+      if (mounted) setState(() => _zoom = clamped);
+    } catch (_) {}
+  }
+
+  void _toggleAspect() {
+    setState(() {
+      _aspectMode = _aspectMode == _AspectMode.ratio34
+          ? _AspectMode.full
+          : _AspectMode.ratio34;
     });
   }
 
   Future<void> _flipCamera() async {
     if (_cameras.length < 2 || _isCapturing) return;
     _camIdx = (_camIdx + 1) % _cameras.length;
+    // zoom пересчитается в _startController по новой камере.
+    _zoom = 1.0;
     await _startController(_camIdx);
   }
 
@@ -309,6 +373,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     }
     if (ctrl == null || !ctrl.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
+      if (mounted) setState(() { _initialized = false; _isInitializing = false; });
       ctrl.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _startController(_camIdx);
@@ -332,12 +397,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 
     HapticFeedback.lightImpact();
     SystemSound.play(SystemSoundType.click);
-
     setState(() => _isCapturing = true);
 
     try {
-      // Зафиксировать ориентацию съёмки по физическому повороту телефона,
-      // чтобы горизонтальное фото снималось горизонтально.
       final quarter = ref.read(deviceRotationProvider);
       try {
         await _ctrl!.lockCaptureOrientation(_orientationFor(quarter));
@@ -348,9 +410,45 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       } catch (_) {}
       final rawBytes = await file.readAsBytes();
 
-      // Process: bakeOrientation + resize + film filter (in isolate).
-      // maxSize 2560 = 2.5K — качество остаётся высоким, но isolate работает в ~2x быстрее.
-      // Дальше на сервере thumbnail worker сжимает до нужных размеров.
+      // Оптимистично уменьшаем счётчик.
+      final newRemaining = (_framesRemaining - 1).clamp(0, 999);
+      await GuestPrefs.setFramesRemainingFor(widget.eventId, newRemaining);
+      final frameNum = _framesTotal > 0
+          ? (_framesTotal - newRemaining)
+          : (_recentShots.length + 1);
+
+      // Сразу показываем raw-превью — overlay «Проявляется кадр…» исчезает мгновенно.
+      // Ratio определяем по ориентации устройства + aspect mode, уточним после обработки.
+      final screenSize0 = MediaQuery.of(context).size;
+      final screenRatio0 = screenSize0.width / screenSize0.height;
+      final rawRatio = _aspectMode == _AspectMode.ratio34
+          ? (_quarterIsLandscape(quarter) ? 4.0 / 3.0 : 3.0 / 4.0)
+          : (_quarterIsLandscape(quarter) ? 1 / screenRatio0 : screenRatio0);
+      if (!mounted) return;
+      setState(() {
+        _isCapturing = false;
+        _framesRemaining = newRemaining;
+        _preview = _PreviewData(
+          bytes: rawBytes,
+          ratio: rawRatio,
+          frameNum: frameNum,
+          status: _UploadStatus.pending,
+          isProcessing: true,
+        );
+      });
+
+      // Целевое соотношение для кропа. В ratio34 — 3:4 (портрет) / 4:3 (пейзаж).
+      // В full — используем соотношение экрана устройства.
+      final screenSize = MediaQuery.of(context).size;
+      final screenRatio = screenSize.width / screenSize.height;
+      double targetRatio;
+      if (_aspectMode == _AspectMode.ratio34) {
+        targetRatio = _quarterIsLandscape(quarter) ? 4.0 / 3.0 : 3.0 / 4.0;
+      } else {
+        targetRatio = _quarterIsLandscape(quarter) ? 1 / screenRatio : screenRatio;
+      }
+
+      // Обрабатываем в фоне (film filter + ориентация + кроп до targetRatio).
       final result = await compute(
         processImageInIsolate,
         {
@@ -358,6 +456,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           'preset': _lutPreset,
           'maxSize': 2560,
           'quarter': quarter,
+          'targetRatio': targetRatio,
         },
       );
       final processed = result['bytes'] as Uint8List;
@@ -365,21 +464,11 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final height = result['height'] as int;
       final ratio = width / height;
 
-      // Optimistically decrement counter for snappy UI.
-      final newRemaining = (_framesRemaining - 1).clamp(0, 999);
-      await GuestPrefs.setFramesRemainingFor(widget.eventId, newRemaining);
-
-      final frameNum = _framesTotal > 0
-          ? (_framesTotal - newRemaining)
-          : (_recentShots.length + 1);
-
-      // Build thumb (~160px JPEG base64) for recent stack.
+      // Строим thumb и сохраняем на диск.
       final thumbDataUrl = await compute(
         _buildThumbDataUrl,
-        {'bytes': processed, 'maxSize': 160},
+        {'bytes': processed, 'maxSize': 512},
       );
-
-      // Сохранить полный jpeg на диск (для открытия в полном качестве).
       final dir = await getApplicationSupportDirectory();
       final recentDir = Directory('${dir.path}/recent_${widget.eventId}');
       if (!await recentDir.exists()) {
@@ -389,7 +478,6 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           '${recentDir.path}/${DateTime.now().millisecondsSinceEpoch}_$frameNum.jpg';
       await File(filePath).writeAsBytes(processed);
 
-      // Save recent shots.
       final newShots = [
         _RecentShot(
           thumbDataUrl: thumbDataUrl,
@@ -399,48 +487,42 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         ),
         ..._recentShots,
       ].take(_kRecentLimit).toList();
-      // Удалить файлы старых recent (которые выпали за лимит).
       for (final s in _recentShots) {
         if (!newShots.any((n) => n.filePath == s.filePath)) {
-          try {
-            await File(s.filePath).delete();
-          } catch (_) {}
+          try { await File(s.filePath).delete(); } catch (_) {}
         }
       }
       await _saveRecentShots(widget.eventId, newShots);
 
-      // Kick off upload in background; preview shows immediately.
+      // Запускаем upload и обновляем превью обработанными байтами.
       final uploadFuture = _upload(processed, width, height);
 
       if (!mounted) return;
       setState(() {
-        _framesRemaining = newRemaining;
         _recentShots = newShots;
-        _isCapturing = false;
-        _preview = _PreviewData(
-          bytes: processed,
-          ratio: ratio,
-          frameNum: frameNum,
-          status: _UploadStatus.pending,
-          uploadFuture: uploadFuture,
-        );
+        final p = _preview;
+        if (p != null && p.frameNum == frameNum) {
+          _preview = p.copyWith(
+            bytes: processed,
+            ratio: ratio,
+            isProcessing: false,
+            uploadFuture: uploadFuture,
+          );
+        }
       });
 
       uploadFuture.then((frameId) {
         if (!mounted) return;
         setState(() {
           final p = _preview;
-          if (p == null) return;
-          _preview = p.copyWith(
-            frameId: frameId,
-            status: _UploadStatus.ok,
-          );
+          if (p == null || p.frameNum != frameNum) return;
+          _preview = p.copyWith(frameId: frameId, status: _UploadStatus.ok);
         });
       }).catchError((_) {
         if (!mounted) return;
         setState(() {
           final p = _preview;
-          if (p == null) return;
+          if (p == null || p.frameNum != frameNum) return;
           _preview = p.copyWith(status: _UploadStatus.failed);
         });
       });
@@ -510,7 +592,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           ),
         ),
         content: const Text(
-          'Вы использовали все отведённые кадры.',
+          'Вы использовали все отведённые кадры',
           style: TextStyle(
             fontFamily: 'Inter',
             fontSize: 14,
@@ -540,7 +622,6 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     final iconTurns = rotationTurnsFor(quarter);
 
     _maybeReinit();
-    _showPendingToast();
 
     return PopScope(
       // Свайп-назад на экране «снятого кадра» должен убирать превью,
@@ -562,12 +643,22 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
             initialized: _initialized,
             flash: _flash,
             cameras: _cameras,
+            isFrontCamera: _cameras.isNotEmpty &&
+                _cameras[_camIdx].lensDirection == CameraLensDirection.front,
             iconTurns: iconTurns,
             isLandscape: isLandscape,
             lutPreset: _lutPreset,
             framesRemaining: _framesRemaining,
             isCapturing: _isCapturing,
             recentShots: _recentShots,
+            zoom: _zoom,
+            minZoom: _minZoom,
+            maxZoom: _maxZoom,
+            aspectMode: _aspectMode,
+            onZoomStart: () => _pinchBaseZoom = _zoom,
+            onZoomChange: (v) => _setZoom(v),
+            onZoomPinch: (scale) => _setZoom(_pinchBaseZoom * scale),
+            onToggleAspect: _toggleAspect,
             onBack: () => context.pop(),
             onToggleFlash: _toggleFlash,
             onFlip: _flipCamera,
@@ -597,6 +688,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
             _FramePreview(
               data: _preview!,
               onShootMore: () => setState(() => _preview = null),
+              onBack: () => setState(() => _preview = null),
               onSign: () async {
                 final p = _preview;
                 if (p == null) return;
@@ -626,7 +718,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
                 final prefs = await SharedPreferences.getInstance();
                 final guestName = prefs.getString('guest_name') ?? 'Гость';
                 if (!mounted) return;
-                context.push(
+                // await push — когда пользователь вернётся с любого экрана подписи,
+                // превью автоматически очищается и камера открывается сразу.
+                await context.push(
                   '/guest/sign/$frameId',
                   extra: {
                     'photoBytes': p.bytes,
@@ -635,6 +729,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
                     'guestName': guestName,
                   },
                 );
+                if (!mounted) return;
+                await _showPendingToast();
+                if (!mounted) return;
+                setState(() => _preview = null);
               },
             ),
         ],
@@ -658,6 +756,7 @@ class _PreviewData {
   final String? frameId;
   final Future<String>? uploadFuture;
   final bool canSign;
+  final bool isProcessing; // true while film filter is being applied in background
 
   const _PreviewData({
     this.bytes,
@@ -668,21 +767,27 @@ class _PreviewData {
     this.frameId,
     this.uploadFuture,
     this.canSign = true,
+    this.isProcessing = false,
   });
 
   _PreviewData copyWith({
+    Uint8List? bytes,
+    double? ratio,
     _UploadStatus? status,
     String? frameId,
+    Future<String>? uploadFuture,
+    bool? isProcessing,
   }) =>
       _PreviewData(
-        bytes: bytes,
+        bytes: bytes ?? this.bytes,
         thumbDataUrl: thumbDataUrl,
-        ratio: ratio,
+        ratio: ratio ?? this.ratio,
         frameNum: frameNum,
         status: status ?? this.status,
         frameId: frameId ?? this.frameId,
-        uploadFuture: uploadFuture,
+        uploadFuture: uploadFuture ?? this.uploadFuture,
         canSign: canSign,
+        isProcessing: isProcessing ?? this.isProcessing,
       );
 }
 
@@ -694,16 +799,25 @@ class _CameraLayer extends StatelessWidget {
   final bool initialized;
   final FlashMode flash;
   final List<CameraDescription> cameras;
+  final bool isFrontCamera;
   final double iconTurns;
   final bool isLandscape;
   final String lutPreset;
   final int framesRemaining;
   final bool isCapturing;
   final List<_RecentShot> recentShots;
+  final double zoom;
+  final double minZoom;
+  final double maxZoom;
+  final _AspectMode aspectMode;
   final VoidCallback onBack;
   final VoidCallback onToggleFlash;
   final VoidCallback onFlip;
   final VoidCallback onShutter;
+  final VoidCallback onZoomStart;
+  final ValueChanged<double> onZoomChange;
+  final ValueChanged<double> onZoomPinch;
+  final VoidCallback onToggleAspect;
   final void Function(_RecentShot) onOpenRecent;
 
   const _CameraLayer({
@@ -711,189 +825,276 @@ class _CameraLayer extends StatelessWidget {
     required this.initialized,
     required this.flash,
     required this.cameras,
+    required this.isFrontCamera,
     required this.iconTurns,
     required this.isLandscape,
     required this.lutPreset,
     required this.framesRemaining,
     required this.isCapturing,
     required this.recentShots,
+    required this.zoom,
+    required this.minZoom,
+    required this.maxZoom,
+    required this.aspectMode,
     required this.onBack,
     required this.onToggleFlash,
     required this.onFlip,
     required this.onShutter,
+    required this.onZoomStart,
+    required this.onZoomChange,
+    required this.onZoomPinch,
+    required this.onToggleAspect,
     required this.onOpenRecent,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top;
-    final botPad = MediaQuery.of(context).padding.bottom;
+  bool get _zoomSupported => maxZoom > minZoom + 0.01;
 
-    return Column(
-      children: [
-        // ── Top bar (film label / orientation indicator — НЕ вращаются) ─────
-        Container(
-          padding: EdgeInsets.only(top: topPad, left: 12, right: 12, bottom: 10),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0x99000000), Colors.transparent],
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Row(
-              children: [
-                _CamBtn(icon: Icons.arrow_back, onTap: onBack),
-                const SizedBox(width: 8),
-                _FilmLabel(lutPreset: lutPreset),
-                const Spacer(),
-                Container(
-                  width: AppSizes.iconBtnSize,
-                  height: AppSizes.iconBtnSize,
-                  decoration: BoxDecoration(
-                    color: isLandscape
-                        ? AppColors.drAmber.withValues(alpha: 0.18)
-                        : const Color(0x59000000),
-                    borderRadius: AppRadius.pillBR,
-                    border: Border.all(
-                      color: isLandscape
-                          ? AppColors.drAmber.withValues(alpha: 0.4)
-                          : const Color(0x1FFFFFFF),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.screen_rotation_outlined,
-                    size: 18,
-                    color: isLandscape
-                        ? AppColors.drAmber
-                        : AppColors.drText.withValues(alpha: 0.75),
+  Widget _cameraStack() {
+    return GestureDetector(
+      onScaleStart: _zoomSupported ? (_) => onZoomStart() : null,
+      onScaleUpdate: _zoomSupported
+          ? (d) {
+              // pinch: коэф scale относительно старта → умножаем на baseZoom.
+              // 1.0 = без изменения, >1 = приближаем, <1 = отдаляем.
+              onZoomPinch(d.scale);
+            }
+          : null,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (initialized && ctrl != null)
+            ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.center,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: ctrl!.value.previewSize?.height ?? 1,
+                    height: ctrl!.value.previewSize?.width ?? 1,
+                    child: isFrontCamera
+                        ? Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()..scale(-1.0, 1.0, 1.0),
+                            child: CameraPreview(ctrl!),
+                          )
+                        : CameraPreview(ctrl!),
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
+            )
+          else
+            const ColoredBox(color: Color(0xFF050302)),
+          ..._cornerBrackets(),
+          if (isCapturing) const _CaptureOverlay(),
+        ],
+      ),
+    );
+  }
 
-        // ── Camera box — статично 3/4 (не крутится с физическим повертом) ──
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: Stack(
-            fit: StackFit.expand,
+  Widget _topBar(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Container(
+      padding: EdgeInsets.only(top: topPad, left: 12, right: 12, bottom: 10),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0x99000000), Colors.transparent],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          children: [
+            _CamBtn(icon: Icons.arrow_back, onTap: onBack),
+            const SizedBox(width: 8),
+            _FilmLabel(lutPreset: lutPreset),
+            const Spacer(),
+            // Aspect toggle — 3:4 (film) / полноэкран.
+            _CamBtn(
+              icon: aspectMode == _AspectMode.ratio34
+                  ? Icons.crop_portrait_outlined
+                  : Icons.crop_free,
+              onTap: onToggleAspect,
+              active: aspectMode == _AspectMode.full,
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: AppSizes.iconBtnSize,
+              height: AppSizes.iconBtnSize,
+              decoration: BoxDecoration(
+                color: isLandscape
+                    ? AppColors.drAmber.withValues(alpha: 0.18)
+                    : const Color(0x59000000),
+                borderRadius: AppRadius.pillBR,
+                border: Border.all(
+                  color: isLandscape
+                      ? AppColors.drAmber.withValues(alpha: 0.4)
+                      : const Color(0x1FFFFFFF),
+                ),
+              ),
+              child: Icon(
+                Icons.screen_rotation_outlined,
+                size: 18,
+                color: isLandscape
+                    ? AppColors.drAmber
+                    : AppColors.drText.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _zoomChips() {
+    if (!_zoomSupported) return const SizedBox.shrink();
+    // Формируем список доступных ступеней: 1x, 2x, 5x (если >=)
+    final steps = <double>[minZoom];
+    if (maxZoom >= 2.0) steps.add(2.0);
+    if (maxZoom >= 5.0) steps.add(5.0);
+    if (steps.length == 1) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < steps.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          _ZoomChip(
+            value: steps[i],
+            active: (zoom - steps[i]).abs() < 0.15,
+            onTap: () => onZoomChange(steps[i]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _controls(BuildContext context, {required bool overlay}) {
+    final botPad = MediaQuery.of(context).padding.bottom;
+    final content = Padding(
+      padding: EdgeInsets.fromLTRB(24, 0, 24, botPad + (overlay ? 8 : 0)),
+      child: Column(
+        mainAxisSize: overlay ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          if (!overlay) const Spacer(flex: 3),
+          if (overlay) const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (initialized && ctrl != null)
-                ClipRect(
-                  child: OverflowBox(
-                    alignment: Alignment.center,
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: ctrl!.value.previewSize?.height ?? 1,
-                        height: ctrl!.value.previewSize?.width ?? 1,
-                        child: CameraPreview(ctrl!),
-                      ),
-                    ),
-                  ),
-                )
-              else
-                const ColoredBox(color: Color(0xFF050302)),
-              ..._cornerBrackets(),
-              if (isCapturing) const _CaptureOverlay(),
+              _RotatingIcon(
+                turns: iconTurns,
+                child: _BigCamBtn(
+                  icon: flash == FlashMode.off
+                      ? Icons.flash_off_outlined
+                      : Icons.flash_on,
+                  onTap: onToggleFlash,
+                  active: flash != FlashMode.off,
+                ),
+              ),
+              _RotatingIcon(
+                turns: iconTurns,
+                child: cameras.length > 1
+                    ? _BigCamBtn(
+                        icon: Icons.cameraswitch_outlined,
+                        onTap: onFlip,
+                      )
+                    : const SizedBox(width: 52, height: 52),
+              ),
             ],
           ),
-        ),
-
-        // ── Control area: flash/flip, шторка, counter/recent ─────────────────
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, botPad),
-            child: Column(
-              children: [
-                const Spacer(flex: 3),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _RotatingIcon(
-                      turns: iconTurns,
-                      child: _BigCamBtn(
-                        icon: flash == FlashMode.off
-                            ? Icons.flash_off_outlined
-                            : Icons.flash_on,
-                        onTap: onToggleFlash,
-                        active: flash != FlashMode.off,
-                      ),
-                    ),
-                    _RotatingIcon(
-                      turns: iconTurns,
-                      child: cameras.length > 1
-                          ? _BigCamBtn(
-                              icon: Icons.cameraswitch_outlined,
-                              onTap: onFlip,
-                            )
-                          : const SizedBox(width: 52, height: 52),
-                    ),
-                  ],
+          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 14),
+          // Zoom chips — только если зум поддерживается.
+          _RotatingIcon(turns: iconTurns, child: _zoomChips()),
+          if (!overlay) const Spacer(flex: 1) else const SizedBox(height: 14),
+          GestureDetector(
+            onTap: isCapturing ? null : onShutter,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              width: 72,
+              height: 72,
+              transform: Matrix4.identity()..scale(isCapturing ? 0.88 : 1.0),
+              transformAlignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.drText,
+                border: Border.all(
+                  color: AppColors.drAmber.withValues(alpha: 0.35),
+                  width: 2,
                 ),
-                const Spacer(flex: 2),
-                GestureDetector(
-                  onTap: isCapturing ? null : onShutter,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 100),
-                    width: 72,
-                    height: 72,
-                    transform: Matrix4.identity()
-                      ..scale(isCapturing ? 0.88 : 1.0),
-                    transformAlignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.drText,
-                      border: Border.all(
-                        color: AppColors.drAmber.withValues(alpha: 0.35),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        const BoxShadow(
-                          color: Color(0x73000000),
-                          blurRadius: 0,
-                          spreadRadius: 3,
-                        ),
-                        BoxShadow(
-                          color: AppColors.drAmber.withValues(alpha: 0.3),
-                          blurRadius: 0,
-                          spreadRadius: 5,
-                        ),
-                        BoxShadow(
-                          color: AppColors.drAmber.withValues(alpha: 0.35),
-                          blurRadius: 24,
-                        ),
-                      ],
-                    ),
+                boxShadow: [
+                  const BoxShadow(
+                    color: Color(0x73000000),
+                    blurRadius: 0,
+                    spreadRadius: 3,
                   ),
-                ),
-                const Spacer(flex: 2),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _RotatingIcon(
-                      turns: iconTurns,
-                      child: _FilmCounter(remaining: framesRemaining),
-                    ),
-                    _RotatingIcon(
-                      turns: iconTurns,
-                      child: _RecentStack(
-                        shots: recentShots,
-                        onOpen: onOpenRecent,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(flex: 3),
-              ],
+                  BoxShadow(
+                    color: AppColors.drAmber.withValues(alpha: 0.3),
+                    blurRadius: 0,
+                    spreadRadius: 5,
+                  ),
+                  BoxShadow(
+                    color: AppColors.drAmber.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                  ),
+                ],
+              ),
             ),
           ),
+          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _RotatingIcon(
+                turns: iconTurns,
+                child: _FilmCounter(remaining: framesRemaining),
+              ),
+              _RotatingIcon(
+                turns: iconTurns,
+                child: _RecentStack(
+                  shots: recentShots,
+                  onOpen: onOpenRecent,
+                ),
+              ),
+            ],
+          ),
+          if (!overlay) const Spacer(flex: 3) else const SizedBox(height: 12),
+        ],
+      ),
+    );
+    if (!overlay) return content;
+    // Overlay-режим (full aspect): полупрозрачный тёмный градиент снизу.
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Color(0xCC000000)],
         ),
+      ),
+      child: content,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (aspectMode == _AspectMode.ratio34) {
+      // Классическая раскладка: top bar → 3:4 камера → controls в чёрном низу.
+      return Column(
+        children: [
+          _topBar(context),
+          AspectRatio(aspectRatio: 3 / 4, child: _cameraStack()),
+          Expanded(child: _controls(context, overlay: false)),
+        ],
+      );
+    }
+    // Full-mode: камера растянута на весь экран, controls — overlay снизу.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _cameraStack(),
+        Positioned(top: 0, left: 0, right: 0, child: _topBar(context)),
+        Positioned(bottom: 0, left: 0, right: 0, child: _controls(context, overlay: true)),
       ],
     );
   }
@@ -1165,10 +1366,12 @@ class _RecentStack extends StatelessWidget {
 class _FramePreview extends StatefulWidget {
   final _PreviewData data;
   final VoidCallback onShootMore;
+  final VoidCallback onBack;
   final Future<void> Function() onSign;
   const _FramePreview({
     required this.data,
     required this.onShootMore,
+    required this.onBack,
     required this.onSign,
   });
 
@@ -1225,13 +1428,24 @@ class _FramePreviewState extends State<_FramePreview> {
         padding: EdgeInsets.only(top: topPad, bottom: botPad),
         child: Column(
           children: [
-            const SizedBox(height: 18),
-            Text(
-              'КАДР ${d.frameNum} · МОМЕНТ ЗАПЕЧАТЛЁН',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                letterSpacing: 1.5,
-                color: AppColors.drText.withValues(alpha: 0.55),
+            // Top bar: back button + frame label
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  _CamBtn(icon: Icons.arrow_back, onTap: widget.onBack),
+                  const Spacer(),
+                  Text(
+                    'КАДР ${d.frameNum} · МОМЕНТ ЗАПЕЧАТЛЁН',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      letterSpacing: 1.5,
+                      color: AppColors.drText.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 40),
+                ],
               ),
             ),
             const SizedBox(height: 6),
@@ -1265,21 +1479,28 @@ class _FramePreviewState extends State<_FramePreview> {
                           aspectRatio: isLandscape ? 4 / 3 : 3 / 4,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(2),
-                            child: imageWidget,
+                            child: d.isProcessing
+                                ? Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      imageWidget,
+                                      const ColoredBox(color: Color(0x59000000)),
+                                      const Center(
+                                        child: SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.8,
+                                            color: AppColors.drAmber,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : imageWidget,
                           ),
                         ),
-                        SizedBox(
-                          height: 48,
-                          child: Center(
-                            child: Text(
-                              _guestName ?? 'Гость',
-                              style: GoogleFonts.caveat(
-                                fontSize: 26,
-                                color: AppColors.ink2,
-                              ),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 34),
                       ],
                     ),
                   ),
@@ -1289,7 +1510,7 @@ class _FramePreviewState extends State<_FramePreview> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Text(
-                'Снимок не отменить, как и сам момент.',
+                'Снимок не отменить, как и сам момент',
                 style: GoogleFonts.fraunces(
                   fontStyle: FontStyle.italic,
                   fontSize: 16,
@@ -1341,7 +1562,7 @@ class _FramePreviewState extends State<_FramePreview> {
                       height: AppSizes.buttonHeight,
                       child: ElevatedButton(
                         onPressed:
-                            (_signLoading || d.status == _UploadStatus.failed)
+                            (_signLoading || d.isProcessing || d.status == _UploadStatus.failed)
                                 ? null
                                 : _handleSign,
                         style: ElevatedButton.styleFrom(
@@ -1354,8 +1575,31 @@ class _FramePreviewState extends State<_FramePreview> {
                             borderRadius: AppRadius.pillBR,
                           ),
                         ),
-                        child: _signLoading ||
-                                d.status == _UploadStatus.pending
+                        child: d.isProcessing
+                            ? Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.drAmber,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Проявляется кадр…',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.drText.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : _signLoading || d.status == _UploadStatus.pending
                             ? Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -1435,6 +1679,48 @@ class _RotatingIcon extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOutCubic,
       child: child,
+    );
+  }
+}
+
+class _ZoomChip extends StatelessWidget {
+  final double value;
+  final bool active;
+  final VoidCallback onTap;
+  const _ZoomChip({required this.value, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final label = value < 10 && value == value.roundToDouble()
+        ? '${value.toInt()}×'
+        : '${value.toStringAsFixed(1)}×';
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: active
+              ? AppColors.drAmber.withValues(alpha: 0.28)
+              : const Color(0x99000000),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active
+                ? AppColors.drAmber
+                : const Color(0x33FFFFFF),
+            width: 1.2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: active ? AppColors.drAmber : AppColors.drText,
+          ),
+        ),
+      ),
     );
   }
 }

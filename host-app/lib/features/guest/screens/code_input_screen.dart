@@ -83,7 +83,7 @@ class _CodeInputScreenState extends State<CodeInputScreen> {
                 children: [
                   Text(
                     'Код события',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                       height: 1.05,
@@ -93,7 +93,7 @@ class _CodeInputScreenState extends State<CodeInputScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '8-значный код события — спросите у организатора или найдите его в деталях события.',
+                    '8-значный код события — спросите у организатора или найдите его в деталях события',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,

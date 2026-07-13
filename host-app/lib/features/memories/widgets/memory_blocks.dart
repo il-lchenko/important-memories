@@ -102,7 +102,7 @@ class _MemoryHeader extends StatelessWidget {
                 onTap: () => _openTarget(context),
                 child: Text(
                   (block['title'] as String?) ?? 'Кадры',
-                  style: GoogleFonts.playfairDisplay(
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                     color: AppColors.ink,
@@ -184,12 +184,11 @@ class _PhotoTile extends StatelessWidget {
     final url = thumb['url'] as String?;
     final eventId = thumb['event_id'] as String?;
     final frameId = thumb['frame_id'] as String?;
+    final quarterTurns = ((thumb['rotation'] as num?)?.toInt() ?? 0) ~/ 90;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
         if (eventId == null) return;
-        // Open the specific frame in fullscreen. FrameDetailScreen resolves
-        // the actual index by frameId once the album loads.
         final path = frameId != null
             ? '/events/$eventId/album/frame/0?jumpFrameId=$frameId'
             : '/events/$eventId/album';
@@ -202,15 +201,19 @@ class _PhotoTile extends StatelessWidget {
             color: AppColors.paper3,
             child: url == null
                 ? const _PhotoPlaceholder()
-                : CachedNetworkImage(
-                    imageUrl: url,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fadeInDuration: const Duration(milliseconds: 120),
-                    fadeOutDuration: Duration.zero,
-                    placeholder: (_, __) => Container(color: AppColors.paper3),
-                    errorWidget: (_, __, ___) => const _PhotoPlaceholder(),
+                : RotatedBox(
+                    quarterTurns: quarterTurns,
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      cacheKey: Uri.parse(url).path,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      placeholder: (_, __) => Container(color: AppColors.paper3),
+                      errorWidget: (_, __, ___) => const _PhotoPlaceholder(),
+                    ),
                   ),
           ),
         ),

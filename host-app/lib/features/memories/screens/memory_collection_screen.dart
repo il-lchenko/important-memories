@@ -34,7 +34,7 @@ class MemoryCollectionScreen extends ConsumerWidget {
         ),
         title: Text(
           title,
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
             fontSize: 20,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,
@@ -56,7 +56,7 @@ class MemoryCollectionScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Text(
                   'Не удалось загрузить',
-                  style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink),
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(
@@ -153,9 +153,10 @@ class _CollectionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = (frame['thumbnail_url'] ?? frame['preview_url'] ?? frame['full_url']) as String?;
+    final url = (frame['preview_url'] ?? frame['thumbnail_url'] ?? frame['full_url']) as String?;
     final eventId = frame['event_id'] as String?;
     final frameId = frame['id'] as String?;
+    final quarterTurns = ((frame['rotation'] as num?)?.toInt() ?? 0) ~/ 90;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () {
@@ -171,16 +172,20 @@ class _CollectionTile extends StatelessWidget {
           color: AppColors.paper3,
           child: url == null
               ? const Center(child: Icon(Icons.image_outlined, size: 24, color: AppColors.ink4))
-              : CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fadeInDuration: const Duration(milliseconds: 120),
-                  fadeOutDuration: Duration.zero,
-                  placeholder: (_, __) => Container(color: AppColors.paper3),
-                  errorWidget: (_, __, ___) => const Center(
-                    child: Icon(Icons.broken_image_outlined, size: 24, color: AppColors.ink4),
+              : RotatedBox(
+                  quarterTurns: quarterTurns,
+                  child: CachedNetworkImage(
+                    imageUrl: url,
+                    cacheKey: Uri.parse(url).path,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
+                    placeholder: (_, __) => Container(color: AppColors.paper3),
+                    errorWidget: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image_outlined, size: 24, color: AppColors.ink4),
+                    ),
                   ),
                 ),
         ),

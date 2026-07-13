@@ -6,12 +6,11 @@ part of 'events_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$eventsHash() => r'b4e2681a058e6c35b2d80a1b9672a52855421063';
+String _$eventsHash() => r'36fe206143d893f67ee00fef9dc7032dc88485a2';
 
 /// See also [events].
 @ProviderFor(events)
-final eventsProvider =
-    AutoDisposeFutureProvider<List<Map<String, dynamic>>>.internal(
+final eventsProvider = FutureProvider<List<Map<String, dynamic>>>.internal(
   events,
   name: r'eventsProvider',
   debugGetCreateSourceHash:
@@ -22,8 +21,8 @@ final eventsProvider =
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef EventsRef = AutoDisposeFutureProviderRef<List<Map<String, dynamic>>>;
-String _$createEventHash() => r'3ae4d6a2e3ae200720b0039d3899867a73361118';
+typedef EventsRef = FutureProviderRef<List<Map<String, dynamic>>>;
+String _$createEventHash() => r'dd33b145d5d48cd7ca2f61f857be466ce9b186a9';
 
 /// Copied from Dart SDK
 class _SystemHash {

@@ -62,7 +62,7 @@ class _MemoriesScreenState extends ConsumerState<MemoriesScreen> {
     final blocksAsync = ref.watch(memoriesProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.paper2,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -98,7 +98,7 @@ class _MemoriesScreenState extends ConsumerState<MemoriesScreen> {
                         Expanded(
                           child: Text(
                             'Кадры',
-                            style: GoogleFonts.playfairDisplay(
+                            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                               fontSize: 32,
                               fontWeight: FontWeight.w500,
                               color: AppColors.ink,
@@ -112,13 +112,12 @@ class _MemoriesScreenState extends ConsumerState<MemoriesScreen> {
                           labels: _typeLabels,
                           onSelect: (v) => setState(() => _typeFilter = v),
                         ),
-                        const SizedBox(width: 2),
                         IconButton(
                           onPressed: () => setState(() => _searching = true),
-                          icon: const Icon(Icons.search, size: 26, color: AppColors.ink2),
+                          icon: const Icon(Icons.search, size: 24, color: AppColors.ink2),
                           tooltip: 'Поиск',
-                          padding: const EdgeInsets.all(6),
-                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                          padding: const EdgeInsets.all(2),
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                         ),
                       ],
                     ),
@@ -316,10 +315,10 @@ class _TypeFilterButton extends StatelessWidget {
         children: [
           IconButton(
             onPressed: () => _open(btnCtx),
-            icon: const Icon(Icons.filter_alt_outlined, size: 26, color: AppColors.ink2),
+            icon: const Icon(Icons.filter_alt_outlined, size: 24, color: AppColors.ink2),
             tooltip: 'Тип события',
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            padding: const EdgeInsets.all(2),
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           ),
           if (hasActive)
             Positioned(
@@ -355,7 +354,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Не удалось загрузить',
-              style: GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink),
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.ink),
             ),
             const SizedBox(height: 16),
             OutlinedButton(
@@ -392,7 +391,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Скоро здесь появятся кадры',
               textAlign: TextAlign.center,
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
                 color: AppColors.ink,
@@ -400,7 +399,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'Автоматические подборки из ваших альбомов — свадьбы, дни рождения, вечеринки. Как только появятся альбомы с фотографиями, здесь соберётся живая лента.',
+              'Автоматические подборки из ваших альбомов — свадьбы, дни рождения, вечеринки. Как только появятся альбомы с фотографиями, здесь соберётся живая лента',
               textAlign: TextAlign.center,
               style: GoogleFonts.manrope(
                 fontSize: 14,

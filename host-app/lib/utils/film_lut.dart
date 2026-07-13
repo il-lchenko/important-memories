@@ -153,15 +153,45 @@ Map<String, Object> processImageInIsolate(Map<String, Object> params) {
   final preset = params['preset'] as String;
   final maxSize = (params['maxSize'] as int?) ?? 4000;
   final quarter = (params['quarter'] as int?) ?? 0;
+  final targetRatio = (params['targetRatio'] as double?);
 
   var image = img.decodeImage(bytes)!;
   image = img.bakeOrientation(image).convert(numChannels: 3);
 
-  // Camera plugin даёт landscape-пиксели в "обратной" ориентации после
-  // lockCaptureOrientation — flip на 180° чтобы фото отображалось правильно.
   final isLandscape = image.width > image.height;
-  if (isLandscape && (quarter == 1 || quarter == 3)) {
+  final quarterIsLandscape = quarter == 1 || quarter == 3;
+
+  if (isLandscape && quarterIsLandscape) {
+    // Landscape shot: camera plugin returns upside-down landscape — flip 180°.
     image = img.copyRotate(image, angle: 180);
+  } else if (isLandscape && !quarterIsLandscape) {
+    // Portrait shot but image is still landscape — bakeOrientation had no EXIF to act on.
+    // Sensor top = right side of phone → scene UP is at RIGHT of landscape → rotate 90° CCW.
+    image = img.copyRotate(image, angle: -90);
+  }
+
+  // Центральный кроп до targetRatio (w/h) — если задан.
+  // Камера всегда снимает 4:3 (или 3:4 после поворота). Для 3:4 — no-op.
+  // Для полноэкранного режима — кропим до aspect экрана.
+  if (targetRatio != null) {
+    final w = image.width;
+    final h = image.height;
+    final srcRatio = w / h;
+    if ((srcRatio - targetRatio).abs() > 0.01) {
+      int cropW, cropH;
+      if (srcRatio > targetRatio) {
+        // Слишком широкое — режем боковины
+        cropH = h;
+        cropW = (h * targetRatio).round();
+      } else {
+        // Слишком высокое — режем верх/низ
+        cropW = w;
+        cropH = (w / targetRatio).round();
+      }
+      final x = ((w - cropW) / 2).round();
+      final y = ((h - cropH) / 2).round();
+      image = img.copyCrop(image, x: x, y: y, width: cropW, height: cropH);
+    }
   }
 
   // Resize to max side = maxSize

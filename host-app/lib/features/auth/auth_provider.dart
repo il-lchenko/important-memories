@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api_client.dart';
+import '../../core/push_service.dart';
 import '../guest/guest_provider.dart' show getDeviceFingerprint;
 
 part 'auth_provider.g.dart';
@@ -40,6 +43,8 @@ class Auth extends _$Auth {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_role', 'host');
     state = const AsyncData(true);
+    // Регистрируем FCM-токен на бэкенде (fire-and-forget).
+    unawaited(PushService.registerAfterLogin(ref.read(dioProvider)));
   }
 
   Future<void> logout() async {

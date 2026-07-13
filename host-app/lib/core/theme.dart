@@ -103,11 +103,11 @@ ThemeData buildAppTheme() {
 TextTheme _buildTextTheme(TextTheme base) {
   return base.copyWith(
     // Playfair Display — заголовки
-    displayLarge:  GoogleFonts.playfairDisplay(fontSize: 48, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.96),
-    displayMedium: GoogleFonts.playfairDisplay(fontSize: 36, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.72),
-    displaySmall:  GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w500, color: AppColors.ink),
-    headlineLarge: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.ink),
-    headlineMedium:GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink),
+    displayLarge:  GoogleFonts.playfairDisplay(fontSize: 48, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.96, fontFeatures: [const FontFeature.liningFigures()]),
+    displayMedium: GoogleFonts.playfairDisplay(fontSize: 36, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.72, fontFeatures: [const FontFeature.liningFigures()]),
+    displaySmall:  GoogleFonts.playfairDisplay(fontSize: 28, fontWeight: FontWeight.w500, color: AppColors.ink, fontFeatures: [const FontFeature.liningFigures()]),
+    headlineLarge: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.ink, fontFeatures: [const FontFeature.liningFigures()]),
+    headlineMedium:GoogleFonts.playfairDisplay(fontSize: 18, fontWeight: FontWeight.w500, color: AppColors.ink, fontFeatures: [const FontFeature.liningFigures()]),
 
     // Manrope — тело и UI
     titleLarge:  GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.ink),

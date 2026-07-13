@@ -75,8 +75,14 @@ class _LiveProgressScreenState extends ConsumerState<LiveProgressScreen>
     for (final frame in items) {
       final guestId = frame['guest_id'] as String? ?? '';
       final guestName = frame['guest_name'] as String? ?? '?';
+      final avatarUrl = frame['guest_avatar_url'] as String?;
       final capturedAt = DateTime.tryParse(frame['captured_at'] as String? ?? '');
-      guestMap.putIfAbsent(guestId, () => _GuestInfo(name: guestName, id: guestId));
+      guestMap.putIfAbsent(
+        guestId,
+        () => _GuestInfo(name: guestName, id: guestId, avatarUrl: avatarUrl),
+      );
+      // Обновляем аватар из более свежего кадра — если гость сменил аватар, отразится.
+      if (avatarUrl != null) guestMap[guestId]!.avatarUrl = avatarUrl;
       guestMap[guestId]!.frames++;
       if (capturedAt != null) {
         final last = guestMap[guestId]!.lastAt;
@@ -116,7 +122,7 @@ class _LiveProgressScreenState extends ConsumerState<LiveProgressScreen>
                         : Text(
                             eventTitle,
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.playfairDisplay(
+                            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                               fontSize: 17,
                               fontWeight: FontWeight.w500,
                               letterSpacing: -0.17,
@@ -272,9 +278,10 @@ String _guestWord(int n) {
 class _GuestInfo {
   final String name;
   final String id;
+  String? avatarUrl;
   int frames = 0;
   DateTime? lastAt;
-  _GuestInfo({required this.name, required this.id});
+  _GuestInfo({required this.name, required this.id, this.avatarUrl});
 }
 
 // ─── widgets ─────────────────────────────────────────────────────────────────
@@ -325,22 +332,32 @@ class _GuestRow extends StatelessWidget {
             height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: grad,
-              ),
+              gradient: data.avatarUrl == null
+                  ? LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: grad,
+                    )
+                  : null,
+              image: data.avatarUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(data.avatarUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
             alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
+            child: data.avatarUrl != null
+                ? null
+                : Text(
+                    initial,
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(

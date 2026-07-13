@@ -48,6 +48,28 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
     try {
       await ref.read(authProvider.notifier).requestCode(_emailCtrl.text.trim());
       if (mounted) {
+        // Plain green toast «Код отправлен», плавно всплывает снизу и исчезает через 2 сек.
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.clearSnackBars();
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Text('Код отправлен на почту',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            duration: const Duration(milliseconds: 2200),
+            elevation: 3,
+          ),
+        );
         context.push('/auth/otp?email=${Uri.encodeComponent(_emailCtrl.text.trim())}');
       }
     } catch (e) {
@@ -120,7 +142,7 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
 
                       // subtitle
                       Text(
-                        'Укажите вашу почту.\nВышлем на неё код для авторизации.',
+                        'Укажите вашу почту.\nВышлем на неё код для авторизации',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.ink3,
                         ),

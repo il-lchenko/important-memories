@@ -192,6 +192,26 @@ async def reveal_event(
     return await event_service.reveal_event(session, user_id, event_id)
 
 
+@router.get("/{event_id}/public-share")
+async def get_public_share(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> dict:
+    token = await event_service.get_public_share(session, user_id, event_id)
+    return {"public_share_token": token}
+
+
+@router.post("/{event_id}/public-share/regenerate")
+async def regenerate_public_share(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> dict:
+    token = await event_service.regenerate_public_share(session, user_id, event_id)
+    return {"public_share_token": token}
+
+
 @router.get("/{event_id}/album", response_model=AlbumOut)
 async def get_album(
     event_id: UUID,

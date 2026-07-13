@@ -29,12 +29,13 @@ class VoiceRecordScreen extends ConsumerStatefulWidget {
 enum _RecordState { idle, recording, recorded, uploading }
 
 class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
-  final _recorder = AudioRecorder();
+  AudioRecorder _recorder = AudioRecorder();
   _RecordState _state = _RecordState.idle;
   final List<double> _peaks = [];
   int _elapsedMs = 0;
   Timer? _timer;
   StreamSubscription<Amplitude>? _ampSub;
+  StreamSubscription? _playerSub;
   String _eventId = '';
   String? _recordedPath;
   AudioPlayer? _player;
@@ -54,6 +55,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
   void dispose() {
     _timer?.cancel();
     _ampSub?.cancel();
+    _playerSub?.cancel();
     _recorder.dispose();
     _player?.dispose();
     super.dispose();
@@ -66,15 +68,24 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-    await _recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
-        numChannels: 1,
-      ),
-      path: path,
-    );
+    try {
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Не удалось начать запись: $e'),
+        backgroundColor: AppColors.shutter,
+      ));
+      return;
+    }
 
     _peaks.clear();
     _elapsedMs = 0;
@@ -93,7 +104,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
         t.cancel();
         return;
       }
-      setState(() => _elapsedMs += 120);
+      setState(() => _elapsedMs = math.min(_elapsedMs + 120, _maxMs));
       if (_elapsedMs >= _maxMs) _stopRecording();
     });
 
@@ -114,11 +125,12 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     }
 
     // Пре-загружаем плеер, чтобы юзер мог тут же прослушать запись.
+    _playerSub?.cancel();
     _player?.dispose();
     _player = AudioPlayer();
     try {
       await _player!.setFilePath(path);
-      _player!.playerStateStream.listen((s) {
+      _playerSub = _player!.playerStateStream.listen((s) {
         if (!mounted) return;
         final playing = s.playing && s.processingState != ProcessingState.completed;
         if (playing != _isPlaying) setState(() => _isPlaying = playing);
@@ -148,10 +160,16 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
 
   Future<void> _retryRecording() async {
     await _player?.pause();
+    _playerSub?.cancel();
+    _playerSub = null;
+    // Пересоздать recorder — некоторые Android MediaRecorder не переиспользуются
+    await _recorder.dispose();
+    _recorder = AudioRecorder();
     setState(() {
       _peaks.clear();
       _elapsedMs = 0;
       _recordedPath = null;
+      _isPlaying = false;
       _state = _RecordState.idle;
     });
   }
@@ -212,10 +230,10 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
       await prefs.setString('pending_sign_toast', 'Голос записан');
 
       if (!mounted) return;
-      context.go('/guest/camera/$_eventId');
+      context.pop();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _state = _RecordState.idle);
+      setState(() => _state = _RecordState.recorded);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(extractUserMessage(e)),
@@ -253,28 +271,28 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     final isRecorded = _state == _RecordState.recorded;
     final isBusy = isRecording || isUploading;
 
+    final screenH = MediaQuery.of(context).size.height;
+    final screenW = MediaQuery.of(context).size.width;
+    // Photo shrinks when recording/uploading to give room for waveform
+    final photoSectionH = (isRecording || isUploading)
+        ? (screenH * 0.28).clamp(120.0, 220.0)
+        : (screenH * 0.38).clamp(160.0, 360.0);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
         child: Column(
           children: [
-            // Top bar
+            // ── Top bar ────────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
               child: Row(
                 children: [
-                  _RoundIconBtn(
-                    icon: Icons.arrow_back,
-                    onTap: isBusy ? null : () => context.pop(),
-                  ),
+                  _RoundIconBtn(icon: Icons.arrow_back, onTap: isBusy ? null : () => context.pop()),
                   const Spacer(),
                   Text(
                     'ГОЛОС К КАДРУ ${frameNum.toString().padLeft(2, '0')}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
-                      letterSpacing: 1.4,
-                      color: AppColors.ink3,
-                    ),
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: AppColors.ink3),
                   ),
                   const Spacer(),
                   const SizedBox(width: 34),
@@ -282,106 +300,83 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
               ),
             ),
 
-            // Big polaroid — на всю ширину. Немного уменьшается при записи.
-            AnimatedContainer(
+            const SizedBox(height: 10),
+
+            // ── Photo — анимированно уменьшается (tween чтобы maxHeight тоже анимировался) ─
+            TweenAnimationBuilder<double>(
+              tween: Tween(end: photoSectionH),
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,
-              padding: EdgeInsets.fromLTRB(
-                isRecording ? 60 : 16, isRecording ? 8 : 20, isRecording ? 60 : 16, 0,
-              ),
-              child: _BigPhoto(
-                photoBytes: photoBytes,
-                ratio: ratio,
-                guestName: guestName,
+              builder: (context, h, _) => SizedBox(
+                height: h,
+                width: double.infinity,
+                child: Center(
+                  child: _Polaroid(
+                    photoBytes: photoBytes, ratio: ratio, guestName: guestName,
+                    maxHeight: h, maxWidth: screenW - 48,
+                  ),
+                ),
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 20),
 
+            // ── State-dependent controls ───────────────────────────────
             if (_state == _RecordState.idle) ...[
-              // Idle — big mic button
               GestureDetector(
                 onTap: _startRecording,
                 child: Container(
-                  width: 88,
-                  height: 88,
+                  width: 80, height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: AppColors.paper2,
                     border: Border.all(color: AppColors.paper3, width: 1.5),
                   ),
-                  child: const Icon(Icons.mic_outlined, size: 40, color: AppColors.amber),
+                  child: const Icon(Icons.mic_outlined, size: 36, color: AppColors.amber),
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Расскажи о моменте',
-                style: GoogleFonts.fraunces(
-                  fontStyle: FontStyle.italic,
-                  fontSize: 17,
-                  color: AppColors.ink2,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'ДО 20 СЕКУНД',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  letterSpacing: 1.4,
-                  color: const Color(0xFF9C9082),
-                ),
-              ),
+              const SizedBox(height: 12),
+              Text('Расскажи о моменте',
+                  style: GoogleFonts.fraunces(fontStyle: FontStyle.italic, fontSize: 16, color: AppColors.ink2)),
+              const SizedBox(height: 4),
+              Text('ДО 20 СЕКУНД',
+                  style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.4, color: const Color(0xFF9C9082))),
             ] else if (isRecording || isUploading) ...[
-              // Recording / uploading — waveform capsule
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
                     _WaveformCapsule(
-                      peaks: _peaks,
-                      elapsedMs: _elapsedMs,
-                      isUploading: isUploading,
-                      onStop: _stopRecording,
+                      peaks: _peaks, elapsedMs: _elapsedMs,
+                      isUploading: isUploading, onStop: _stopRecording,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isUploading
-                          ? 'ЗАГРУЖАЕМ...'
-                          : 'ИДЁТ ЗАПИСЬ — НАЖМИ ◼ ЧТОБЫ ОСТАНОВИТЬ',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        letterSpacing: 1.0,
-                        color: const Color(0xFF9C9082),
-                      ),
+                      isUploading ? 'ЗАГРУЖАЕМ...' : 'ИДЁТ ЗАПИСЬ — НАЖМИ ◼ ЧТОБЫ ОСТАНОВИТЬ',
+                      style: GoogleFonts.jetBrainsMono(fontSize: 10, letterSpacing: 1.0, color: const Color(0xFF9C9082)),
                     ),
                   ],
                 ),
               ),
             ] else if (isRecorded) ...[
-              // Recorded — playback + "заново" / "готово"
               _PlaybackCapsule(
-                peaks: _peaks,
-                durationMs: _elapsedMs,
-                isPlaying: _isPlaying,
-                onTogglePlay: _togglePlayback,
+                peaks: _peaks, durationMs: _elapsedMs,
+                isPlaying: _isPlaying, onTogglePlay: _togglePlayback,
               ),
               const SizedBox(height: 10),
               Text(
                 'ГОЛОСОВАЯ ЗАМЕТКА ГОТОВА',
                 style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  letterSpacing: 1.4,
-                  color: AppColors.amber,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 11, letterSpacing: 1.4, color: AppColors.amber, fontWeight: FontWeight.w600,
                 ),
               ),
             ],
 
-            const Spacer(),
+            const SizedBox(height: 20),
 
-            // Bottom buttons
+            // ── Bottom buttons ─────────────────────────────────────────
             Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, botPad + 16),
+              padding: EdgeInsets.fromLTRB(20, 0, 20, botPad + 14),
               child: isRecorded
                   ? Column(
                       children: [
@@ -391,18 +386,16 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                           child: ElevatedButton(
                             onPressed: _uploadAndFinish,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.amber,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
+                              backgroundColor: AppColors.amber, foregroundColor: Colors.white,
+                              elevation: 0, shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text('К следующему кадру',
-                                    style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w700)),
-                                SizedBox(width: 10),
-                                Icon(Icons.arrow_forward, size: 22),
+                                    style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700)),
+                                SizedBox(width: 8),
+                                Icon(Icons.arrow_forward, size: 18),
                               ],
                             ),
                           ),
@@ -414,18 +407,16 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                           child: ElevatedButton(
                             onPressed: _retryRecording,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.paper3,
-                              foregroundColor: AppColors.ink2,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
+                              backgroundColor: AppColors.paper3, foregroundColor: AppColors.ink2,
+                              elevation: 0, shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
                             ),
                             child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.refresh, size: 20),
-                                SizedBox(width: 8),
+                                Icon(Icons.refresh, size: 18),
+                                SizedBox(width: 6),
                                 Text('Записать заново',
-                                    style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w700)),
+                                    style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600)),
                               ],
                             ),
                           ),
@@ -436,16 +427,15 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
                       width: double.infinity,
                       height: AppSizes.buttonHeight,
                       child: ElevatedButton(
-                        onPressed: isBusy ? null : () => context.go('/guest/camera/$_eventId'),
+                        onPressed: isBusy ? null : () => context.pop(),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.paper3,
-                          foregroundColor: AppColors.ink2,
+                          backgroundColor: AppColors.paper3, foregroundColor: AppColors.ink2,
                           disabledBackgroundColor: AppColors.paper3.withValues(alpha: 0.5),
                           disabledForegroundColor: AppColors.ink4,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
+                          elevation: 0, shape: RoundedRectangleBorder(borderRadius: AppRadius.mdBR),
                         ),
-                        child: const Text('Пропустить', style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.w700)),
+                        child: const Text('Пропустить',
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
             ),
@@ -658,77 +648,66 @@ class _RoundIconBtn extends StatelessWidget {
   }
 }
 
-class _BigPhoto extends StatelessWidget {
+class _Polaroid extends StatelessWidget {
   final Uint8List? photoBytes;
   final double ratio;
   final String guestName;
+  final double maxHeight;
+  final double maxWidth;
 
-  const _BigPhoto({
-    required this.photoBytes,
-    required this.ratio,
-    required this.guestName,
+  const _Polaroid({
+    required this.photoBytes, required this.ratio,
+    required this.guestName, required this.maxHeight, required this.maxWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      return Transform.rotate(
-        angle: -0.014,
-        child: Container(
-          width: width,
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
-          decoration: BoxDecoration(
-            color: AppColors.paper,
-            borderRadius: BorderRadius.circular(4),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.22),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
+    const hPad = 10.0;
+    const vPad = 10.0;
+    const nameH = 28.0;
+    const botPad = 4.0;
+
+    double imgH = (maxHeight - vPad - nameH - botPad).clamp(1.0, double.infinity);
+    double imgW = imgH * ratio;
+    final maxImgW = maxWidth - hPad * 2;
+    if (imgW > maxImgW) {
+      imgW = maxImgW;
+      imgH = (imgW / ratio).clamp(1.0, double.infinity);
+    }
+
+    return Container(
+      width: imgW + hPad * 2,
+      padding: const EdgeInsets.fromLTRB(hPad, vPad, hPad, botPad),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(3),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: imgW,
+            height: imgH,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: photoBytes != null
+                  ? Image.memory(photoBytes!, fit: BoxFit.cover)
+                  : Container(decoration: const BoxDecoration(gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)]))),
+            ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AspectRatio(
-                aspectRatio: ratio,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(2),
-                  child: photoBytes != null
-                      ? Image.memory(
-                          photoBytes!,
-                          fit: BoxFit.cover,
-                          gaplessPlayback: true,
-                        )
-                      : Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFFD4A574), Color(0xFF5A3E2E)],
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-              SizedBox(
-                height: width * 0.11,
-                child: Center(
-                  child: Text(
-                    guestName,
-                    style: GoogleFonts.caveat(
-                      fontSize: width * 0.085,
-                      color: AppColors.ink2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          SizedBox(
+            height: nameH,
+            child: Center(
+              child: Text(guestName, style: GoogleFonts.caveat(fontSize: 16, color: AppColors.ink2)),
+            ),
           ),
-        ),
-      );
-    });
+        ],
+      ),
+    );
   }
 }

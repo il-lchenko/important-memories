@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -198,7 +199,7 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
               fit: StackFit.expand,
               children: [
                 if (coverUrl != null)
-                  Image.network(coverUrl, fit: BoxFit.cover)
+                  CachedNetworkImage(imageUrl: coverUrl, cacheKey: Uri.parse(coverUrl).path, fit: BoxFit.cover, fadeInDuration: Duration.zero)
                 else ...[
                   Container(
                     decoration: const BoxDecoration(
@@ -316,7 +317,7 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
             children: [
               Text(
                 title,
-                style: GoogleFonts.playfairDisplay(
+                style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                   fontSize: 28, fontWeight: FontWeight.w500, letterSpacing: -0.5,
                   height: 1.1, color: AppColors.ink,
                 ),
@@ -526,10 +527,11 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                                         width: 96,
                                         child: ColorFiltered(
                                           colorFilter: ColorFilter.matrix(_filmMatrixForSettings(f['id']!)),
-                                          child: Image.network(
-                                            _filmPhotoUrl(f['id']!),
+                                          child: CachedNetworkImage(
+                                            imageUrl: _filmPhotoUrl(f['id']!),
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => Container(color: AppColors.paper3),
+                                            fadeInDuration: Duration.zero,
+                                            errorWidget: (_, __, ___) => Container(color: AppColors.paper3),
                                           ),
                                         ),
                                       ),
@@ -623,7 +625,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
     }
   }
 
-  Future<void> _editStartAt() async {
+  Future<void> _editEventDates() async {
     final now = DateTime.now();
     final date = await showDatePicker(context: context, initialDate: now, firstDate: now.subtract(const Duration(minutes: 5)), lastDate: now.add(const Duration(days: 365)));
     if (date == null || !mounted) return;
@@ -631,12 +633,47 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
     if (time == null || !mounted) return;
     final d = date.toLocal();
     final startAt = DateTime(d.year, d.month, d.day, time.hour, time.minute);
+
+    DateTime? endAt;
+    final addEnd = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        title: const Text('Дата окончания', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: AppColors.ink)),
+        content: const Text('Добавить дату и время окончания?', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink2)),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Пропустить', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink3))),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Добавить', style: TextStyle(fontFamily: 'Inter', color: AppColors.amber))),
+        ],
+      ),
+    );
+    if (addEnd == true && mounted) {
+      final endDate = await showDatePicker(context: context, initialDate: startAt.add(const Duration(hours: 4)), firstDate: startAt, lastDate: startAt.add(const Duration(days: 7)));
+      if (endDate != null && mounted) {
+        final endTime = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(startAt.add(const Duration(hours: 4))));
+        if (endTime != null && mounted) {
+          final ed = endDate.toLocal();
+          endAt = DateTime(ed.year, ed.month, ed.day, endTime.hour, endTime.minute);
+        }
+      }
+    }
+    if (!mounted) return;
     try {
       final dio = ref.read(dioProvider);
-      await dio.patch('events/${widget.eventId}', data: {'start_at': startAt.toUtc().toIso8601String()});
+      final data = <String, dynamic>{'start_at': startAt.toUtc().toIso8601String()};
+      if (endAt != null) data['end_at'] = endAt.toUtc().toIso8601String();
+      await dio.patch('events/${widget.eventId}', data: data);
       ref.invalidate(eventDetailProvider(widget.eventId));
       ref.invalidate(eventsProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        final d2 = startAt.day.toString().padLeft(2, '0');
+        final mo2 = startAt.month.toString().padLeft(2, '0');
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          SnackBar(content: Text('✓ Дата события: $d2.$mo2.${startAt.year}'), backgroundColor: AppColors.amber),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(extractUserMessage(e))));
     }
@@ -659,7 +696,17 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
       await dio.patch('events/${widget.eventId}/settings', data: {'reveal_mode': 'delayed', 'reveal_at': revealAt.toUtc().toIso8601String()});
       ref.invalidate(eventDetailProvider(widget.eventId));
       ref.invalidate(eventsProvider);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        final h = revealAt.hour.toString().padLeft(2, '0');
+        final mi = revealAt.minute.toString().padLeft(2, '0');
+        final d2 = revealAt.day.toString().padLeft(2, '0');
+        final mo2 = revealAt.month.toString().padLeft(2, '0');
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          SnackBar(content: Text('✓ Открытие назначено на $d2.$mo2 в $h:$mi'), backgroundColor: AppColors.amber),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(extractUserMessage(e))));
     }
@@ -671,7 +718,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.paper,
         title: const Text('Удалить событие?', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: AppColors.ink)),
-        content: const Text('Событие будет отменено. Фото останутся в базе до автоочистки.', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink2)),
+        content: const Text('Событие будет отменено. Фото останутся в базе до автоочистки', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink2)),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Отмена', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink3))),
           TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Удалить', style: TextStyle(fontFamily: 'Inter', color: AppColors.shutter))),
@@ -700,6 +747,22 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
   Widget build(BuildContext context) {
     final settings = (widget.event['settings'] as Map<String, dynamic>?) ?? {};
     final lut = settings['lut_preset'] as String? ?? 'portra400';
+    final startAtStr = widget.event['start_at'] as String? ?? '';
+    final endAtStr = widget.event['end_at'] as String? ?? '';
+    String dateHint = 'Не задано';
+    if (startAtStr.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(startAtStr).toLocal();
+        dateHint = '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${(dt.year % 100).toString().padLeft(2, '0')} в ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+    if (endAtStr.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(endAtStr).toLocal();
+        final end = '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        dateHint = '$dateHint → $end';
+      } catch (_) {}
+    }
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.paper,
@@ -730,10 +793,10 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                   _SheetAction(icon: Icons.category_outlined, label: 'Тип события', onTap: _editEventType),
                   _SheetAction(icon: Icons.photo_filter_outlined, label: 'Стиль плёнки', hint: _filmLabel(lut), onTap: _editFilm),
                   if (_isDraft) ...[
-                    _SheetAction(icon: Icons.filter_frames_outlined, label: 'Кадров на гостя', hint: 'Только до начала', onTap: _editFrames),
-                    _SheetAction(icon: Icons.calendar_today_outlined, label: 'Время начала', hint: 'Только до начала', onTap: _editStartAt),
+                    _SheetAction(icon: Icons.filter_frames_outlined, label: 'Кадров на гостя', hint: 'Только до активации', onTap: _editFrames),
+                    _SheetAction(icon: Icons.calendar_today_outlined, label: 'Даты события', hint: dateHint, onTap: _editEventDates),
                   ],
-                  _SheetAction(icon: Icons.timer_outlined, label: 'Время проявки', hint: _revealMeta(settings), onTap: _editRevealTime),
+                  _SheetAction(icon: Icons.timer_outlined, label: 'Время открытия альбома', hint: _revealMeta(settings), onTap: _editRevealTime),
                   const Divider(color: AppColors.line, height: 24),
                   _SheetAction(
                     icon: _deleting ? Icons.hourglass_bottom_outlined : Icons.delete_outline,
@@ -928,7 +991,7 @@ class _MetricsRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: () => context.push('/guest/camera/$eventId'),
+            onTap: () => context.push('/events/$eventId/album'),
             child: Container(
               width: 64,
               height: 64,
@@ -1379,7 +1442,17 @@ class _RevealSheetState extends ConsumerState<_RevealSheet> {
         'reveal_at': revealAt.toUtc().toIso8601String(),
       });
       ref.invalidate(eventDetailProvider(widget.eventId));
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        final h = revealAt.hour.toString().padLeft(2, '0');
+        final mi = revealAt.minute.toString().padLeft(2, '0');
+        final d2 = revealAt.day.toString().padLeft(2, '0');
+        final mo2 = revealAt.month.toString().padLeft(2, '0');
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          SnackBar(content: Text('✓ Открытие назначено на $d2.$mo2 в $h:$mi'), backgroundColor: AppColors.amber),
+        );
+      }
     } catch (e) {
       if (mounted) setState(() => _error = extractUserMessage(e));
     } finally {
@@ -1419,7 +1492,7 @@ class _RevealSheetState extends ConsumerState<_RevealSheet> {
           const SizedBox(height: 20),
           Text(
             'Открытие альбома',
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 22,
               fontWeight: FontWeight.w500, color: AppColors.ink,
             ),
@@ -1571,7 +1644,17 @@ class _FilmTimerSheetState extends ConsumerState<_FilmTimerSheet> {
         'reveal_at': revealAt.toUtc().toIso8601String(),
       });
       ref.invalidate(eventDetailProvider(widget.eventId));
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        final h = revealAt.hour.toString().padLeft(2, '0');
+        final mi = revealAt.minute.toString().padLeft(2, '0');
+        final d2 = revealAt.day.toString().padLeft(2, '0');
+        final mo2 = revealAt.month.toString().padLeft(2, '0');
+        final messenger = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop();
+        messenger.showSnackBar(
+          SnackBar(content: Text('✓ Открытие перенесено на $d2.$mo2 в $h:$mi'), backgroundColor: AppColors.amber),
+        );
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(extractUserMessage(e))));
     } finally {
@@ -1620,7 +1703,7 @@ class _FilmTimerSheetState extends ConsumerState<_FilmTimerSheet> {
           const SizedBox(height: 14),
           Text(
             'Плёнка ещё проявляется',
-            style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.ink),
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], fontSize: 22, fontWeight: FontWeight.w500, color: AppColors.ink),
           ),
           const SizedBox(height: 6),
           Text(

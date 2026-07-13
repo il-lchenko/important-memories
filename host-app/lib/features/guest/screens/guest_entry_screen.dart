@@ -36,7 +36,7 @@ class GuestEntryScreen extends StatelessWidget {
                 children: [
                   Text(
                     'Подключитесь\nк альбому',
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                       fontSize: 32,
                       fontWeight: FontWeight.w500,
                       height: 1.05,
@@ -46,7 +46,7 @@ class GuestEntryScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'У организатора есть QR-код или короткий код события.',
+                    'У организатора есть QR-код или короткий код события',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,
@@ -73,7 +73,7 @@ class GuestEntryScreen extends StatelessWidget {
                     icon: const Icon(Icons.keyboard_outlined,
                         size: 22, color: AppColors.ink2),
                     title: 'Ввести код вручную',
-                    subtitle: '6 символов',
+                    subtitle: '8 символов',
                     onTap: () => context.push('/guest/code'),
                   ),
                 ],

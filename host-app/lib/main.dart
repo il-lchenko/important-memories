@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/push_service.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 
@@ -12,6 +13,11 @@ Future<void> main() async {
   GoogleFonts.config.allowRuntimeFetching = true;
   // Русская локаль для DateFormat в разделе «Кадры» и других экранах.
   await initializeDateFormatting('ru');
+  // Увеличиваем кэш изображений: больше фото остаётся в памяти → нет мерцания при смене табов.
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 256 * 1024 * 1024; // 256 MB
+  PaintingBinding.instance.imageCache.maximumSize = 2000;
+  // Firebase / FCM — no-op если firebase_options.dart ещё с заглушками.
+  await PushService.initApp();
   runApp(const ProviderScope(child: App()));
 }
 
@@ -30,6 +36,10 @@ class _AppState extends ConsumerState<App> {
   void initState() {
     super.initState();
     _initDeepLinks();
+    // Пуш-хендлеры (foreground / tap when in background / cold-start-from-notification).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushService.attachHandlers(ref.read(appRouterProvider));
+    });
   }
 
   Future<void> _initDeepLinks() async {

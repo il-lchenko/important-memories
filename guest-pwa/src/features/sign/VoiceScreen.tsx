@@ -8,8 +8,7 @@ interface SignState {
   guestName?: string
 }
 
-// TODO: заменить на реальную ссылку в RuStore когда приложение опубликуется
-const APP_INSTALL_URL = 'https://apps.rustore.ru/'
+const APP_INSTALL_URL = 'https://impomento.pro/im.apk'
 
 export default function VoiceScreen() {
   const { shortCode, frameId } = useParams<{ shortCode: string; frameId: string }>()
@@ -73,18 +72,11 @@ export default function VoiceScreen() {
         </p>
 
         <a
+          className="btn-compact btn-compact-amber"
           href={APP_INSTALL_URL}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-            width: '100%', maxWidth: 320, padding: '14px 22px',
-            borderRadius: 12, background: 'var(--amber)', color: '#fff',
-            border: 'none', textDecoration: 'none',
-            fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14,
-            cursor: 'pointer', outline: 'none', WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation', marginTop: 4,
-          }}
+          style={{ maxWidth: 320, marginTop: 4 }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -95,14 +87,12 @@ export default function VoiceScreen() {
         </a>
 
         <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '.12em', color: 'var(--ink-4)', textAlign: 'center', opacity: 0.7 }}>
-          СКОРО В RUSTORE
+          ANDROID · APK
         </div>
       </div>
 
       <div style={{ padding: '12px 16px max(env(safe-area-inset-bottom, 16px), 16px)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button onClick={goBack} type="button"
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'transparent', color: 'var(--ink-3)', border: '1px solid var(--line)', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 14, outline: 'none', WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-        >
+        <button className="btn-compact btn-compact-ghost" onClick={goBack} type="button">
           Назад
         </button>
       </div>

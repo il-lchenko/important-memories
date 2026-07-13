@@ -1,7 +1,18 @@
 allprojects {
     repositories {
+        // Локальный репозиторий — для пакетов, недоступных через Google CDN в России.
+        maven { url "${System.getProperty('user.home')}/.gradle/local-maven" }
         google()
         mavenCentral()
+    }
+    // Принудительно снижаем версию androidx.browser до той, что есть в локальном кэше.
+    configurations.all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'androidx.browser') {
+                details.useVersion '1.6.0'
+                details.because 'browser:1.8.0 not reachable; 1.6.0 in local-maven'
+            }
+        }
     }
 }
 

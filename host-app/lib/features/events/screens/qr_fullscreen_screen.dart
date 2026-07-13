@@ -68,7 +68,7 @@ class QrFullscreenScreen extends ConsumerWidget {
                   Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(
+                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                       fontWeight: FontWeight.w500,
                       fontSize: 28,
                       letterSpacing: -0.01 * 28,

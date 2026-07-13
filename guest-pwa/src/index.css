@@ -21,7 +21,9 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-* { margin: 0; padding: 0; }
+* { margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+button { outline: none; }
 
 html, body, #root {
   min-height: 100dvh;
@@ -51,6 +53,32 @@ html, body, #root {
 .btn-primary { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; border-radius: 16px; border: none; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; background: var(--amber); color: #fff; box-shadow: 0 4px 12px -2px rgba(201,136,30,.4); }
 .btn-danger  { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; border-radius: 16px; border: none; font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; background: var(--shutter); color: #fff; box-shadow: 0 4px 12px -2px rgba(213,75,61,.4); }
 .btn-sm { height: 44px !important; font-size: 14px !important; border-radius: 14px !important; }
+
+/* ── Compact CTA (для inline-футеров: CaptionScreen, VoiceScreen) ── */
+.btn-compact {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 48px; padding: 0 18px; border-radius: 12px;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; -webkit-appearance: none; text-decoration: none;
+  transition: opacity .15s, transform .1s;
+}
+.btn-compact:active { opacity: .85; transform: scale(.98); }
+.btn-compact:disabled { opacity: .5; cursor: not-allowed; }
+.btn-compact-amber { background: var(--amber); color: #fff; }
+.btn-compact-ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); }
+.btn-compact-ink3  { background: transparent; color: var(--ink-3); border: none; }
+
+/* ── Modal CTA (для диалогов) ── */
+.btn-modal {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; height: 52px; border-radius: 14px;
+  font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600;
+  border: none; cursor: pointer; -webkit-appearance: none;
+  background: var(--amber); color: #fff;
+  transition: opacity .15s, transform .1s;
+}
+.btn-modal:active { opacity: .85; transform: scale(.98); }
+.btn-modal:disabled { opacity: .5; cursor: not-allowed; }
 
 .btn-primary:disabled, .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 

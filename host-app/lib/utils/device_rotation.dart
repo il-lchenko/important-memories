@@ -9,7 +9,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 /// 3 — landscape left (наклон влево).
 class DeviceRotationNotifier extends StateNotifier<int> {
   DeviceRotationNotifier() : super(0) {
-    _sub = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 80))
+    _sub = accelerometerEventStream(samplingPeriod: const Duration(milliseconds: 50))
         .listen(_onEvent);
   }
 
@@ -40,7 +40,7 @@ class DeviceRotationNotifier extends StateNotifier<int> {
 
     if (q == state) return;
     final now = DateTime.now();
-    if (now.difference(_lastChange).inMilliseconds < 120) return;
+    if (now.difference(_lastChange).inMilliseconds < 50) return;
     _lastChange = now;
     state = q;
   }

@@ -20,25 +20,58 @@ function pad(n: number): string { return String(n).padStart(2, '0') }
 export default function WaitingScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
   const navigate = useNavigate()
-  const revealAt = getRevealAt()
   const event = getEventMeta()
   const eventTitle: string = event.title ?? 'Ивент'
   const framesPerGuest: number = event.settings?.frames_per_guest ?? 0
+
+  // revealAt starts from sessionStorage but is refreshed from server on mount
+  const [revealAt, setRevealAt] = useState<Date | null>(() => getRevealAt())
+  const [remaining, setRemaining] = useState(() => {
+    const r = getRevealAt()
+    return r ? Math.max(0, r.getTime() - Date.now()) : 0
+  })
+  const [framesLeft, setFramesLeft] = useState<number | null>(null)
+  const navigatedRef = useRef(false)
+
   const openLabel = revealAt
     ? revealAt.toLocaleString('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
     : null
-
-  const [remaining, setRemaining] = useState(() =>
-    revealAt ? Math.max(0, revealAt.getTime() - Date.now()) : 0
-  )
-  const [framesLeft, setFramesLeft] = useState<number | null>(null)
-  const navigatedRef = useRef(false)
 
   const goToAlbum = () => {
     if (navigatedRef.current) return
     navigatedRef.current = true
     navigate(`/g/${shortCode}/album`, { replace: true })
   }
+
+  // On mount: fetch fresh session data — updates reveal_at, frames, and checks if already revealed
+  useEffect(() => {
+    guestApi.getSession().then(({ data }) => {
+      setFramesLeft(data.frames_remaining)
+      if (data.event.status === 'completed') { goToAlbum(); return }
+
+      const freshRevealAt = data.event.settings.reveal_at
+      if (freshRevealAt) {
+        const d = new Date(freshRevealAt)
+        setRevealAt(d)
+        const ms = Math.max(0, d.getTime() - Date.now())
+        setRemaining(ms)
+        if (ms === 0) { goToAlbum(); return }
+        // Update sessionStorage so AlbumScreen and other screens have fresh data
+        try {
+          const raw = sessionStorage.getItem('event')
+          if (raw) {
+            const ev = JSON.parse(raw)
+            if (ev.settings) ev.settings.reveal_at = freshRevealAt
+            sessionStorage.setItem('event', JSON.stringify(ev))
+          }
+        } catch {}
+      } else if (freshRevealAt === null) {
+        // Host cleared the reveal_at — no timer
+        setRevealAt(null)
+        setRemaining(0)
+      }
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Countdown tick — also recalculates on tab focus to handle mobile background freezing
   useEffect(() => {
@@ -65,19 +98,20 @@ export default function WaitingScreen() {
     }
   }, [revealAt]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch frames remaining once on mount
-  useEffect(() => {
-    guestApi.getSession().then(({ data }) => {
-      setFramesLeft(data.frames_remaining)
-    }).catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Poll backend every 30s for manual host reveal
+  // Poll backend every 30s for manual host reveal or reveal_at update
   useEffect(() => {
     const poll = setInterval(async () => {
       try {
         const { data } = await guestApi.getSession()
-        if (data.event.status === 'completed') goToAlbum()
+        if (data.event.status === 'completed') { goToAlbum(); return }
+        const freshRevealAt = data.event.settings.reveal_at
+        if (freshRevealAt) {
+          const d = new Date(freshRevealAt)
+          setRevealAt(d)
+          const ms = Math.max(0, d.getTime() - Date.now())
+          setRemaining(ms)
+          if (ms === 0) goToAlbum()
+        }
       } catch {}
     }, 30_000)
     return () => clearInterval(poll)
@@ -164,8 +198,8 @@ export default function WaitingScreen() {
               Классные плёнки смотрят на следующее утро. Вашу — уже скоро.
             </div>
 
-            {/* Back to camera if frames remain */}
-            {framesLeft !== null && framesLeft > 0 && (
+            {/* Back to camera unless we confirmed frames exhausted OR album is already revealed */}
+            {(framesLeft === null || framesLeft > 0) && !revealed && (
               <button
                 className="btn-dark-amber"
                 onClick={() => navigate(`/g/${shortCode}/camera`)}

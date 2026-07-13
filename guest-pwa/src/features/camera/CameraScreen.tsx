@@ -2,10 +2,36 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCamera } from '../../hooks/useCamera'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
-import { guestApi } from '../../api/client'
+import { guestApi, uploadPutBlob, UploadError } from '../../api/client'
 import { preloadFilmLUT } from '../../utils/filmLut'
+import { bumpAttempts, enqueue as idbEnqueue, listForShortCode, remove as idbRemove } from '../../utils/uploadQueueDb'
 
-interface QueueItem { blob: Blob; width: number; height: number; capturedAt: string }
+interface QueueItem { id: string; blob: Blob; width: number; height: number; capturedAt: string }
+
+const MAX_ATTEMPTS = 6
+const PUT_TIMEOUT_MS = 60_000
+
+function waitForOnline(timeoutMs: number): Promise<void> {
+  if (navigator.onLine) return Promise.resolve()
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (done) return; done = true; window.removeEventListener('online', finish); clearInterval(poll); clearTimeout(hard); resolve() }
+    window.addEventListener('online', finish)
+    // iOS Safari врёт про online — poll navigator.onLine раз в 2.5 сек
+    const poll = setInterval(() => { if (navigator.onLine) finish() }, 2500)
+    const hard = setTimeout(finish, timeoutMs)
+  })
+}
+
+function backoffMs(attempt: number): number {
+  const base = Math.min(500 * Math.pow(2, attempt), 8000)
+  const jitter = base * (Math.random() * 0.4 - 0.2)
+  return Math.max(200, Math.round(base + jitter))
+}
+
+function newId(): string {
+  return `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+}
 
 function getEventMeta() {
   try { return JSON.parse(sessionStorage.getItem('event') ?? '{}') } catch { return {} }
@@ -99,8 +125,9 @@ function FilmCounter({ frames }: { frames: number }) {
 }
 
 // ── FramePreview ─────────────────────────────────────────────────────────────
-function FramePreview({ blobUrl, frameNum, onShootMore, onSign, captureRatio, uploadStatus, canSign }: {
+function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, captureRatio, uploadStatus, canSign }: {
   blobUrl: string; frameNum: number; onShootMore: () => void; onSign: () => Promise<void> | void;
+  onRetryUpload?: () => void;
   captureRatio: number; uploadStatus: 'pending' | 'ok' | 'failed'; canSign: boolean;
 }) {
   const [savedHint, setSavedHint] = useState(false)
@@ -146,7 +173,7 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, captureRatio, up
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flex: 1, minHeight: 0 }}>
         <div style={{ width: captureRatio > 1 ? 300 : 240, padding: '14px 14px 0', background: 'var(--paper)', borderRadius: 4, transform: 'rotate(-1.5deg)', boxShadow: '0 20px 50px -8px rgba(0,0,0,.5), 0 0 80px -10px rgba(255,179,71,.15)', flexShrink: 0 }}>
           <div style={{ aspectRatio: captureRatio > 1 ? '4/3' : '3/4', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
-            <img src={blobUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: captureRatio > 1 ? 'rotate(180deg)' : 'none' }} />
+            <img src={blobUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontFamily: 'Caveat, cursive', fontSize: 24, color: 'var(--ink-2)' }}>
@@ -184,8 +211,18 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, captureRatio, up
         </button>
         )}
         {canSign && uploadStatus === 'failed' && (
-          <div style={{ fontSize: 11, color: 'var(--shutter)', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>
-            Кадр не загрузился — без интернета подписать нельзя
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 11, color: navigator.onLine ? 'var(--shutter)' : 'rgba(240,230,210,.65)', textAlign: 'center', fontFamily: 'Inter, sans-serif' }}>
+              {navigator.onLine ? 'Не удалось отправить кадр' : 'Отправлю, когда сеть вернётся'}
+            </div>
+            {onRetryUpload && (
+              <button
+                onClick={onRetryUpload}
+                style={{ fontSize: 12, color: 'var(--dr-amber)', fontFamily: 'Inter, sans-serif', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 8px', textDecoration: 'underline' }}
+              >
+                Повторить загрузку
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -342,7 +379,10 @@ function RecentStack({ shots, onOpen }: { shots: RecentShot[]; onOpen: (s: Recen
 export default function CameraScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
   const navigate = useNavigate()
-  const { videoRef, ready, error, start, capture, torchSupported, torchOn, setTorch } = useCamera()
+  const {
+    videoRef, ready, error, start, capture, torchSupported, torchOn, setTorch,
+    zoomSupported, minZoom, maxZoom, zoom, setZoom,
+  } = useCamera()
   const online = useNetworkStatus()
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
   const [shooting, setShooting] = useState(false)
@@ -356,11 +396,16 @@ export default function CameraScreen() {
     canSign: boolean;
   } | null>(null)
   const uploadPromiseRef = useRef<Promise<{ ok: true; frameId: string } | { ok: false }> | null>(null)
+  const previewItemRef = useRef<QueueItem | null>(null)
   const [flashOn, setFlashOn] = useState(false)
   const [screenFlashing, setScreenFlashing] = useState(false)
   const [recentShots, setRecentShots] = useState<RecentShot[]>(() => loadRecentShots(shortCode))
   const [isLandscape, setIsLandscape] = useState(() => window.matchMedia('(orientation: landscape)').matches)
   const [streamRatio, setStreamRatio] = useState<number>(4 / 3)
+  // Соотношение кадра: 'film' — 3:4 (портрет / 4:3 пейзаж), 'full' — весь экран.
+  const [aspectMode, setAspectMode] = useState<'film' | 'full'>('film')
+  const pinchStartZoomRef = useRef<number>(1)
+  const pinchStartDistRef = useRef<number>(0)
   const uploadQueue = useRef<QueueItem[]>([])
 
   const event = getEventMeta()
@@ -407,18 +452,97 @@ export default function CameraScreen() {
     if (online && uploadQueue.current.length > 0) processQueue()
   }, [online]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Восстановление очереди из IndexedDB при монтировании — переживает перезагрузку страницы.
+  useEffect(() => {
+    if (!shortCode) return
+    listForShortCode(shortCode).then((items) => {
+      if (items.length === 0) return
+      const restored: QueueItem[] = items.map((p) => ({ id: p.id, blob: p.blob, width: p.width, height: p.height, capturedAt: p.capturedAt }))
+      // Не дублируем, если уже есть — при быстром двойном mount из React StrictMode
+      const known = new Set(uploadQueue.current.map((q) => q.id))
+      const fresh = restored.filter((r) => !known.has(r.id))
+      if (fresh.length === 0) return
+      uploadQueue.current = [...uploadQueue.current, ...fresh]
+      if (navigator.onLine) processQueue()
+    }).catch((e) => console.warn('idb restore failed', e))
+  }, [shortCode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // iOS Safari `online` часто не срабатывает — прогоняем очередь при возвращении вкладки.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine && uploadQueue.current.length > 0) processQueue()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // recentShots are stored as data: URLs in sessionStorage — no blob URLs to revoke.
 
   const uploadItem = useCallback(async (item: QueueItem): Promise<{ ok: true; frameId: string } | { ok: false }> => {
-    try {
-      const { data: presign } = await guestApi.presign(item.blob.size)
-      const putRes = await fetch(presign.upload_url, { method: 'PUT', body: item.blob, headers: { 'Content-Type': 'image/jpeg' } })
-      if (!putRes.ok) throw new Error(`S3 upload failed: ${putRes.status}`)
-      const { data: reg } = await guestApi.registerFrame(presign.frame_id, item.capturedAt, item.width, item.height)
-      setFramesLeft(reg.frames_remaining)
-      if (reg.frames_remaining === 0) navigate(`/g/${shortCode}/done`)
-      return { ok: true, frameId: presign.frame_id }
-    } catch { return { ok: false } }
+    // Retry с новым presign на каждой итерации: истёкший URL починится, transient errors переживём.
+    let lastErr: unknown = null
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (!navigator.onLine) await waitForOnline(120_000)
+
+      // Шаг 1: presign
+      let presignData: { frame_id: string; upload_url: string; expires_in: number }
+      try {
+        const { data } = await guestApi.presign(item.blob.size)
+        presignData = data
+      } catch (e: unknown) {
+        lastErr = e
+        const status = (e as { response?: { status?: number } })?.response?.status
+        // 409 (quota / event закрыт) — retryать бессмысленно
+        if (status === 409 || status === 403 || status === 401) {
+          console.error('presign_fatal', status, e)
+          break
+        }
+        console.warn(`presign_retry attempt=${attempt}`, status ?? e)
+        await bumpAttempts(item.id)
+        await new Promise((r) => setTimeout(r, backoffMs(attempt)))
+        continue
+      }
+
+      // Шаг 2: PUT в S3
+      const ctrl = new AbortController()
+      const to = setTimeout(() => ctrl.abort(), PUT_TIMEOUT_MS)
+      try {
+        await uploadPutBlob(presignData.upload_url, item.blob, ctrl.signal)
+      } catch (e) {
+        clearTimeout(to)
+        lastErr = e
+        const isAbort = e instanceof Error && e.name === 'AbortError'
+        const upErr = e instanceof UploadError ? e : null
+        console.warn(`s3_put_retry attempt=${attempt}`, isAbort ? 'timeout' : upErr?.message ?? e)
+        await bumpAttempts(item.id)
+        await new Promise((r) => setTimeout(r, backoffMs(attempt)))
+        continue
+      }
+      clearTimeout(to)
+
+      // Шаг 3: register
+      try {
+        const { data: reg } = await guestApi.registerFrame(presignData.frame_id, item.capturedAt, item.width, item.height)
+        setFramesLeft(reg.frames_remaining)
+        if (reg.frames_remaining === 0) navigate(`/g/${shortCode}/done`)
+        await idbRemove(item.id)
+        return { ok: true, frameId: presignData.frame_id }
+      } catch (e: unknown) {
+        lastErr = e
+        const status = (e as { response?: { status?: number } })?.response?.status
+        // 409 (уже зарегистрирован) — считаем успехом
+        if (status === 409) {
+          await idbRemove(item.id)
+          return { ok: true, frameId: presignData.frame_id }
+        }
+        console.warn(`register_retry attempt=${attempt}`, status ?? e)
+        await bumpAttempts(item.id)
+        await new Promise((r) => setTimeout(r, backoffMs(attempt)))
+        continue
+      }
+    }
+    console.error('upload_failed_final', lastErr)
+    return { ok: false }
   }, [shortCode, navigate])
 
   const processQueue = async () => {
@@ -441,7 +565,13 @@ export default function CameraScreen() {
         await new Promise((r) => setTimeout(r, 180))
       }
       playShutterSound()
-      const actualRatio = isLandscape ? 4 / 3 : 3 / 4
+      let actualRatio: number
+      if (aspectMode === 'film') {
+        actualRatio = isLandscape ? 4 / 3 : 3 / 4
+      } else {
+        const screenRatio = window.innerWidth / window.innerHeight
+        actualRatio = isLandscape ? 1 / screenRatio : screenRatio
+      }
       const shot = await capture(actualRatio, facingMode === 'user', lutPreset)
       if (flashOn && !torchSupported) setScreenFlashing(false)
       if (!shot) return
@@ -459,7 +589,13 @@ export default function CameraScreen() {
         return next
       })
       // Запускаем upload в фоне — preview показываем сразу, чтобы можно было сразу подписать
-      const item: QueueItem = { blob: shot.blob, width: shot.width, height: shot.height, capturedAt }
+      const item: QueueItem = { id: newId(), blob: shot.blob, width: shot.width, height: shot.height, capturedAt }
+      previewItemRef.current = item
+      // Пишем в IndexedDB СРАЗУ — переживёт refresh/закрытие вкладки
+      if (shortCode) {
+        idbEnqueue({ id: item.id, shortCode, blob: item.blob, width: item.width, height: item.height, capturedAt, attempts: 0, createdAt: Date.now() })
+          .catch((e) => console.warn('idb enqueue failed', e))
+      }
       const promise = uploadItem(item)
       uploadPromiseRef.current = promise
       setPreview({ url: blobUrl, frameNum, ratio: actualRatio, frameId: null, uploadStatus: 'pending', canSign: true })
@@ -492,6 +628,21 @@ export default function CameraScreen() {
       uploadStatus={preview.uploadStatus}
       canSign={preview.canSign}
       onShootMore={() => { setPreview(null); start(facingMode) }}
+      onRetryUpload={async () => {
+        const item = previewItemRef.current
+        if (!item || !preview) return
+        const blobUrl = preview.url
+        uploadQueue.current = uploadQueue.current.filter((q) => q !== item)
+        setPreview((curr) => curr ? { ...curr, uploadStatus: 'pending', frameId: null } : curr)
+        const promise = uploadItem(item)
+        uploadPromiseRef.current = promise
+        const res = await promise
+        if (!res.ok) uploadQueue.current.push(item)
+        setPreview((curr) => {
+          if (!curr || curr.url !== blobUrl) return curr
+          return { ...curr, frameId: res.ok ? res.frameId : null, uploadStatus: res.ok ? 'ok' : 'failed' }
+        })
+      }}
       onSign={async () => {
         // Дождаться upload если ещё в процессе
         let frameId = preview.frameId
@@ -556,6 +707,9 @@ export default function CameraScreen() {
         flexShrink: 0, zIndex: 20,
         paddingTop: 'env(safe-area-inset-top, 0px)',
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)',
+        ...(aspectMode === 'full' ? {
+          position: 'absolute', top: 0, left: 0, right: 0,
+        } : {}),
       }}>
         <div style={{ padding: '10px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
 
@@ -586,31 +740,80 @@ export default function CameraScreen() {
             </div>
           </div>
 
-          {/* Right: rotate toggle */}
-          <button
-            onClick={() => setIsLandscape((v) => !v)}
-            aria-label={isLandscape ? 'Портретный кадр' : 'Горизонтальный кадр'}
-            title={isLandscape ? 'Вернуть портрет' : 'Горизонтальный снимок'}
-            style={{ ...iconBtn, background: isLandscape ? 'rgba(255,179,71,0.15)' : 'rgba(0,0,0,0.35)', borderColor: isLandscape ? 'rgba(255,179,71,0.35)' : 'rgba(255,255,255,0.12)', color: isLandscape ? '#FFB347' : 'rgba(240,230,210,0.75)' }}
-          >
-            <span style={{ display: 'flex', transform: rot, transition: rotTransition }}>
-              <ICRotate />
-            </span>
-          </button>
+          {/* Right: aspect toggle + rotate toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => setAspectMode((m) => m === 'film' ? 'full' : 'film')}
+              aria-label={aspectMode === 'film' ? 'Полноэкранный кадр' : 'Кадр 3:4'}
+              title={aspectMode === 'film' ? 'Полноэкранный кадр' : 'Кадр 3:4'}
+              style={{ ...iconBtn, background: aspectMode === 'full' ? 'rgba(255,179,71,0.15)' : 'rgba(0,0,0,0.35)', borderColor: aspectMode === 'full' ? 'rgba(255,179,71,0.35)' : 'rgba(255,255,255,0.12)', color: aspectMode === 'full' ? '#FFB347' : 'rgba(240,230,210,0.75)' }}
+            >
+              {aspectMode === 'film' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="3" width="12" height="18" rx="1"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 8V4h4"/><path d="M20 8V4h-4"/><path d="M4 16v4h4"/><path d="M20 16v4h-4"/>
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={() => setIsLandscape((v) => !v)}
+              aria-label={isLandscape ? 'Портретный кадр' : 'Горизонтальный кадр'}
+              title={isLandscape ? 'Вернуть портрет' : 'Горизонтальный снимок'}
+              style={{ ...iconBtn, background: isLandscape ? 'rgba(255,179,71,0.15)' : 'rgba(0,0,0,0.35)', borderColor: isLandscape ? 'rgba(255,179,71,0.35)' : 'rgba(255,255,255,0.12)', color: isLandscape ? '#FFB347' : 'rgba(240,230,210,0.75)' }}
+            >
+              <span style={{ display: 'flex', transform: rot, transition: rotTransition }}>
+                <ICRotate />
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ── Camera box ────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={aspectMode === 'full' ? {
+        position: 'absolute', inset: 0, zIndex: 5,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      } : {
+        flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
         {!error ? (
-          <div style={{
-            position: 'relative', overflow: 'hidden', borderRadius: 6,
-            background: '#050302',
-            width: '100%',
-            aspectRatio: String(streamRatio),
-            maxHeight: '100%',
-            boxShadow: '0 8px 32px rgba(0,0,0,.65), 0 0 0 1px rgba(255,179,71,.04)',
-          }}>
+          <div
+            onTouchStart={(e) => {
+              if (!zoomSupported || e.touches.length !== 2) return
+              const dx = e.touches[0].clientX - e.touches[1].clientX
+              const dy = e.touches[0].clientY - e.touches[1].clientY
+              pinchStartDistRef.current = Math.hypot(dx, dy)
+              pinchStartZoomRef.current = zoom
+            }}
+            onTouchMove={(e) => {
+              if (!zoomSupported || e.touches.length !== 2 || pinchStartDistRef.current === 0) return
+              const dx = e.touches[0].clientX - e.touches[1].clientX
+              const dy = e.touches[0].clientY - e.touches[1].clientY
+              const dist = Math.hypot(dx, dy)
+              const scale = dist / pinchStartDistRef.current
+              setZoom(pinchStartZoomRef.current * scale)
+            }}
+            onTouchEnd={(e) => {
+              if (e.touches.length < 2) pinchStartDistRef.current = 0
+            }}
+            style={aspectMode === 'full' ? {
+              position: 'relative', overflow: 'hidden',
+              background: '#050302',
+              width: '100%', height: '100%',
+              touchAction: 'none',
+            } : {
+              position: 'relative', overflow: 'hidden', borderRadius: 6,
+              background: '#050302',
+              width: '100%',
+              aspectRatio: String(streamRatio),
+              maxHeight: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,.65), 0 0 0 1px rgba(255,179,71,.04)',
+              touchAction: 'none',
+            }}>
             {/* Video — fills the box, ratio matched to stream so no bars/zoom */}
             <video
               ref={videoRef}
@@ -642,6 +845,41 @@ export default function CameraScreen() {
                 borderRadius: id === 'tl' ? '3px 0 0 0' : id === 'tr' ? '0 3px 0 0' : id === 'bl' ? '0 0 0 3px' : '0 0 3px 0',
               }} />
             ))}
+
+            {/* Zoom chips — на одном уровне с flash/flip (bottom-center) */}
+            {zoomSupported && (() => {
+              const steps = [minZoom]
+              if (maxZoom >= 2) steps.push(2)
+              if (maxZoom >= 5) steps.push(5)
+              if (steps.length < 2) return null
+              return (
+                <div style={{
+                  position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+                  display: 'flex', gap: 6, zIndex: 15,
+                  padding: '3px 5px', borderRadius: 22,
+                  background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+                }}>
+                  {steps.map((s) => {
+                    const active = Math.abs(zoom - s) < 0.15
+                    const label = s === Math.round(s) ? `${s}×` : `${s.toFixed(1)}×`
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => setZoom(s)}
+                        style={{
+                          padding: '5px 9px', borderRadius: 16,
+                          background: active ? 'rgba(255,179,71,0.24)' : 'transparent',
+                          border: active ? '1px solid rgba(255,179,71,0.6)' : '1px solid transparent',
+                          color: active ? '#FFB347' : 'rgba(240,230,210,0.85)',
+                          fontFamily: 'JetBrains Mono, monospace', fontSize: 11, fontWeight: 700,
+                          letterSpacing: '.04em', cursor: 'pointer',
+                        }}
+                      >{label}</button>
+                    )
+                  })}
+                </div>
+              )
+            })()}
 
             {/* Flash button — overlay bottom-left */}
             <button
@@ -692,6 +930,9 @@ export default function CameraScreen() {
         background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
         padding: '12px 28px',
         paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
+        ...(aspectMode === 'full' ? {
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+        } : {}),
       }}>
         <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 

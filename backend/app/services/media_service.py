@@ -12,8 +12,8 @@ from app.domain.schemas.frames import (
     FrameUpdateIn,
     FrameVoicePresignOut,
 )
-from app.infra import queue, s3_client
-from app.repos import event_repo, frame_repo
+from app.infra import fcm_client, queue, s3_client
+from app.repos import device_repo, event_repo, frame_repo
 
 
 def _make_s3_key(event_id: UUID, frame_id: UUID, content_type: str) -> str:
@@ -53,7 +53,22 @@ async def presign_upload(
             details={"status": guest.event.status.value},
         )
 
-    used = await frame_repo.count_non_deleted_for_guest(session, guest.id)
+    now = datetime.now(timezone.utc)
+    is_owner = guest.user_id is not None and guest.user_id == guest.event.user_id
+
+    if guest.event.end_at is not None and guest.event.end_at <= now:
+        raise ConflictError(
+            "Съёмка завершена — время истекло",
+            details={"end_at": guest.event.end_at.isoformat()},
+        )
+
+    if not is_owner and guest.event.start_at is not None and guest.event.start_at > now:
+        raise ConflictError(
+            "Съёмка ещё не открыта",
+            details={"start_at": guest.event.start_at.isoformat()},
+        )
+
+    used = await frame_repo.count_uploaded_for_guest(session, guest.id)
     limit = guest.event.settings.frames_per_guest
     if used >= limit:
         raise ConflictError(
@@ -106,11 +121,28 @@ async def register_frame(
     frame.uploaded_at = datetime.now(captured_at.tzinfo)
     frame.width = width
     frame.height = height
-    used = await frame_repo.count_non_deleted_for_guest(session, guest.id)
+    used = await frame_repo.count_uploaded_for_guest(session, guest.id)
     guest.frames_used = used
     await session.commit()
 
     await queue.make_thumbnail(frame.id)
+
+    # Пуш хосту. Чтобы не спамить — только на первый кадр от гостя.
+    # И не отправляем если хост сам себе снимает (guest.user_id == event.user_id).
+    host_id = guest.event.user_id
+    is_owner_shot = guest.user_id is not None and guest.user_id == host_id
+    if used == 1 and not is_owner_shot:
+        host_tokens = await device_repo.get_tokens_for_user(session, host_id)
+        if host_tokens:
+            await fcm_client.send_multicast(
+                tokens=host_tokens,
+                title=guest.event.title,
+                body=f"{guest.name} снял первый кадр",
+                data={
+                    "event_id": str(guest.event_id),
+                    "type": "new_frame",
+                },
+            )
 
     limit = guest.event.settings.frames_per_guest
     return FrameRegisterOut(

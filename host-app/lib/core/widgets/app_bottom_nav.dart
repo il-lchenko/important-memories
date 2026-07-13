@@ -26,21 +26,21 @@ class AppBottomNav extends StatelessWidget {
           ),
         ],
       ),
-      padding: EdgeInsets.fromLTRB(20, 8, 20, 10 + bottomInset),
+      padding: EdgeInsets.fromLTRB(16, 6, 16, 8 + bottomInset),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _NavItem(
-            icon: Icons.photo_album_outlined,
-            iconActive: Icons.photo_album,
+            icon: Icons.auto_stories_outlined,
+            iconActive: Icons.auto_stories,
             label: 'Альбомы',
             isActive: active == AppNavTab.albums,
             onTap: () => _handleTap(context, AppNavTab.albums),
           ),
           _NavItem(
-            icon: Icons.filter_tilt_shift,
-            iconActive: Icons.blur_on,
+            icon: Icons.camera_roll_outlined,
+            iconActive: Icons.camera_roll,
             label: 'Кадры',
             isActive: active == AppNavTab.memories,
             onTap: () => _handleTap(context, AppNavTab.memories),
@@ -111,14 +111,14 @@ class _NavItem extends StatelessWidget {
             Icon(
               isActive ? iconActive : icon,
               color: isActive ? AppColors.ink : AppColors.ink3,
-              size: 28,
+              size: 24,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontFamily: 'Manrope',
-                fontSize: 13.5,
+                fontSize: 11.5,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive ? AppColors.ink : AppColors.ink3,
                 letterSpacing: 0.1,

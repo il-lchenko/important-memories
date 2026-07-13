@@ -39,7 +39,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
         ),
         title: Text(
           'Продление хранения',
-          style: GoogleFonts.playfairDisplay(
+          style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
             fontSize: 20,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,
@@ -110,7 +110,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Если не продлить, альбом сохраняется в архиве ещё 30 дней после истечения. После — удаляется навсегда.',
+                    'Если не продлить, альбом сохраняется в архиве ещё 30 дней после истечения. После — удаляется навсегда',
                     style: const TextStyle(
                       fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, height: 1.5,
                     ),
@@ -264,7 +264,7 @@ class _ExpireBanner extends StatelessWidget {
           const SizedBox(height: 10),
           RichText(
             text: TextSpan(
-              style: GoogleFonts.playfairDisplay(
+              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                 fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink, height: 1.3, letterSpacing: -0.3,
               ),
               children: [

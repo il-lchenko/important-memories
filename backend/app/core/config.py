@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     S3_BUCKET: str = "im-media"
     S3_ACCESS_KEY: str = "minioadmin"
     S3_SECRET_KEY: SecretStr = SecretStr("minioadmin")
-    S3_PRESIGN_TTL_SEC: int = 600
+    S3_PRESIGN_TTL_SEC: int = 3600
 
     YOOKASSA_SHOP_ID: str = ""
     YOOKASSA_SECRET: SecretStr = SecretStr("")

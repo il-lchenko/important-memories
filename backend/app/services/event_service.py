@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from secrets import token_urlsafe
 from uuid import UUID
 
 import qrcode
@@ -226,6 +227,17 @@ async def create_event(
     return _to_out(event)
 
 
+async def _auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
+    """Self-healing для host-app списка: тот же принцип, что в guest_service."""
+    if event.status != EventStatus.ACTIVE:
+        return
+    if event.end_at is None or event.end_at > datetime.now(timezone.utc):
+        return
+    event.status = EventStatus.COMPLETED
+    if event.public_share_token is None:
+        event.public_share_token = token_urlsafe(24)
+
+
 async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
     from sqlalchemy import func, select
     from app.domain.models import Frame, Guest
@@ -233,6 +245,17 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
     events = await event_repo.list_for_user(session, user_id)
     if not events:
         return []
+    # Batch self-heal: закроем все истёкшие ACTIVE события за один коммит.
+    changed = False
+    for e in events:
+        if e.status == EventStatus.ACTIVE and e.end_at is not None and e.end_at <= datetime.now(timezone.utc):
+            e.status = EventStatus.COMPLETED
+            if e.public_share_token is None:
+                e.public_share_token = token_urlsafe(24)
+            changed = True
+    if changed:
+        await session.commit()
+
     event_ids = [e.id for e in events]
     g_rows = await session.execute(
         select(Guest.event_id, func.count(Guest.id))
@@ -254,6 +277,9 @@ async def get_event(session: AsyncSession, user_id: UUID, event_id: UUID) -> Eve
     from app.domain.models import Frame, Guest
 
     event = await _load_owned(session, event_id, user_id)
+    await _auto_complete_if_expired(session, event)
+    if event in session.dirty:
+        await session.commit()
     g = (await session.execute(
         select(func.count(Guest.id)).where(Guest.event_id == event_id)
     )).scalar_one()
@@ -334,6 +360,12 @@ async def activate_event(
     return _to_out(event)
 
 
+def _ensure_public_share_token(event: Event) -> None:
+    """При переходе события в COMPLETED генерим read-only токен для публичной ссылки."""
+    if event.public_share_token is None:
+        event.public_share_token = token_urlsafe(24)
+
+
 async def complete_event(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> EventOut:
@@ -344,6 +376,7 @@ async def complete_event(
             details={"status": event.status.value},
         )
     event.status = EventStatus.COMPLETED
+    _ensure_public_share_token(event)
     await session.commit()
     return _to_out(event)
 
@@ -359,6 +392,7 @@ async def reveal_event(
             details={"status": event.status.value},
         )
     event.status = EventStatus.COMPLETED
+    _ensure_public_share_token(event)
     await session.commit()
 
     # Notify host (fire-and-forget: don't block the response)
@@ -372,6 +406,35 @@ async def reveal_event(
         )
 
     return _to_out(event)
+
+
+async def get_public_share(
+    session: AsyncSession, user_id: UUID, event_id: UUID
+) -> str:
+    event = await _load_owned(session, event_id, user_id)
+    if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+        raise ConflictError(
+            "Публичная ссылка доступна после завершения альбома",
+            details={"status": event.status.value},
+        )
+    if event.public_share_token is None:
+        event.public_share_token = token_urlsafe(24)
+        await session.commit()
+    return event.public_share_token
+
+
+async def regenerate_public_share(
+    session: AsyncSession, user_id: UUID, event_id: UUID
+) -> str:
+    event = await _load_owned(session, event_id, user_id)
+    if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+        raise ConflictError(
+            "Публичная ссылка доступна после завершения альбома",
+            details={"status": event.status.value},
+        )
+    event.public_share_token = token_urlsafe(24)
+    await session.commit()
+    return event.public_share_token
 
 
 def build_qr_png(short_code: str) -> tuple[str, bytes]:
@@ -403,12 +466,20 @@ async def update_event(
     if payload.event_type is not None:
         event.event_type = payload.event_type
     if payload.start_at is not None:
-        if event.status != EventStatus.DRAFT:
-            raise ConflictError(
-                "Нельзя изменить время начала активного события",
-                details={"status": event.status.value},
-            )
         event.start_at = payload.start_at
+    if payload.reveal_mode is not None or payload.reveal_at is not None:
+        s = event.settings
+        if payload.reveal_mode is not None:
+            s.reveal_mode = payload.reveal_mode
+        if payload.reveal_at is not None:
+            s.reveal_at = payload.reveal_at
+        if s.reveal_mode == RevealMode.DELAYED:
+            if s.reveal_at is None:
+                raise ConflictError("reveal_at is required for delayed reveal")
+            if s.reveal_at <= datetime.now(timezone.utc):
+                raise ConflictError("reveal_at must be in the future")
+        if s.reveal_mode == RevealMode.DELAYED and s.reveal_at is not None and event.status == EventStatus.ACTIVE:
+            await queue.schedule_reveal(event.id, s.reveal_at)
     await session.commit()
     return _to_out(event)
 

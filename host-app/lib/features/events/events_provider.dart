@@ -12,7 +12,7 @@ final invitedEventsProvider =
   return List<Map<String, dynamic>>.from(resp.data as List);
 });
 
-@riverpod
+@Riverpod(keepAlive: true)
 Future<List<Map<String, dynamic>>> events(Ref ref) async {
   final dio = ref.watch(dioProvider);
   final resp = await dio.get('events/');

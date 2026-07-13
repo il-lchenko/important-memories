@@ -5,8 +5,11 @@ from app.core.errors import NotFoundError
 from app.domain.models import EventStatus
 from app.domain.schemas.guests import (
     EventPreviewOut,
+    GuestAvatarPresignIn,
+    GuestAvatarPresignOut,
     GuestJoinIn,
     GuestNameUpdateIn,
+    GuestProfileUpdateIn,
     GuestSessionOut,
 )
 from app.repos import event_repo
@@ -33,6 +36,8 @@ async def get_event_preview(
         # Same anti-bruteforce path as POST /sessions.
         await guest_service._register_short_code_failure(_client_ip(request))
         raise NotFoundError("Код не найден")
+    # Self-healing: если end_at прошёл — status превратится в completed на месте.
+    await guest_service.auto_complete_if_expired(session, event)
     s = event.settings
     return EventPreviewOut(
         title=event.title,
@@ -77,3 +82,30 @@ async def update_my_guest_name(
     session: SessionDep,
 ) -> GuestSessionOut:
     return await guest_service.update_guest_name(session, guest.guest_token, payload.name)
+
+
+@router.patch("/profile", response_model=GuestSessionOut)
+async def update_my_guest_profile(
+    payload: GuestProfileUpdateIn,
+    guest: CurrentGuest,
+    session: SessionDep,
+) -> GuestSessionOut:
+    return await guest_service.update_guest_profile(
+        session,
+        guest.guest_token,
+        name=payload.name,
+        avatar_key=payload.avatar_key,
+        bio=payload.bio,
+    )
+
+
+@router.post("/avatar/presign", response_model=GuestAvatarPresignOut)
+async def presign_avatar(
+    payload: GuestAvatarPresignIn,
+    guest: CurrentGuest,
+    session: SessionDep,
+) -> GuestAvatarPresignOut:
+    data = await guest_service.presign_avatar_upload(
+        session, guest.guest_token, payload.content_type, payload.size_bytes
+    )
+    return GuestAvatarPresignOut(**data)

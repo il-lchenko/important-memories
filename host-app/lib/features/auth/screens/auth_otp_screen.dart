@@ -110,7 +110,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Подтверждение\nаккаунта',
-                      style: GoogleFonts.playfairDisplay(
+                      style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                         fontSize: 36,
                         fontWeight: FontWeight.w500,
                         letterSpacing: -0.72,
@@ -138,7 +138,7 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
                               color: AppColors.ink2,
                             ),
                           ),
-                          const TextSpan(text: ' отправлен 6-значный код. Введите его для входа.'),
+                          const TextSpan(text: ' отправлен 6-значный код. Введите его для входа'),
                         ],
                       ),
                     ),

@@ -22,8 +22,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setBool('onboarding_done', true);
   }
 
+  static const _lastPage = 6;
+
   void _next() {
-    if (_page < 5) {
+    if (_page < _lastPage) {
       _ctrl.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOut,
@@ -58,6 +60,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _OnbPage3(onSkip: _skip),
               _OnbPage4(onSkip: _skip),
               _OnbPage5(onSkip: _skip),
+              _OnbPageFrames(onSkip: _skip),
               _OnbPage6(onSkip: _skip),
             ],
           ),
@@ -86,7 +89,7 @@ class _OnbPager extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${step.toString().padLeft(2, '0')} / 06',
+            '${step.toString().padLeft(2, '0')} / 07',
             style: const TextStyle(
               fontFamily: 'JetBrains Mono',
               fontSize: 11,
@@ -94,7 +97,7 @@ class _OnbPager extends StatelessWidget {
               color: AppColors.ink3,
             ),
           ),
-          if (step < 6)
+          if (step < 7)
             GestureDetector(
               onTap: onSkip,
               child: const Text(
@@ -131,7 +134,7 @@ class _OnbCopy extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.playfairDisplay(
+            style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
               fontSize: 36,
               fontWeight: FontWeight.w500,
               height: 1.05,
@@ -165,7 +168,7 @@ class _OnbFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final isLast = page == 5;
+    final isLast = page == 6;
     return Container(
       padding: EdgeInsets.fromLTRB(28, 24, 28, math.max(36.0, safeBottom + 16)),
       decoration: const BoxDecoration(
@@ -180,13 +183,12 @@ class _OnbFooter extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Left: dots + label
           Row(
-            children: List.generate(6, (i) {
+            children: List.generate(7, (i) {
               final active = i == page;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                margin: i < 5 ? const EdgeInsets.only(right: 5) : EdgeInsets.zero,
+                margin: i < 6 ? const EdgeInsets.only(right: 5) : EdgeInsets.zero,
                 width: active ? 16 : 5,
                 height: 5,
                 decoration: BoxDecoration(
@@ -196,7 +198,6 @@ class _OnbFooter extends StatelessWidget {
               );
             }),
           ),
-          // Right: circle arrow button
           GestureDetector(
             onTap: onNext,
             child: Container(
@@ -232,8 +233,9 @@ class _OnbPage1 extends StatelessWidget {
   final VoidCallback onSkip;
   const _OnbPage1({required this.onSkip});
 
-  static const _photoUrl =
-      'https://images.unsplash.com/photo-1519741497674-611481863552'
+  // Яркое событие с людьми, дневной свет — вместо тёмной ночной сцены.
+  static const _photoUrlBright =
+      'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf'
       '?w=800&auto=format&fit=crop&q=80';
 
   @override
@@ -254,55 +256,30 @@ class _OnbPage1 extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Real photo
                     CachedNetworkImage(
-                      imageUrl: _photoUrl,
+                      imageUrl: _photoUrlBright,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFF4A2A14),
-                      ),
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      placeholder: (_, __) => Container(color: const Color(0xFFE5D8C0)),
                       errorWidget: (_, __, ___) => Container(
                         decoration: const BoxDecoration(
-                          gradient: RadialGradient(
-                            colors: [Color(0xFFF3CDA0), Color(0xFF6A3520)],
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [Color(0xFFF8ECD0), Color(0xFFD4A860)],
                           ),
                         ),
                       ),
                     ),
-                    // Portra warm colour grade
+                    // Простой градиент снизу для читаемости названия/даты. Без плёночных эффектов.
                     Container(
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0x33F0A040), Colors.transparent],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0x66000000)],
+                          stops: [0.55, 1.0],
                         ),
                       ),
                     ),
-                    // Film leak TL (amber)
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(-1.4, -1.4),
-                          radius: 1.2,
-                          colors: [Color(0x55FFB347), Colors.transparent],
-                          stops: [0.0, 0.55],
-                        ),
-                      ),
-                    ),
-                    // Vignette
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          radius: 1.1,
-                          colors: [Colors.transparent, Color(0xA0000000)],
-                          stops: [0.4, 1.0],
-                        ),
-                      ),
-                    ),
-                    // Film grain
-                    const _GrainOverlay(),
-                    // "ИДЁТ" badge top-left
                     Positioned(
                       top: 14, left: 14,
                       child: Container(
@@ -336,12 +313,11 @@ class _OnbPage1 extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Event name stamp bottom-left
                     Positioned(
                       bottom: 14, left: 16,
                       child: Text(
                         'Свадьба Ани и Миши',
-                        style: GoogleFonts.playfairDisplay(
+                        style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
                           fontSize: 22,
                           color: AppColors.paper,
                           shadows: const [
@@ -350,7 +326,6 @@ class _OnbPage1 extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // Date stamp bottom-right
                     const Positioned(
                       bottom: 14, right: 14,
                       child: Text(
@@ -370,7 +345,7 @@ class _OnbPage1 extends StatelessWidget {
           ),
           _OnbCopy(
             title: 'Создайте альбом\nмероприятия',
-            subtitle: 'Выберите дату, стиль и количество кадров. Гости снимают через QR — никаких приложений и аккаунтов.',
+            subtitle: 'Выберите дату, стиль и количество кадров. Гости снимают через QR — никаких приложений и аккаунтов',
           ),
           const SizedBox(height: 140),
         ],
@@ -394,7 +369,6 @@ class _OnbPage2 extends StatelessWidget {
         children: [
           _OnbPager(step: 2, onSkip: onSkip),
           const SizedBox(height: 24),
-          // QR card: paper-2 bg, radius 24, padding 20
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -407,7 +381,6 @@ class _OnbPage2 extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // QR box: paper bg, radius 16, padding 14
                   Container(
                     width: 220, height: 220,
                     padding: const EdgeInsets.all(14),
@@ -419,7 +392,7 @@ class _OnbPage2 extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'im.app/g/qb47d7rt',
+                    'impomento.pro/g/qb47d7rt',
                     style: TextStyle(
                       fontFamily: 'JetBrains Mono',
                       fontSize: 11,
@@ -434,7 +407,7 @@ class _OnbPage2 extends StatelessWidget {
           ),
           _OnbCopy(
             title: 'QR-код — доступ\nко всему',
-            subtitle: 'Гостям не нужно ничего скачивать — только открыть ссылку.',
+            subtitle: 'Гостям не нужно ничего скачивать — только открыть ссылку',
           ),
           const SizedBox(height: 140),
         ],
@@ -578,7 +551,6 @@ class _PolCard extends StatelessWidget {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Real photo or gradient fallback
                         if (photoUrl != null)
                           CachedNetworkImage(
                             imageUrl: photoUrl!,
@@ -615,47 +587,6 @@ class _PolCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                        if (leakTl)
-                          Container(
-                            decoration: const BoxDecoration(
-                              gradient: RadialGradient(
-                                center: Alignment(-1.4, -1.4),
-                                radius: 1.2,
-                                colors: [Color(0x55FFB347), Colors.transparent],
-                                stops: [0.0, 0.55],
-                              ),
-                            ),
-                          ),
-                        if (leakBr)
-                          Container(
-                            decoration: const BoxDecoration(
-                              gradient: RadialGradient(
-                                center: Alignment(1.4, 1.4),
-                                radius: 1.2,
-                                colors: [Color(0x55D54B3D), Colors.transparent],
-                                stops: [0.0, 0.52],
-                              ),
-                            ),
-                          ),
-                        // Warm tone grade
-                        Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0x22F0A040), Colors.transparent],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                          ),
-                        ),
-                        // Vignette
-                        Container(
-                          decoration: const BoxDecoration(
-                            gradient: RadialGradient(
-                              radius: 1.0,
-                              colors: [Colors.transparent, Color(0x66000000)],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -689,6 +620,13 @@ class _OnbPage4 extends StatelessWidget {
   final VoidCallback onSkip;
   const _OnbPage4({required this.onSkip});
 
+  // Verified Unsplash photos reused throughout for journal/retro grids
+  static const _p1 = 'https://images.unsplash.com/photo-1519741497674-611481863552?w=300&auto=format&fit=crop&q=80';
+  static const _p2 = 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=300&auto=format&fit=crop&q=80';
+  static const _p3 = 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=300&auto=format&fit=crop&q=80';
+  static const _p4 = 'https://images.unsplash.com/photo-1511285560929-fabc09f7c0d4?w=300&auto=format&fit=crop&q=80';
+  static const _p5 = 'https://images.unsplash.com/photo-1464207687429-7505649dae38?w=300&auto=format&fit=crop&q=80';
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -713,7 +651,9 @@ class _OnbPage4 extends StatelessWidget {
                       child: _AlbumCard(
                         label: 'ЖУРНАЛ',
                         dark: false,
-                        child: _JournalPreview(),
+                        child: _JournalPreview(
+                          urls: [_p2, _p3, _p4, _p1, _p5, _p2],
+                        ),
                       ),
                     ),
                   ),
@@ -725,7 +665,9 @@ class _OnbPage4 extends StatelessWidget {
                       child: _AlbumCard(
                         label: 'РЕТРО',
                         dark: true,
-                        child: _RetroPreview(),
+                        child: _RetroPreview(
+                          urls: [_p1, _p5, _p3, _p4],
+                        ),
                       ),
                     ),
                   ),
@@ -738,7 +680,11 @@ class _OnbPage4 extends StatelessWidget {
                         label: 'ПОЛАРОИД',
                         dark: false,
                         polaroid: true,
-                        child: _PolaroidPreview(),
+                        child: _PolaroidPreview(
+                          urlAnya: _p2,
+                          urlToast: _p4,
+                          urlMisha: _p5,
+                        ),
                       ),
                     ),
                   ),
@@ -748,7 +694,7 @@ class _OnbPage4 extends StatelessWidget {
           ),
           _OnbCopy(
             title: 'Несколько режимов\nпросмотра',
-            subtitle: 'Ретро-стиль, журнал или легендарный Polaroid — выбирайте под настроение.',
+            subtitle: 'Ретро-стиль, журнал или легендарный Polaroid — выбирайте под настроение',
           ),
           const SizedBox(height: 140),
         ],
@@ -787,7 +733,6 @@ class _AlbumCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             child,
-            if (dark) CustomPaint(painter: _GrainPainter()),
             Positioned(
               bottom: 12, left: 16,
               child: Text(
@@ -796,7 +741,7 @@ class _AlbumCard extends StatelessWidget {
                   fontFamily: 'JetBrains Mono',
                   fontSize: 10,
                   letterSpacing: 1.6,
-                  color: dark ? AppColors.ink3 : AppColors.ink3,
+                  color: dark ? const Color(0x99FFD2AA) : AppColors.ink3,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -809,37 +754,55 @@ class _AlbumCard extends StatelessWidget {
 }
 
 class _JournalPreview extends StatelessWidget {
-  const _JournalPreview();
+  final List<String> urls;
+  const _JournalPreview({required this.urls});
+
+  static const _fallback = [
+    [Color(0xFFF3CDA0), Color(0xFFB07840)],
+    [Color(0xFFD4955F), Color(0xFF6A3A20)],
+    [Color(0xFFE8B888), Color(0xFF8A5030)],
+    [Color(0xFFC97E4A), Color(0xFF4A2010)],
+    [Color(0xFFF0C896), Color(0xFF9A5A28)],
+    [Color(0xFFD4A870), Color(0xFF5A2818)],
+  ];
 
   @override
   Widget build(BuildContext context) {
-    const scenes = [
-      [Color(0xFFF3CDA0), Color(0xFFB07840)],
-      [Color(0xFFD4955F), Color(0xFF6A3A20)],
-      [Color(0xFFE8B888), Color(0xFF8A5030)],
-      [Color(0xFFC97E4A), Color(0xFF4A2010)],
-      [Color(0xFFF0C896), Color(0xFF9A5A28)],
-      [Color(0xFFD4A870), Color(0xFF5A2818)],
-    ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 36),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 36),
       child: GridView.builder(
         physics: const NeverScrollableScrollPhysics(),
         shrinkWrap: false,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 5,
-          mainAxisSpacing: 5,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
           childAspectRatio: 3 / 4,
         ),
         itemCount: 6,
-        itemBuilder: (_, i) => Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            gradient: LinearGradient(
-              colors: scenes[i],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        itemBuilder: (_, i) => ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: CachedNetworkImage(
+            imageUrl: urls[i],
+            fit: BoxFit.cover,
+            fadeInDuration: Duration.zero,
+            placeholder: (_, __) => Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _fallback[i],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+            errorWidget: (_, __, ___) => Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: _fallback[i],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
             ),
           ),
         ),
@@ -849,61 +812,65 @@ class _JournalPreview extends StatelessWidget {
 }
 
 class _RetroPreview extends StatelessWidget {
-  const _RetroPreview();
+  final List<String> urls;
+  const _RetroPreview({required this.urls});
+
+  static const _fallback = [
+    [Color(0xFFC97E4A), Color(0xFF3A1208)],
+    [Color(0xFFF0C896), Color(0xFF8A4428)],
+    [Color(0xFFE8B888), Color(0xFF4A2010)],
+    [Color(0xFF805030), Color(0xFF1A0A04)],
+  ];
 
   @override
   Widget build(BuildContext context) {
-    const scenes = [
-      [Color(0xFFC97E4A), Color(0xFF3A1208)],
-      [Color(0xFFF0C896), Color(0xFF8A4428)],
-      [Color(0xFFE8B888), Color(0xFF4A2010)],
-      [Color(0xFF805030), Color(0xFF1A0A04)],
-    ];
+    Widget cell(int i) => Expanded(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: urls[i],
+              fit: BoxFit.cover,
+              fadeInDuration: Duration.zero,
+              placeholder: (_, __) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _fallback[i],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              errorWidget: (_, __, ___) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: _fallback[i],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 36),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 36),
       child: Column(
         children: [
           Expanded(
             child: Row(
-              children: [
-                for (int i = 0; i < 2; i++) ...[
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        gradient: LinearGradient(
-                          colors: scenes[i],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (i == 0) const SizedBox(width: 5),
-                ],
-              ],
+              children: [cell(0), const SizedBox(width: 4), cell(1)],
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Expanded(
             child: Row(
-              children: [
-                for (int i = 2; i < 4; i++) ...[
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        gradient: LinearGradient(
-                          colors: scenes[i],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (i == 2) const SizedBox(width: 5),
-                ],
-              ],
+              children: [cell(2), const SizedBox(width: 4), cell(3)],
             ),
           ),
         ],
@@ -913,7 +880,14 @@ class _RetroPreview extends StatelessWidget {
 }
 
 class _PolaroidPreview extends StatelessWidget {
-  const _PolaroidPreview();
+  final String urlAnya;
+  final String urlToast;
+  final String urlMisha;
+  const _PolaroidPreview({
+    required this.urlAnya,
+    required this.urlToast,
+    required this.urlMisha,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -924,7 +898,8 @@ class _PolaroidPreview extends StatelessWidget {
           Transform.rotate(
             angle: -7 * math.pi / 180,
             child: _MiniPolCard(
-              colors: const [Color(0xFFF3CDA0), Color(0xFF6A3520)],
+              photoUrl: urlAnya,
+              fallbackColors: const [Color(0xFFF3CDA0), Color(0xFF6A3520)],
               caption: 'Аня',
               offsetX: -20,
             ),
@@ -932,16 +907,18 @@ class _PolaroidPreview extends StatelessWidget {
           Transform.rotate(
             angle: 5 * math.pi / 180,
             child: _MiniPolCard(
-              colors: const [Color(0xFFD4955F), Color(0xFF3A1810)],
-              caption: 'тост',
+              photoUrl: urlMisha,
+              fallbackColors: const [Color(0xFFD4955F), Color(0xFF3A1810)],
+              caption: 'Миша',
               offsetX: 20,
             ),
           ),
           Transform.rotate(
             angle: -1 * math.pi / 180,
             child: _MiniPolCard(
-              colors: const [Color(0xFFE8B888), Color(0xFF5A2810)],
-              caption: 'Миша',
+              photoUrl: urlToast,
+              fallbackColors: const [Color(0xFFE8B888), Color(0xFF5A2810)],
+              caption: 'тост',
             ),
           ),
         ],
@@ -951,10 +928,16 @@ class _PolaroidPreview extends StatelessWidget {
 }
 
 class _MiniPolCard extends StatelessWidget {
-  final List<Color> colors;
+  final String? photoUrl;
+  final List<Color> fallbackColors;
   final String caption;
   final double offsetX;
-  const _MiniPolCard({required this.colors, required this.caption, this.offsetX = 0});
+  const _MiniPolCard({
+    required this.fallbackColors,
+    required this.caption,
+    this.photoUrl,
+    this.offsetX = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -975,14 +958,41 @@ class _MiniPolCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: colors,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(1),
+                child: photoUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl!,
+                        fit: BoxFit.cover,
+                        fadeInDuration: Duration.zero,
+                        placeholder: (_, __) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: fallbackColors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: fallbackColors,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: fallbackColors,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                      ),
               ),
             ),
             SizedBox(
@@ -1011,13 +1021,10 @@ class _OnbPage5 extends StatelessWidget {
       'https://images.unsplash.com/photo-1464207687429-7505649dae38'
       '?w=800&auto=format&fit=crop&q=80';
 
-  static const _films = [
-    {'label': 'Без фильтра',    'top': Color(0xFFF8F5F0), 'bot': Color(0xFF8A7D6A)},
-    {'label': 'Kodak Portra',  'top': Color(0xFFF0D4A0), 'bot': Color(0xFF5A2A0A)},
-    {'label': 'Fuji 400H',     'top': Color(0xFFC8E0C0), 'bot': Color(0xFF1A3020)},
-    {'label': 'Cinestill 800', 'top': Color(0xFF301020), 'bot': Color(0xFFF04060)},
-    {'label': 'Ilford HP5+',   'top': Color(0xFFB0A8A0), 'bot': Color(0xFF101010)},
-  ];
+  // Same base photo for all swatches — color matrix shows film difference
+  static const _swatchBase =
+      'https://images.unsplash.com/photo-1519741497674-611481863552'
+      '?w=300&auto=format&fit=crop&q=80';
 
   @override
   Widget build(BuildContext context) {
@@ -1041,41 +1048,23 @@ class _OnbPage5 extends StatelessWidget {
                     CachedNetworkImage(
                       imageUrl: _heroUrl,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(color: const Color(0xFF2A1408)),
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      placeholder: (_, __) => Container(color: const Color(0xFFE5D8C0)),
                       errorWidget: (_, __, ___) => Container(
                         decoration: const BoxDecoration(
-                          gradient: RadialGradient(
-                            colors: [Color(0xFFF3CDA0), Color(0xFF1F1208)],
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                            colors: [Color(0xFFF8ECD0), Color(0xFFC98A5A)],
                           ),
                         ),
                       ),
                     ),
-                    // Portra warm grade
                     Container(
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [Color(0x33F0A840), Colors.transparent],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                    ),
-                    const _GrainOverlay(),
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(-1.4, -1.4), radius: 1.2,
-                          colors: [Color(0x55FFB347), Colors.transparent],
-                          stops: [0.0, 0.55],
-                        ),
-                      ),
-                    ),
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          radius: 1.1,
-                          colors: [Colors.transparent, Color(0x8C000000)],
-                          stops: [0.4, 1.0],
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0x55000000)],
+                          stops: [0.55, 1.0],
                         ),
                       ),
                     ),
@@ -1097,30 +1086,49 @@ class _OnbPage5 extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          // Row of 4 other film swatches
+          // Row of 4 film swatches with real photos + colour matrix
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                for (int i = 0; i < _films.length; i++) ...[
-                  if (i != 1) ...[
-                    Expanded(
-                      child: _FilmSwatch(
-                        label: (_films[i]['label'] as String).split(' ').first,
-                        top: _films[i]['top'] as Color,
-                        bot: _films[i]['bot'] as Color,
-                        dark: i == 3,
-                      ),
-                    ),
-                    if (i < _films.length - 1 && !(i == 1)) const SizedBox(width: 8),
-                  ],
-                ],
+                Expanded(child: _FilmSwatch(
+                  label: 'Оригинал',
+                  photoUrl: _swatchBase,
+                  fallbackTop: const Color(0xFFF8F5F0),
+                  fallbackBot: const Color(0xFF8A7D6A),
+                  matrix: _FilmSwatch.identity,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _FilmSwatch(
+                  label: 'Fuji',
+                  photoUrl: _swatchBase,
+                  fallbackTop: const Color(0xFFC8E0C0),
+                  fallbackBot: const Color(0xFF1A3020),
+                  matrix: _FilmSwatch.fuji400h,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _FilmSwatch(
+                  label: 'Cinestill',
+                  photoUrl: _swatchBase,
+                  fallbackTop: const Color(0xFF301020),
+                  fallbackBot: const Color(0xFFF04060),
+                  matrix: _FilmSwatch.cinestill800,
+                  dark: true,
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _FilmSwatch(
+                  label: 'Ilford',
+                  photoUrl: _swatchBase,
+                  fallbackTop: const Color(0xFFB0A8A0),
+                  fallbackBot: const Color(0xFF101010),
+                  matrix: _FilmSwatch.ilfordHp5,
+                )),
               ],
             ),
           ),
           _OnbCopy(
             title: 'Разные виды\nплёнок',
-            subtitle: 'Portra, Fuji, Cinestill или ч/б — один фильтр для всех снимков.',
+            subtitle: 'Portra, Fuji, Cinestill или ч/б — один фильтр для всех снимков',
           ),
           const SizedBox(height: 140),
         ],
@@ -1131,28 +1139,87 @@ class _OnbPage5 extends StatelessWidget {
 
 class _FilmSwatch extends StatelessWidget {
   final String label;
-  final Color top;
-  final Color bot;
+  final String? photoUrl;
+  final Color fallbackTop;
+  final Color fallbackBot;
+  final List<double> matrix;
   final bool dark;
-  const _FilmSwatch({required this.label, required this.top, required this.bot, this.dark = false});
+
+  const _FilmSwatch({
+    required this.label,
+    required this.fallbackTop,
+    required this.fallbackBot,
+    required this.matrix,
+    this.photoUrl,
+    this.dark = false,
+  });
+
+  // Identity — no change
+  static const identity = <double>[
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  // Fuji 400H — cool, desaturated, slight green-cyan push
+  static const fuji400h = <double>[
+    0.82, 0.02, 0.02, 0, 3,
+    0.04, 0.88, 0.06, 0, 6,
+    0.04, 0.04, 1.10, 0, 12,
+    0, 0, 0, 1, 0,
+  ];
+
+  // Cinestill 800T — warm orange push, deep shadows, red halation
+  static const cinestill800 = <double>[
+    1.25, 0.08, 0.0, 0, 10,
+    0.0, 0.82, 0.0, 0, 0,
+    0.0, 0.0, 0.68, 0, -15,
+    0, 0, 0, 1, 0,
+  ];
+
+  // Ilford HP5+ — classic luminance grayscale
+  static const ilfordHp5 = <double>[
+    0.299, 0.587, 0.114, 0, 0,
+    0.299, 0.587, 0.114, 0, 0,
+    0.299, 0.587, 0.114, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: Container(
+      child: SizedBox(
         height: 80,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [top, bot],
-          ),
-        ),
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Base: gradient fallback always shown under photo
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [fallbackTop, fallbackBot],
+                ),
+              ),
+            ),
+            // Real photo with colour matrix filter
+            if (photoUrl != null)
+              ColorFiltered(
+                colorFilter: ColorFilter.matrix(matrix),
+                child: CachedNetworkImage(
+                  imageUrl: photoUrl!,
+                  fit: BoxFit.cover,
+                  fadeInDuration: Duration.zero,
+                  errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                  placeholder: (_, __) => const SizedBox.shrink(),
+                ),
+              ),
+            // Grain texture
             CustomPaint(painter: _GrainPainter()),
+            // Film label
             Positioned(
               bottom: 8, left: 0, right: 0,
               child: Text(
@@ -1162,7 +1229,11 @@ class _FilmSwatch extends StatelessWidget {
                   fontFamily: 'JetBrains Mono',
                   fontSize: 8,
                   letterSpacing: 0.8,
-                  color: dark ? const Color(0xCCFFD2AA) : AppColors.ink3,
+                  fontWeight: FontWeight.w600,
+                  color: dark ? const Color(0xCCFFD2AA) : const Color(0xCCFFFFFF),
+                  shadows: const [
+                    Shadow(color: Color(0x80000000), blurRadius: 4),
+                  ],
                 ),
               ),
             ),
@@ -1173,11 +1244,16 @@ class _FilmSwatch extends StatelessWidget {
   }
 }
 
-// ─── Page 6: Save memories (last slide) ──────────────────────────────────────
+// ─── Page 6: Все альбомы в разделе «Кадры» ───────────────────────────────────
 
-class _OnbPage6 extends StatelessWidget {
+class _OnbPageFrames extends StatelessWidget {
   final VoidCallback onSkip;
-  const _OnbPage6({required this.onSkip});
+  const _OnbPageFrames({required this.onSkip});
+
+  static const _p1 = 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=300&auto=format&fit=crop&q=80';
+  static const _p2 = 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=300&auto=format&fit=crop&q=80';
+  static const _p3 = 'https://images.unsplash.com/photo-1511285560929-fabc09f7c0d4?w=300&auto=format&fit=crop&q=80';
+  static const _p4 = 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=300&auto=format&fit=crop&q=80';
 
   @override
   Widget build(BuildContext context) {
@@ -1191,93 +1267,235 @@ class _OnbPage6 extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
+              height: 340,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.paper2,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top bar mock
+                      Row(
+                        children: [
+                          const Text(
+                            'КАДРЫ',
+                            style: TextStyle(
+                              fontFamily: 'JetBrains Mono', fontSize: 11,
+                              letterSpacing: 1.7, color: AppColors.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.amber.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              '4 альбома',
+                              style: TextStyle(
+                                fontFamily: 'JetBrains Mono', fontSize: 10,
+                                letterSpacing: 0.6, color: AppColors.amber,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Search bar mock
+                      Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.paper,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.search, size: 16, color: AppColors.ink3),
+                            SizedBox(width: 8),
+                            Text(
+                              'Найти альбом',
+                              style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink4),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Album mini-cards
+                      _AlbumFrameRow(title: 'Свадьба Ани и Миши', meta: '2 дня назад · 82 кадра', photoUrl: _p1, status: 'ПРОЯВЛЕНО', statusColor: const Color(0xFF6A9269)),
+                      const SizedBox(height: 8),
+                      _AlbumFrameRow(title: 'Юбилей 30 лет', meta: 'сейчас · 24/45', photoUrl: _p2, status: 'ИДЁТ', statusColor: AppColors.shutter),
+                      const SizedBox(height: 8),
+                      _AlbumFrameRow(title: 'Корпоратив весной', meta: '15 марта · 156 кадров', photoUrl: _p3, status: 'ПРОЯВЛЕНО', statusColor: const Color(0xFF6A9269)),
+                      const SizedBox(height: 8),
+                      _AlbumFrameRow(title: 'День рождения Кати', meta: '18 июля · 0 гостей', photoUrl: _p4, status: 'ЧЕРНОВИК', statusColor: AppColors.ink3),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _OnbCopy(
+            title: 'Раздел «Кадры»\nвсегда под рукой',
+            subtitle: 'Все ваши альбомы — в одном месте. Поиск, фильтры, продление хранения',
+          ),
+          const SizedBox(height: 140),
+        ],
+      ),
+    );
+  }
+}
+
+class _AlbumFrameRow extends StatelessWidget {
+  final String title;
+  final String meta;
+  final String photoUrl;
+  final String status;
+  final Color statusColor;
+  const _AlbumFrameRow({
+    required this.title, required this.meta, required this.photoUrl,
+    required this.status, required this.statusColor,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.paper,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              width: 44, height: 44,
+              child: CachedNetworkImage(
+                imageUrl: photoUrl,
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 150),
+                placeholder: (_, __) => Container(color: const Color(0xFFE5D8C0)),
+                errorWidget: (_, __, ___) => Container(color: const Color(0xFFD4A860)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(title,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(meta,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(status,
+              style: TextStyle(
+                fontFamily: 'JetBrains Mono', fontSize: 9,
+                letterSpacing: 1.0, color: statusColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Page 7: Save memories (last slide) ──────────────────────────────────────
+
+class _OnbPage6 extends StatelessWidget {
+  final VoidCallback onSkip;
+  const _OnbPage6({required this.onSkip});
+
+  static const _bgUrl =
+      'https://images.unsplash.com/photo-1527529482837-4698179dc6ce'
+      '?w=800&auto=format&fit=crop&q=80';
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _OnbPager(step: 7, onSkip: onSkip),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
               height: 320,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(0, 0.1),
-                          radius: 1.1,
-                          colors: [
-                            Color(0xFFF5E4C4),
-                            Color(0xFFD4A860),
-                            Color(0xFF8A5828),
-                            Color(0xFF3A2010),
-                          ],
-                          stops: [0.0, 0.4, 0.75, 1.0],
+                    // Real photo background
+                    CachedNetworkImage(
+                      imageUrl: _bgUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        decoration: const BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment(0, 0.1),
+                            radius: 1.1,
+                            colors: [
+                              Color(0xFFF5E4C4),
+                              Color(0xFFD4A860),
+                              Color(0xFF8A5828),
+                              Color(0xFF3A2010),
+                            ],
+                            stops: [0.0, 0.4, 0.75, 1.0],
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        decoration: const BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment(0, 0.1),
+                            radius: 1.1,
+                            colors: [
+                              Color(0xFFF5E4C4),
+                              Color(0xFFD4A860),
+                              Color(0xFF8A5828),
+                              Color(0xFF3A2010),
+                            ],
+                            stops: [0.0, 0.4, 0.75, 1.0],
+                          ),
                         ),
                       ),
                     ),
-                    const _GrainOverlay(),
+                    // Простой градиент снизу — только для читаемости copy.
                     Container(
                       decoration: const BoxDecoration(
-                        gradient: RadialGradient(
-                          radius: 1.0,
-                          colors: [Colors.transparent, Color(0x661A1008)],
-                          stops: [0.5, 1.0],
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0x55000000)],
+                          stops: [0.6, 1.0],
                         ),
-                      ),
-                    ),
-                    Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 72, height: 72,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.ink,
-                            ),
-                            child: Center(
-                              child: Container(
-                                width: 14, height: 14,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.amber,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.amber.withValues(alpha: 0.6),
-                                      blurRadius: 16,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Important\nMemories',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: -0.48,
-                              height: 1.1,
-                              color: AppColors.paper,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x80000000),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'DISPOSABLE · 2026',
-                            style: TextStyle(
-                              fontFamily: 'JetBrains Mono',
-                              fontSize: 9,
-                              letterSpacing: 2.0,
-                              color: Color(0xCCFFD2AA),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],
@@ -1287,7 +1505,7 @@ class _OnbPage6 extends StatelessWidget {
           ),
           _OnbCopy(
             title: 'Важные\nвоспоминания',
-            subtitle: 'Ваши гости снимают, вы получаете альбом. Просто, как одноразовая камера.',
+            subtitle: 'Ваши гости снимают, вы получаете альбом. Просто, как одноразовая камера',
           ),
           const SizedBox(height: 140),
         ],
@@ -1297,15 +1515,6 @@ class _OnbPage6 extends StatelessWidget {
 }
 
 // ─── Film grain overlay ───────────────────────────────────────────────────────
-
-class _GrainOverlay extends StatelessWidget {
-  const _GrainOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _GrainPainter());
-  }
-}
 
 class _GrainPainter extends CustomPainter {
   @override
@@ -1337,10 +1546,8 @@ class _QrPainter extends CustomPainter {
     final inkP = Paint()..color = AppColors.ink;
     final paperP = Paint()..color = AppColors.paper;
 
-    // Fill background ink
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), inkP);
 
-    // Noise pattern in center area (rough QR data modules)
     final cell = w / 21;
     const dataZone = [
       [0,1,0,1,1,0,1,0,0,1,0,1,0,0,1,0,1,1,0,1,0],
@@ -1370,12 +1577,10 @@ class _QrPainter extends CustomPainter {
       }
     }
 
-    // 3 finder patterns
     _finder(canvas, 0, 0, cell, inkP, paperP);
     _finder(canvas, (21 - 7) * cell, 0, cell, inkP, paperP);
     _finder(canvas, 0, (21 - 7) * cell, cell, inkP, paperP);
 
-    // Center logo
     final cx = w / 2;
     final cy = h / 2;
     canvas.drawCircle(Offset(cx, cy), cell * 2.0, paperP);
