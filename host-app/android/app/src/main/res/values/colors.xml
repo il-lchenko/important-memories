@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colors — используются в launch_background и styles.xml -->
+    <color name="im_darkroom">#16100C</color>
+    <color name="im_amber">#FFB347</color>
+</resources>

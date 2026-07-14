@@ -197,7 +197,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
       await Dio().download(url, filePath);
       await Share.shareXFiles(
         [XFile(filePath, mimeType: 'image/jpeg')],
-        text: 'Кадр из Important Memories',
+        text: 'Кадр из ImpoMento',
       );
     } catch (_) {
       if (mounted) {

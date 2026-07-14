@@ -99,20 +99,37 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // back button row
+              // top bar: back + info (пересмотреть онбординг)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: GestureDetector(
-                  onTap: context.canPop() ? () => context.pop() : null,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.paper2,
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: context.canPop() ? () => context.pop() : null,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.paper2,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.chevron_left, color: AppColors.ink, size: 22),
+                      ),
                     ),
-                    child: const Icon(Icons.chevron_left, color: AppColors.ink, size: 22),
-                  ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => context.go('/onboarding'),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.paper2,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.help_outline, color: AppColors.ink3, size: 20),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -123,19 +140,17 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // decorative icon
-                      Container(
-                        width: 60, height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.amber.withValues(alpha: 0.10),
-                        ),
-                        child: const Icon(Icons.camera_roll_outlined, color: AppColors.amber, size: 28),
+                      // decorative logo
+                      Image.asset(
+                        'assets/brand/logo-F-light.png',
+                        width: 96, height: 96,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
                       ),
                       const SizedBox(height: 20),
                       // title
                       Text(
-                        'Авторизация\nв IM',
+                        'Вход\nв ImpoMento',
                         style: Theme.of(context).textTheme.displayMedium,
                       ),
                       const SizedBox(height: 8),

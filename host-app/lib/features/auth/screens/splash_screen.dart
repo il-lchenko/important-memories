@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -18,7 +20,9 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProviderStateMixin {
   late AnimationController _pulse;
-  late AnimationController _dots;
+  late AnimationController _entry;
+  bool _isFirstLaunch = true;
+  bool _routing = false;
 
   static const _storage = FlutterSecureStorage();
 
@@ -27,37 +31,51 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     super.initState();
     _pulse = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2400),
+      duration: const Duration(milliseconds: 2200),
     )..repeat();
-    _dots = AnimationController(
+    _entry = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
+      duration: const Duration(milliseconds: 900),
+    )..forward();
 
-    Future.delayed(const Duration(seconds: 3), _checkAuth);
+    // Определяем: первый запуск (show button) или последующий (auto-nav через 1.5с).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkFirstLaunch());
   }
 
-  Future<void> _checkAuth() async {
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+    final hasRole = prefs.getString('selected_role') != null;
     if (!mounted) return;
+    final isFirst = !onboardingDone && !hasRole;
+    setState(() => _isFirstLaunch = isFirst);
+    if (!isFirst) {
+      // Быстрый splash для возвратов: 1.5 сек — увидел лого и полетели дальше.
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (mounted && !_routing) _continue();
+      });
+    }
+  }
+
+  Future<void> _continue() async {
+    if (_routing || !mounted) return;
+    setState(() => _routing = true);
 
     final token = await _storage.read(key: 'access_token');
     if (!mounted) return;
 
     if (token != null) {
       try {
-        // Validate token against backend (interceptor auto-refreshes if needed)
         final dio = ref.read(dioProvider);
         await dio.get('users/me');
         if (!mounted) return;
         context.go('/dashboard');
+        return;
       } catch (_) {
-        // Token invalid or expired and refresh failed — clear and re-login
         await _storage.deleteAll();
         ref.read(authProvider.notifier).logout();
         if (!mounted) return;
-        await _routeUnauthenticated();
       }
-      return;
     }
 
     await _routeUnauthenticated();
@@ -83,15 +101,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     } else if (selectedRole == 'host') {
       context.go(onboardingDone ? '/auth/email' : '/onboarding');
     } else {
-      // No role chosen yet (first launch or upgrade from pre-guest APK) → role selection
-      context.go('/role');
+      // Первая сессия: онбординг сразу (без промежуточного role-selection —
+      // выбор роли есть на онбординге финалом).
+      context.go(onboardingDone ? '/role' : '/onboarding');
     }
   }
 
   @override
   void dispose() {
     _pulse.dispose();
-    _dots.dispose();
+    _entry.dispose();
     super.dispose();
   }
 
@@ -99,101 +118,142 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.paper,
-      body: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedBuilder(
-                  animation: _pulse,
-                  builder: (_, __) {
-                    final t = _pulse.value;
-                    final spread = t < 0.5 ? t * 36.0 : (1.0 - t) * 36.0;
-                    final alpha = 0.35 * (1.0 - t);
-                    return Container(
-                      width: 96, height: 96,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const Spacer(flex: 3),
+            // ── Логотип: scale-in + бесконечный амбер-пульс ─────────────────
+            AnimatedBuilder(
+              animation: Listenable.merge([_pulse, _entry]),
+              builder: (_, __) {
+                final entry = Curves.easeOutBack.transform(_entry.value.clamp(0.0, 1.0));
+                final scale = 0.6 + 0.4 * entry;
+                final opacity = _entry.value.clamp(0.0, 1.0);
+                final t = _pulse.value;
+                // Двойной пульс за цикл: sin(2π·t) → мягкий вдох-выдох.
+                final pulse = (0.5 - 0.5 * _cosTwoPi(t));
+                final spread = 6.0 + pulse * 34.0;
+                final alpha = 0.15 + pulse * 0.40;
+                return Opacity(
+                  opacity: opacity,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: Container(
+                      width: 168,
+                      height: 168,
                       decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.ink,
+                        borderRadius: BorderRadius.circular(38),
                         boxShadow: [
                           BoxShadow(
                             color: AppColors.amber.withValues(alpha: alpha),
-                            blurRadius: 0,
+                            blurRadius: 40,
                             spreadRadius: spread,
                           ),
                         ],
                       ),
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 18, height: 18,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.amber,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.amber.withValues(alpha: 0.6),
-                              blurRadius: 24,
+                      child: Image.asset(
+                        'assets/brand/logo-F-light.png',
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 28),
+            // ── Название: fade-in + сдвиг снизу ─────────────────────────────
+            AnimatedBuilder(
+              animation: _entry,
+              builder: (_, __) {
+                final t = _entry.value.clamp(0.0, 1.0);
+                return Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - t) * 12),
+                    child: Column(
+                      children: [
+                        Text(
+                          'ImpoMento',
+                          style: GoogleFonts.playfairDisplay(
+                            fontFeatures: [const FontFeature.liningFigures()],
+                            fontSize: 44,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.5,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'ОДНОРАЗОВАЯ КАМЕРА · ВАШИ МОМЕНТЫ',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 10,
+                            letterSpacing: 2.2,
+                            color: AppColors.ink4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Spacer(flex: 4),
+            // ── Кнопка «Продолжить» (только первый запуск) ──────────────────
+            if (_isFirstLaunch)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 0, 32, 40),
+                child: AnimatedBuilder(
+                  animation: _entry,
+                  builder: (_, __) {
+                    final t = ((_entry.value - 0.4) / 0.6).clamp(0.0, 1.0);
+                    return Opacity(
+                      opacity: t,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - t) * 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _continue,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.amber,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
+                              ),
                             ),
-                          ],
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  'Начать',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward, size: 20),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  'Important\nMemories',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                    fontSize: 32,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.64,
-                    height: 1.05,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'DISPOSABLE · 2026',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    letterSpacing: 2.64,
-                    color: AppColors.ink3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 64, left: 0, right: 0,
-            child: AnimatedBuilder(
-              animation: _dots,
-              builder: (_, __) => Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(3, (i) {
-                  final phase = (_dots.value - i * 0.2 + 1.0) % 1.0;
-                  final opacity = (phase < 0.4
-                      ? phase / 0.4
-                      : phase < 0.6
-                          ? 1.0
-                          : (1.0 - phase) / 0.4)
-                      .clamp(0.0, 1.0);
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: 6, height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.ink4.withValues(alpha: 0.25 + opacity * 0.75),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ],
+              )
+            else
+              const SizedBox(height: 56 + 40),
+          ],
+        ),
       ),
     );
   }
+
+  double _cosTwoPi(double t) => math.cos(t * 2 * math.pi);
 }

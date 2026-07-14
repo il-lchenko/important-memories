@@ -71,7 +71,7 @@ class _AppState extends ConsumerState<App> {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'Important Memories',
+      title: 'ImpoMento',
       theme: buildAppTheme(),
       routerConfig: router,
       debugShowCheckedModeBanner: false,

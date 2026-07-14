@@ -289,22 +289,29 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     // Дать камере GPU/HAL чуть отдохнуть после dispose.
     await Future.delayed(const Duration(milliseconds: 80));
 
+    // max = полный сенсор (12+ Мп); в isolate ужимаем к 2560 по длинной стороне
+    // → ~5 Мп, JPEG q=92 ~1-2 MB. Родное качество без выжигания трафика/памяти/S3.
+    // Fallback до veryHigh (1080p) для слабых устройств, где max не инициализируется.
+    const presets = [ResolutionPreset.max, ResolutionPreset.veryHigh, ResolutionPreset.high];
     CameraController? ctrl;
-    for (int attempt = 0; attempt < 3; attempt++) {
-      try {
-        ctrl = CameraController(
-          _cameras[idx],
-          ResolutionPreset.high,
-          enableAudio: false,
-          imageFormatGroup: ImageFormatGroup.jpeg,
-        );
-        await ctrl.initialize();
-        break;
-      } catch (_) {
-        await ctrl?.dispose();
-        ctrl = null;
-        if (attempt == 2 || !mounted) return;
-        await Future.delayed(const Duration(milliseconds: 400));
+    outer:
+    for (final preset in presets) {
+      for (int attempt = 0; attempt < 2; attempt++) {
+        try {
+          ctrl = CameraController(
+            _cameras[idx],
+            preset,
+            enableAudio: false,
+            imageFormatGroup: ImageFormatGroup.jpeg,
+          );
+          await ctrl.initialize();
+          break outer;
+        } catch (_) {
+          await ctrl?.dispose();
+          ctrl = null;
+          if (!mounted) return;
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
       }
     }
     if (ctrl == null || !mounted) {
@@ -950,10 +957,14 @@ class _CameraLayer extends StatelessWidget {
   Widget _zoomChips() {
     if (!_zoomSupported) return const SizedBox.shrink();
     // Формируем список доступных ступеней: 1x, 2x, 5x (если >=)
-    final steps = <double>[minZoom];
-    if (maxZoom >= 2.0) steps.add(2.0);
-    if (maxZoom >= 5.0) steps.add(5.0);
-    if (steps.length == 1) return const SizedBox.shrink();
+    final base = <double>[minZoom];
+    if (maxZoom >= 2.0) base.add(2.0);
+    if (maxZoom >= 5.0) base.add(5.0);
+    if (base.length == 1) return const SizedBox.shrink();
+    // В landscape НЕ вращаем сами кнопки, а переворачиваем порядок значений
+    // внутри ряда — тогда «5×» физически остаётся ближе к тому концу,
+    // где он был в портрете, и ничего не налазит на шаттер.
+    final steps = isLandscape ? base.reversed.toList() : base;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -971,13 +982,14 @@ class _CameraLayer extends StatelessWidget {
 
   Widget _controls(BuildContext context, {required bool overlay}) {
     final botPad = MediaQuery.of(context).padding.bottom;
+    // overlay-режим: жмёмся к низу, минимум воздуха; ratio34: Spacer'ы для равномерности.
     final content = Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, botPad + (overlay ? 8 : 0)),
+      padding: EdgeInsets.fromLTRB(24, 0, 24, botPad + (overlay ? 4 : 0)),
       child: Column(
         mainAxisSize: overlay ? MainAxisSize.min : MainAxisSize.max,
         children: [
           if (!overlay) const Spacer(flex: 3),
-          if (overlay) const SizedBox(height: 10),
+          if (overlay) const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1002,10 +1014,11 @@ class _CameraLayer extends StatelessWidget {
               ),
             ],
           ),
-          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 14),
-          // Zoom chips — только если зум поддерживается.
-          _RotatingIcon(turns: iconTurns, child: _zoomChips()),
-          if (!overlay) const Spacer(flex: 1) else const SizedBox(height: 14),
+          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 8),
+          // Zoom chips — БЕЗ поворота: в landscape перевёрнут порядок значений
+          // внутри _zoomChips(), кнопки физически не крутятся, шаттер чистый.
+          _zoomChips(),
+          if (!overlay) const Spacer(flex: 1) else const SizedBox(height: 8),
           GestureDetector(
             onTap: isCapturing ? null : onShutter,
             child: AnimatedContainer(
@@ -1040,7 +1053,7 @@ class _CameraLayer extends StatelessWidget {
               ),
             ),
           ),
-          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 16),
+          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1058,7 +1071,7 @@ class _CameraLayer extends StatelessWidget {
               ),
             ],
           ),
-          if (!overlay) const Spacer(flex: 3) else const SizedBox(height: 12),
+          if (!overlay) const Spacer(flex: 3) else const SizedBox(height: 4),
         ],
       ),
     );

@@ -143,7 +143,7 @@ class ProfileScreen extends ConsumerWidget {
 
             const _SectionTitle('О проекте'),
             _FaqRow(
-              question: 'Что такое Important Memories?',
+              question: 'Что такое ImpoMento?',
               answer:
                   'Цифровая одноразовая камера для свадеб, ДР, корпоративов и любых событий. '
                   'Гости сканируют QR — снимают моменты — вы получаете один общий альбом с плёночной эстетикой. '

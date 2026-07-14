@@ -1,10 +1,49 @@
 import 'dart:math' as math;
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/tokens.dart';
+
+// Локальный shim вместо CachedNetworkImage: принимает тот же imageUrl (для читаемости),
+// но грузит соответствующий файл из assets/onboarding/. Все Unsplash-фото прибиты
+// к сборке, чтобы онбординг работал офлайн и мгновенно.
+class CachedNetworkImage extends StatelessWidget {
+  final String imageUrl;
+  final BoxFit fit;
+  final Widget Function(BuildContext, String)? placeholder;
+  final Widget Function(BuildContext, String, Object)? errorWidget;
+  final Duration? fadeInDuration;
+  const CachedNetworkImage({
+    super.key,
+    required this.imageUrl,
+    this.fit = BoxFit.cover,
+    this.placeholder,
+    this.errorWidget,
+    this.fadeInDuration,
+  });
+
+  static String _resolveAsset(String url) {
+    final m = RegExp(r'photo-([a-z0-9\-]+)').firstMatch(url);
+    var id = m?.group(1) ?? '';
+    // Оригинал 1511285560929-fabc09f7c0d4 удалён с Unsplash → замена.
+    if (id == '1511285560929-fabc09f7c0d4') id = '1533174072545-7a4b6ad7a6c3';
+    return 'assets/onboarding/photo-$id.jpg';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final path = _resolveAsset(imageUrl);
+    return Image.asset(
+      path,
+      fit: fit,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: errorWidget != null
+          ? (ctx, err, _) => errorWidget!(ctx, imageUrl, err)
+          : null,
+    );
+  }
+}
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -1425,15 +1464,39 @@ class _AlbumFrameRow extends StatelessWidget {
   }
 }
 
-// ─── Page 7: Save memories (last slide) ──────────────────────────────────────
+// ─── Page 7: F-логотип с анимацией + приглашение начать ──────────────────────
 
-class _OnbPage6 extends StatelessWidget {
+class _OnbPage6 extends StatefulWidget {
   final VoidCallback onSkip;
   const _OnbPage6({required this.onSkip});
 
-  static const _bgUrl =
-      'https://images.unsplash.com/photo-1527529482837-4698179dc6ce'
-      '?w=800&auto=format&fit=crop&q=80';
+  @override
+  State<_OnbPage6> createState() => _OnbPage6State();
+}
+
+class _OnbPage6State extends State<_OnbPage6> with TickerProviderStateMixin {
+  late final AnimationController _pulse;
+  late final AnimationController _appear;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
+    _appear = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    _appear.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1442,70 +1505,70 @@ class _OnbPage6 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OnbPager(step: 7, onSkip: onSkip),
-          const SizedBox(height: 16),
+          _OnbPager(step: 7, onSkip: widget.onSkip),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
-              height: 320,
+              height: 340,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Real photo background
-                    CachedNetworkImage(
-                      imageUrl: _bgUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        decoration: const BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment(0, 0.1),
-                            radius: 1.1,
-                            colors: [
-                              Color(0xFFF5E4C4),
-                              Color(0xFFD4A860),
-                              Color(0xFF8A5828),
-                              Color(0xFF3A2010),
-                            ],
-                            stops: [0.0, 0.4, 0.75, 1.0],
-                          ),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        decoration: const BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment(0, 0.1),
-                            radius: 1.1,
-                            colors: [
-                              Color(0xFFF5E4C4),
-                              Color(0xFFD4A860),
-                              Color(0xFF8A5828),
-                              Color(0xFF3A2010),
-                            ],
-                            stops: [0.0, 0.4, 0.75, 1.0],
-                          ),
-                        ),
-                      ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFFDFAF3), Color(0xFFF3ECDC)],
                     ),
-                    // Простой градиент снизу — только для читаемости copy.
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Color(0x55000000)],
-                          stops: [0.6, 1.0],
-                        ),
-                      ),
+                  ),
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([_pulse, _appear]),
+                      builder: (_, __) {
+                        final entry = Curves.easeOutBack
+                            .transform(_appear.value.clamp(0.0, 1.0));
+                        final scale = 0.6 + 0.4 * entry;
+                        final opacity = _appear.value.clamp(0.0, 1.0);
+                        final t = _pulse.value;
+                        final pulse = 0.5 - 0.5 * math.cos(t * 2 * math.pi);
+                        final spread = 6.0 + pulse * 30.0;
+                        final alpha = 0.15 + pulse * 0.40;
+                        return Opacity(
+                          opacity: opacity,
+                          child: Transform.scale(
+                            scale: scale,
+                            child: Container(
+                              width: 176,
+                              height: 176,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(40),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.amber
+                                        .withValues(alpha: alpha),
+                                    blurRadius: 40,
+                                    spreadRadius: spread,
+                                  ),
+                                ],
+                              ),
+                              child: Image.asset(
+                                'assets/brand/logo-F-light.png',
+                                fit: BoxFit.contain,
+                                filterQuality: FilterQuality.high,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
           _OnbCopy(
-            title: 'Важные\nвоспоминания',
-            subtitle: 'Ваши гости снимают, вы получаете альбом. Просто, как одноразовая камера',
+            title: 'Готовы\nначать?',
+            subtitle: 'Одна камера · один альбом · много воспоминаний. Пора запечатлеть свой момент',
           ),
           const SizedBox(height: 140),
         ],

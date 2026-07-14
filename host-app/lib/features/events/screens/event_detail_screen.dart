@@ -855,7 +855,7 @@ class _DownloadRowState extends ConsumerState<_DownloadRow> {
         final zipPath = '${tempDir.path}/im_album.zip';
         await dio_pkg.Dio().download(downloadUrl, zipPath);
         if (!mounted) return;
-        await Share.shareXFiles([XFile(zipPath, mimeType: 'application/zip')], subject: 'Important Memories — архив фото');
+        await Share.shareXFiles([XFile(zipPath, mimeType: 'application/zip')], subject: 'ImpoMento — архив фото');
       } else {
         final msg = finalStatus == 'empty'
             ? 'В альбоме ещё нет фото'

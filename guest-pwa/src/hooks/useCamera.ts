@@ -31,10 +31,19 @@ export function useCamera() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
-    // Request max resolution the browser can provide.
-    // ideal is a hint; browser picks the closest available (usually 720p → 4K depending on device).
-    // Fallback to plain facingMode / true if constraints get rejected.
+    // Request max resolution the browser can provide (4K ideal).
+    // Ideal — только «хотелка»; браузер сам подберёт максимум сенсора.
+    // В capture() потом делаем downscale к 2560 длинной стороне перед LUT,
+    // чтобы обработка не съедала 5+ секунд на 4K canvas.
     const constraints: MediaStreamConstraints[] = [
+      {
+        video: {
+          facingMode,
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
+        },
+        audio: false,
+      },
       {
         video: {
           facingMode,
@@ -159,10 +168,24 @@ export function useCamera() {
       }
     }
 
+    // Downscale к 2560 по длинной стороне ДО отрисовки/LUT: браузер делает
+    // ресайз в drawImage бесплатно (bilinear), LUT потом работает быстро.
+    // Итог: ~5 Мп, 1-2 MB, обработка секунды вместо десятка.
+    const MAX_LONG_SIDE = 2560
+    const longer = Math.max(sw, sh)
+    const scaleDown = longer > MAX_LONG_SIDE ? MAX_LONG_SIDE / longer : 1
+    const outW = Math.round(sw * scaleDown)
+    const outH = Math.round(sh * scaleDown)
+
     const canvas = document.createElement('canvas')
-    canvas.width = sw
-    canvas.height = sh
+    canvas.width = outW
+    canvas.height = outH
     const ctx = canvas.getContext('2d')!
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    // scale ПЕРЕД translate/rotate: значения ниже пишутся в «оригинальных»
+    // координатах (sw, sh, cropW, cropH), а браузер бесплатно ресайзит при выводе.
+    if (scaleDown !== 1) ctx.scale(scaleDown, scaleDown)
 
     if (needsRotation) {
       // Crop a portrait region from the stream (cropW × cropH) then rotate to landscape
@@ -219,12 +242,13 @@ export function useCamera() {
       ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
     }
 
-    // Apply film LUT to canvas pixels before encoding
+    // Apply film LUT to canvas pixels before encoding.
+    // Работаем в реальных пикселях canvas (outW × outH), а не в scaled-координатах.
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    await applyFilmLUT(ctx, sw, sh, lutPreset)
+    await applyFilmLUT(ctx, outW, outH, lutPreset)
 
     return await new Promise<{ blob: Blob; width: number; height: number } | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b ? { blob: b, width: sw, height: sh } : null), 'image/jpeg', 0.92)
+      canvas.toBlob((b) => resolve(b ? { blob: b, width: outW, height: outH } : null), 'image/jpeg', 0.92)
     })
   }, [])
 

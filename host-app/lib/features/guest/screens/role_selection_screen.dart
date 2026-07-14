@@ -37,31 +37,20 @@ class RoleSelectionScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    width: 72, height: 72,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppColors.ink,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 14, height: 14,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.amber,
-                        ),
-                      ),
-                    ),
+                  Image.asset(
+                    'assets/brand/logo-F-light.png',
+                    width: 128, height: 128,
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'Important\nMemories',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                      fontSize: 32,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.64,
-                      height: 1.05,
+                    'ImpoMento',
+                    style: GoogleFonts.playfairDisplay(
+                      fontFeatures: [const FontFeature.liningFigures()],
+                      fontSize: 36,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
                       color: AppColors.ink,
                     ),
                   ),

@@ -41,12 +41,12 @@ class DevScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Important\nMemories',
-              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                fontWeight: FontWeight.w500,
+              'ImpoMento',
+              style: GoogleFonts.playfairDisplay(
+                fontFeatures: [const FontFeature.liningFigures()],
                 fontSize: 36,
-                height: 1.05,
-                letterSpacing: -0.02 * 36,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.4,
                 color: AppColors.ink,
               ),
             ),

@@ -677,9 +677,13 @@ export default function CameraScreen() {
     flexShrink: 0,
   }
 
+  // В fullscreen камера-бокс растянут inset:0, поэтому оверлей-кнопки надо
+  // поднять выше нижней панели с шаттером (высота ~72 + safe-area на iOS до 34),
+  // чтобы zoom/flash/flip не залезали на шаттер.
+  const overlayBottom = aspectMode === 'full' ? 120 : 12
   const camOverlayBtn: React.CSSProperties = {
     ...iconBtn,
-    position: 'absolute', bottom: 12, zIndex: 15,
+    position: 'absolute', bottom: overlayBottom, zIndex: 15,
     width: 38, height: 38,
   }
 
@@ -846,18 +850,22 @@ export default function CameraScreen() {
               }} />
             ))}
 
-            {/* Zoom chips — на одном уровне с flash/flip (bottom-center) */}
+            {/* Zoom chips — строго на одной линии с flash/flip (высота 38, bottom = overlayBottom).
+                В landscape переворачиваем ПОРЯДОК значений внутри (сами кнопки не крутим),
+                чтобы «5×» физически оставался ближе к тому концу, где он и в портрете. */}
             {zoomSupported && (() => {
-              const steps = [minZoom]
-              if (maxZoom >= 2) steps.push(2)
-              if (maxZoom >= 5) steps.push(5)
-              if (steps.length < 2) return null
+              const stepsBase = [minZoom]
+              if (maxZoom >= 2) stepsBase.push(2)
+              if (maxZoom >= 5) stepsBase.push(5)
+              if (stepsBase.length < 2) return null
+              const steps = isLandscape ? [...stepsBase].reverse() : stepsBase
               return (
                 <div style={{
-                  position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
-                  display: 'flex', gap: 6, zIndex: 15,
-                  padding: '3px 5px', borderRadius: 22,
+                  position: 'absolute', bottom: overlayBottom, left: '50%', transform: 'translateX(-50%)',
+                  height: 38, display: 'flex', alignItems: 'center', gap: 6, zIndex: 15,
+                  padding: '0 6px', borderRadius: 22,
                   background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+                  border: '1px solid rgba(255,255,255,0.12)',
                 }}>
                   {steps.map((s) => {
                     const active = Math.abs(zoom - s) < 0.15
@@ -924,17 +932,26 @@ export default function CameraScreen() {
         )}
       </div>
 
-      {/* ── Bottom bar ────────────────────────────────────────────────────── */}
+      {/* ── Bottom bar ──────────────────────────────────────────────────────
+          В fullscreen — компактно: центрируем через gap и жмёмся к низу.
+          В 3:4 — оставляем space-between, чтобы counter/shots разошлись по краям. */}
       <div style={{
         flexShrink: 0, zIndex: 20,
         background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
-        padding: '12px 28px',
-        paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
+        padding: aspectMode === 'full' ? '4px 20px 0' : '12px 28px 0',
+        paddingBottom: aspectMode === 'full'
+          ? 'max(env(safe-area-inset-bottom, 8px), 8px)'
+          : 'max(env(safe-area-inset-bottom, 16px), 16px)',
         ...(aspectMode === 'full' ? {
           position: 'absolute', bottom: 0, left: 0, right: 0,
         } : {}),
       }}>
-        <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          height: aspectMode === 'full' ? 72 : 80,
+          display: 'flex', alignItems: 'center',
+          justifyContent: aspectMode === 'full' ? 'center' : 'space-between',
+          gap: aspectMode === 'full' ? 24 : 0,
+        }}>
 
           {/* Counter — bottom-left, rotates */}
           <div style={{ transform: rot, transition: rotTransition, flexShrink: 0 }}>
