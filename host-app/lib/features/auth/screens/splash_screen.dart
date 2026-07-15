@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -9,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../../utils/guest_prefs.dart';
+import '../../../widgets/f_logo_animated.dart';
 import '../auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -19,7 +18,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _pulse;
   late AnimationController _entry;
   bool _isFirstLaunch = true;
   bool _routing = false;
@@ -29,10 +27,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
   @override
   void initState() {
     super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat();
     _entry = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -109,7 +103,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
 
   @override
   void dispose() {
-    _pulse.dispose();
     _entry.dispose();
     super.dispose();
   }
@@ -122,45 +115,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         child: Column(
           children: [
             const Spacer(flex: 3),
-            // ── Логотип: scale-in + бесконечный амбер-пульс ─────────────────
-            AnimatedBuilder(
-              animation: Listenable.merge([_pulse, _entry]),
-              builder: (_, __) {
-                final entry = Curves.easeOutBack.transform(_entry.value.clamp(0.0, 1.0));
-                final scale = 0.6 + 0.4 * entry;
-                final opacity = _entry.value.clamp(0.0, 1.0);
-                final t = _pulse.value;
-                // Двойной пульс за цикл: sin(2π·t) → мягкий вдох-выдох.
-                final pulse = (0.5 - 0.5 * _cosTwoPi(t));
-                final spread = 6.0 + pulse * 34.0;
-                final alpha = 0.15 + pulse * 0.40;
-                return Opacity(
-                  opacity: opacity,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 168,
-                      height: 168,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(38),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.amber.withValues(alpha: alpha),
-                            blurRadius: 40,
-                            spreadRadius: spread,
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/brand/logo-F-light.png',
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+            // ── Логотип: реальная анимация из logo-anim-F.html ──────────────
+            const FLogoAnimated(size: 220, isDark: false),
             const SizedBox(height: 28),
             // ── Название: fade-in + сдвиг снизу ─────────────────────────────
             AnimatedBuilder(
@@ -255,5 +211,4 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     );
   }
 
-  double _cosTwoPi(double t) => math.cos(t * 2 * math.pi);
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/tokens.dart';
+import '../../../widgets/f_logo_animated.dart';
 
 // Локальный shim вместо CachedNetworkImage: принимает тот же imageUrl (для читаемости),
 // но грузит соответствующий файл из assets/onboarding/. Все Unsplash-фото прибиты
@@ -516,7 +517,7 @@ class _OnbPage3 extends StatelessWidget {
                         child: _PolCard(
                           photoUrl: _url3,
                           colors: const [Color(0xFFE8B888), Color(0xFFA06030), Color(0xFF2A1408)],
-                          caption: 'тост',
+                          caption: '',
                           leakTl: true,
                           leakBr: true,
                         ),
@@ -710,19 +711,31 @@ class _OnbPage4 extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Полароид card — front-center
+                  // ПОЛАРОИД — 3 больших полароида без карточки-контейнера,
+                  // прямо на фоне страницы (чтобы не было «пустого квадрата» сзади).
                   Positioned(
-                    top: 100, left: 8, right: 8,
-                    child: Transform.rotate(
-                      angle: -2 * math.pi / 180,
-                      child: _AlbumCard(
-                        label: 'ПОЛАРОИД',
-                        dark: false,
-                        polaroid: true,
-                        child: _PolaroidPreview(
-                          urlAnya: _p2,
-                          urlToast: _p4,
-                          urlMisha: _p5,
+                    top: 100, left: 0, right: 0,
+                    child: SizedBox(
+                      height: 220,
+                      child: _PolaroidPreview(
+                        urlAnya: _p2,
+                        urlToast: _p4,
+                        urlMisha: _p5,
+                      ),
+                    ),
+                  ),
+                  // Подпись «ПОЛАРОИД» как маленький капс-tag под группой
+                  Positioned(
+                    bottom: 8, left: 0, right: 0,
+                    child: Center(
+                      child: Text(
+                        'ПОЛАРОИД',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 10,
+                          letterSpacing: 1.6,
+                          color: AppColors.ink3,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -940,7 +953,7 @@ class _PolaroidPreview extends StatelessWidget {
               photoUrl: urlAnya,
               fallbackColors: const [Color(0xFFF3CDA0), Color(0xFF6A3520)],
               caption: 'Аня',
-              offsetX: -20,
+              offsetX: -60,
             ),
           ),
           Transform.rotate(
@@ -949,7 +962,7 @@ class _PolaroidPreview extends StatelessWidget {
               photoUrl: urlMisha,
               fallbackColors: const [Color(0xFFD4955F), Color(0xFF3A1810)],
               caption: 'Миша',
-              offsetX: 20,
+              offsetX: 60,
             ),
           ),
           Transform.rotate(
@@ -957,7 +970,7 @@ class _PolaroidPreview extends StatelessWidget {
             child: _MiniPolCard(
               photoUrl: urlToast,
               fallbackColors: const [Color(0xFFE8B888), Color(0xFF5A2810)],
-              caption: 'тост',
+              caption: '',
             ),
           ),
         ],
@@ -1464,39 +1477,11 @@ class _AlbumFrameRow extends StatelessWidget {
   }
 }
 
-// ─── Page 7: F-логотип с анимацией + приглашение начать ──────────────────────
+// ─── Page 7: F-логотип с реальной анимацией из logo-anim-F.html ──────────────
 
-class _OnbPage6 extends StatefulWidget {
+class _OnbPage6 extends StatelessWidget {
   final VoidCallback onSkip;
   const _OnbPage6({required this.onSkip});
-
-  @override
-  State<_OnbPage6> createState() => _OnbPage6State();
-}
-
-class _OnbPage6State extends State<_OnbPage6> with TickerProviderStateMixin {
-  late final AnimationController _pulse;
-  late final AnimationController _appear;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..repeat();
-    _appear = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    _appear.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1505,64 +1490,14 @@ class _OnbPage6State extends State<_OnbPage6> with TickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OnbPager(step: 7, onSkip: widget.onSkip),
+          _OnbPager(step: 7, onSkip: onSkip),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
               height: 340,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0xFFFDFAF3), Color(0xFFF3ECDC)],
-                    ),
-                  ),
-                  child: Center(
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([_pulse, _appear]),
-                      builder: (_, __) {
-                        final entry = Curves.easeOutBack
-                            .transform(_appear.value.clamp(0.0, 1.0));
-                        final scale = 0.6 + 0.4 * entry;
-                        final opacity = _appear.value.clamp(0.0, 1.0);
-                        final t = _pulse.value;
-                        final pulse = 0.5 - 0.5 * math.cos(t * 2 * math.pi);
-                        final spread = 6.0 + pulse * 30.0;
-                        final alpha = 0.15 + pulse * 0.40;
-                        return Opacity(
-                          opacity: opacity,
-                          child: Transform.scale(
-                            scale: scale,
-                            child: Container(
-                              width: 176,
-                              height: 176,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(40),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.amber
-                                        .withValues(alpha: alpha),
-                                    blurRadius: 40,
-                                    spreadRadius: spread,
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset(
-                                'assets/brand/logo-F-light.png',
-                                fit: BoxFit.contain,
-                                filterQuality: FilterQuality.high,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
+              child: Center(
+                child: FLogoAnimated(size: 240, isDark: false),
               ),
             ),
           ),

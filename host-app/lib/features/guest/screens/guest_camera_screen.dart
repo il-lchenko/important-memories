@@ -289,9 +289,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     // Дать камере GPU/HAL чуть отдохнуть после dispose.
     await Future.delayed(const Duration(milliseconds: 80));
 
-    // max = полный сенсор (12+ Мп); в isolate ужимаем к 2560 по длинной стороне
-    // → ~5 Мп, JPEG q=92 ~1-2 MB. Родное качество без выжигания трафика/памяти/S3.
-    // Fallback до veryHigh (1080p) для слабых устройств, где max не инициализируется.
+    // max = полный сенсор (12+ МП) — договорились качество не ронять.
+    // Fallback veryHigh только если max реально не поднимается (редко).
     const presets = [ResolutionPreset.max, ResolutionPreset.veryHigh, ResolutionPreset.high];
     CameraController? ctrl;
     outer:
@@ -854,7 +853,51 @@ class _CameraLayer extends StatelessWidget {
     required this.onOpenRecent,
   });
 
-  bool get _zoomSupported => maxZoom > minZoom + 0.01;
+  // Реальный зум только если разница минимум 0.5× (плагин иногда врёт с 1.0→1.05).
+  // + жёстко скрываем зум на фронтальной камере — у большинства селфи её нет физически.
+  bool get _zoomSupported => !isFrontCamera && maxZoom > minZoom + 0.5;
+
+  // Шаттер как отдельный виджет — переиспользуется в двух вариантах compositing.
+  Widget _shutter() => GestureDetector(
+        onTap: isCapturing ? null : onShutter,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          width: 72,
+          height: 72,
+          transform: Matrix4.identity()..scale(isCapturing ? 0.88 : 1.0),
+          transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppColors.drText,
+            border: Border.all(
+              color: AppColors.drAmber.withValues(alpha: 0.35),
+              width: 2,
+            ),
+            boxShadow: [
+              const BoxShadow(color: Color(0x73000000), blurRadius: 0, spreadRadius: 3),
+              BoxShadow(color: AppColors.drAmber.withValues(alpha: 0.3), blurRadius: 0, spreadRadius: 5),
+              BoxShadow(color: AppColors.drAmber.withValues(alpha: 0.35), blurRadius: 24),
+            ],
+          ),
+        ),
+      );
+
+  // В overlay-режиме — counter/shutter/recent на одном горизонтальном ряду.
+  // Экономит вертикаль, кнопки не пересекаются, всё видно.
+  Widget _shutterRow(BuildContext context) => Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _RotatingIcon(
+            turns: iconTurns,
+            child: _FilmCounter(remaining: framesRemaining),
+          ),
+          Expanded(child: Center(child: _shutter())),
+          _RotatingIcon(
+            turns: iconTurns,
+            child: _RecentStack(shots: recentShots, onOpen: onOpenRecent),
+          ),
+        ],
+      );
 
   Widget _cameraStack() {
     return GestureDetector(
@@ -982,16 +1025,19 @@ class _CameraLayer extends StatelessWidget {
 
   Widget _controls(BuildContext context, {required bool overlay}) {
     final botPad = MediaQuery.of(context).padding.bottom;
-    // overlay-режим: жмёмся к низу, минимум воздуха; ratio34: Spacer'ы для равномерности.
+    // overlay-режим: максимально компактно, минимум воздуха.
+    // ratio34: Spacer'ы для равномерного распределения по высоте.
     final content = Padding(
-      padding: EdgeInsets.fromLTRB(24, 0, 24, botPad + (overlay ? 4 : 0)),
+      padding: EdgeInsets.fromLTRB(24, 0, 24, botPad + (overlay ? 8 : 0)),
       child: Column(
         mainAxisSize: overlay ? MainAxisSize.min : MainAxisSize.max,
         children: [
           if (!overlay) const Spacer(flex: 3),
           if (overlay) const SizedBox(height: 4),
+          // Верхний ряд: flash · zoom · flip — все три на ОДНОЙ линии.
+          // Zoom только показывается если камера реально поддерживает (не селфи).
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _RotatingIcon(
                 turns: iconTurns,
@@ -1002,6 +1048,9 @@ class _CameraLayer extends StatelessWidget {
                   onTap: onToggleFlash,
                   active: flash != FlashMode.off,
                 ),
+              ),
+              Expanded(
+                child: Center(child: _zoomChips()),
               ),
               _RotatingIcon(
                 turns: iconTurns,
@@ -1014,64 +1063,34 @@ class _CameraLayer extends StatelessWidget {
               ),
             ],
           ),
-          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 8),
-          // Zoom chips — БЕЗ поворота: в landscape перевёрнут порядок значений
-          // внутри _zoomChips(), кнопки физически не крутятся, шаттер чистый.
-          _zoomChips(),
-          if (!overlay) const Spacer(flex: 1) else const SizedBox(height: 8),
-          GestureDetector(
-            onTap: isCapturing ? null : onShutter,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 100),
-              width: 72,
-              height: 72,
-              transform: Matrix4.identity()..scale(isCapturing ? 0.88 : 1.0),
-              transformAlignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.drText,
-                border: Border.all(
-                  color: AppColors.drAmber.withValues(alpha: 0.35),
-                  width: 2,
-                ),
-                boxShadow: [
-                  const BoxShadow(
-                    color: Color(0x73000000),
-                    blurRadius: 0,
-                    spreadRadius: 3,
-                  ),
-                  BoxShadow(
-                    color: AppColors.drAmber.withValues(alpha: 0.3),
-                    blurRadius: 0,
-                    spreadRadius: 5,
-                  ),
-                  BoxShadow(
-                    color: AppColors.drAmber.withValues(alpha: 0.35),
-                    blurRadius: 24,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (!overlay) const Spacer(flex: 2) else const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _RotatingIcon(
-                turns: iconTurns,
-                child: _FilmCounter(remaining: framesRemaining),
-              ),
-              _RotatingIcon(
-                turns: iconTurns,
-                child: _RecentStack(
-                  shots: recentShots,
-                  onOpen: onOpenRecent,
-                ),
-              ),
-            ],
-          ),
           if (!overlay) const Spacer(flex: 3) else const SizedBox(height: 4),
+          // В overlay (fullscreen) — счётчик, шаттер и последние кадры на ОДНОЙ линии.
+          // Занимает меньше вертикали → фото занимает больше экрана.
+          // В ratio34 — Spacer'ы между шаттером и counter/recent row (классика).
+          if (overlay)
+            _shutterRow(context)
+          else ...[
+            _shutter(),
+            const Spacer(flex: 2),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _RotatingIcon(
+                  turns: iconTurns,
+                  child: _FilmCounter(remaining: framesRemaining),
+                ),
+                _RotatingIcon(
+                  turns: iconTurns,
+                  child: _RecentStack(
+                    shots: recentShots,
+                    onOpen: onOpenRecent,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(flex: 3),
+          ],
         ],
       ),
     );

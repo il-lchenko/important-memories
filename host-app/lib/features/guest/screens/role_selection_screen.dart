@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/tokens.dart';
+import '../../../widgets/f_logo_animated.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -37,12 +38,7 @@ class RoleSelectionScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(
-                    'assets/brand/logo-F-light.png',
-                    width: 128, height: 128,
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                  ),
+                  const FLogoAnimated(size: 148, isDark: false),
                   const SizedBox(height: 20),
                   Text(
                     'ImpoMento',

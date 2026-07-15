@@ -48,7 +48,7 @@ const FILMS: Record<string, FilmPreset> = {
     b: [[0, 0.05], [0.20, 0.19], [0.5, 0.48], [0.82, 0.82], [1, 0.93]],
     saturation: 1.0, fade: 0.06,
     shadowTint: [2, 1, -1], highlightTint: [8, 2, -1], temperature: 2,
-    grainStrength: 0.022, vignetteStrength: 0.08,
+    grainStrength: 0, vignetteStrength: 0,
   },
   fuji400h: {
     r: [[0, 0.08], [0.25, 0.26], [0.5, 0.50], [0.78, 0.80], [1, 0.93]],
@@ -56,7 +56,8 @@ const FILMS: Record<string, FilmPreset> = {
     b: [[0, 0.11], [0.25, 0.32], [0.5, 0.56], [0.78, 0.84], [1, 0.96]],
     saturation: 0.90, fade: 0.11,
     shadowTint: [3, -1, 5], highlightTint: [-2, 1, 3], temperature: -3,
-    grainStrength: 0.020, vignetteStrength: 0.06,
+    // grain/vignette убраны — на PWA видны как точки/артефакты на чистых фото.
+    grainStrength: 0, vignetteStrength: 0,
   },
   cinestill: {
     r: [[0, 0.04], [0.2, 0.20], [0.5, 0.50], [0.8, 0.86], [1, 0.98]],
@@ -64,8 +65,8 @@ const FILMS: Record<string, FilmPreset> = {
     b: [[0, 0.14], [0.2, 0.32], [0.5, 0.57], [0.8, 0.78], [1, 0.90]],
     saturation: 1.02, fade: 0.11,
     shadowTint: [-8, -4, 12], highlightTint: [7, 3, -6], temperature: -8,
-    grainStrength: 0.04, vignetteStrength: 0.18,
-    halation: 0.15,
+    grainStrength: 0, vignetteStrength: 0,
+    // halation убрана (была самая заметная «точка» вокруг ярких объектов).
   },
   ilford: {
     r: [[0, 0.05], [0.22, 0.20], [0.5, 0.52], [0.78, 0.87], [1, 0.97]],
@@ -73,7 +74,7 @@ const FILMS: Record<string, FilmPreset> = {
     b: [[0, 0.05], [0.22, 0.20], [0.5, 0.52], [0.78, 0.87], [1, 0.97]],
     saturation: 0, fade: 0.07,
     shadowTint: [0, 0, 0], highlightTint: [0, 0, 0], temperature: 0,
-    grainStrength: 0.06, vignetteStrength: 0.10,
+    grainStrength: 0, vignetteStrength: 0,
     bw: true,
   },
 }
