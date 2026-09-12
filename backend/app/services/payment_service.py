@@ -67,6 +67,7 @@ async def create_checkout(
     event_id: UUID,
     plan: Plan,
     idempotency_key: str,
+    payment_method: str | None = None,
 ) -> CheckoutOut:
     event = await event_repo.get_by_id(session, event_id)
     if event is None:
@@ -102,6 +103,7 @@ async def create_checkout(
         amount_kopecks=amount,
         idempotency_key=idempotency_key,
         user_email=user.email,
+        payment_method=payment_method,
     )
 
     payment = Payment(
@@ -134,6 +136,7 @@ async def create_extend_checkout(
     event_id: UUID,
     period: ExtendPeriod,
     idempotency_key: str,
+    payment_method: str | None = None,
 ) -> ExtendOut:
     """Create a YooKassa checkout for extending album storage.
 
@@ -177,6 +180,7 @@ async def create_extend_checkout(
         amount_kopecks=amount,
         idempotency_key=idempotency_key,
         user_email=user.email,
+        payment_method=payment_method,
     )
 
     payment = Payment(
@@ -214,6 +218,7 @@ async def create_upgrade_checkout(
     event_id: UUID,
     kind: UpgradeKind,
     idempotency_key: str,
+    payment_method: str | None = None,
 ) -> UpgradeOut:
     """Create a YooKassa checkout for upgrading an active event.
 
@@ -280,6 +285,7 @@ async def create_upgrade_checkout(
         amount_kopecks=amount,
         idempotency_key=idempotency_key,
         user_email=user.email,
+        payment_method=payment_method,
     )
     meta["confirmation_url"] = yk.confirmation_url
 
@@ -326,7 +332,9 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
         logger.warning("yookassa_webhook_missing_id", payload=payload)
         return
 
-    payment = await payment_repo.get_by_yookassa_id(session, yookassa_id)
+    # SELECT ... FOR UPDATE — блокируем Payment row, чтобы retry YooKassa не
+    # применил upgrade/extend дважды при конкурентной обработке двух webhook.
+    payment = await payment_repo.get_by_yookassa_id_for_update(session, yookassa_id)
     if payment is None:
         logger.warning("yookassa_webhook_unknown_payment", yookassa_id=yookassa_id)
         return
@@ -339,6 +347,12 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
         "pending": PaymentStatus.PENDING,
     }
     new_status = status_map.get(yk_status, PaymentStatus.PENDING)
+
+    # Идемпотентность: если payment уже в терминальном состоянии SUCCEEDED
+    # (upgrade/extend уже применён) — не пересчитываем деньги ещё раз.
+    if payment.status == PaymentStatus.SUCCEEDED:
+        logger.info("yookassa_webhook_already_applied", payment_id=str(payment.id))
+        return
 
     if payment.status == new_status:
         logger.info("yookassa_webhook_no_change", payment_id=str(payment.id))

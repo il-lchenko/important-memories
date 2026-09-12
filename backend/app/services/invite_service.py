@@ -55,6 +55,16 @@ async def create_invite(
         raise NotFoundError("Event not found")
     if event.user_id != actor_user_id:
         raise PermissionDeniedError("Только владелец события создаёт приглашения")
+    # Инвайт нужен гостю для СОЗДАНИЯ сессии → нужен ACTIVE event (в completed
+    # нельзя снимать; для чтения альбома есть public_share_token). Блокируем
+    # создание сразу, чтобы избежать «одноразовая ссылка, которая никогда
+    # не сработала».
+    from app.domain.models import EventStatus
+    if event.status != EventStatus.ACTIVE:
+        raise ConflictError(
+            "Приглашения можно создавать только для активного события",
+            details={"status": event.status.value},
+        )
 
     expires_at = None
     if payload.ttl_days is not None:
@@ -99,7 +109,10 @@ async def delete_invite(
 
 
 async def preview_invite(session: AsyncSession, token: str) -> dict:
-    """Гостевой preview — что за событие, кто пригласил, использован ли токен."""
+    """Гостевой preview — что за событие, кто пригласил, использован ли токен,
+    закрыто ли событие. Клиент показывает разные экраны для каждой ситуации."""
+    from app.domain.models import EventStatus
+
     row = await invite_repo.get_by_token_with_event(session, token)
     if row is None:
         raise NotFoundError("Приглашение не найдено")
@@ -109,12 +122,16 @@ async def preview_invite(session: AsyncSession, token: str) -> dict:
         invite.expires_at is not None
         and invite.expires_at <= datetime.now(timezone.utc)
     )
+    event_closed = event.status != EventStatus.ACTIVE
     return {
         "display_name": invite.display_name,
         "event_title": event.title,
         "event_short_code": event.short_code,
+        "event_status": event.status.value,
+        "public_share_token": event.public_share_token,
         "used": used,
         "expired": expired,
+        "event_closed": event_closed,
     }
 
 

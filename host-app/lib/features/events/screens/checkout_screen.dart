@@ -51,7 +51,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   DateTime get _expiresAt => DateTime.now().add(Duration(days: _retentionDays));
 
-  Future<void> _submit() async {
+  /// paymentMethod: null → YooKassa покажет все способы; 'sbp' → сразу СБП.
+  Future<void> _submit({String? paymentMethod}) async {
     setState(() => _loading = true);
     try {
       final dio = ref.read(dioProvider);
@@ -75,7 +76,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ref.invalidate(eventsProvider);
         context.go('/dashboard');
       } else {
-        final resp = await dio.post('events/$eventId/checkout', data: {'plan': _planId});
+        final resp = await dio.post(
+          'events/$eventId/checkout',
+          data: {
+            'plan': _planId,
+            if (paymentMethod != null) 'payment_method': paymentMethod,
+          },
+        );
         final confirmUrl = resp.data['confirmation_url'] as String?;
         if (!mounted) return;
         ref.invalidate(eventsProvider);
@@ -137,8 +144,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     _SubmitCta(
                       totalRub: _planPriceRub,
                       loading: _loading,
-                      onTap: _submit,
+                      onTap: () => _submit(paymentMethod: _planPriceRub == 0 ? null : 'sbp'),
+                      isSbp: _planPriceRub > 0,
                     ),
+                    if (_planPriceRub > 0) ...[
+                      const SizedBox(height: 10),
+                      Center(
+                        child: TextButton(
+                          onPressed: _loading ? null : () => _submit(paymentMethod: null),
+                          child: Text(
+                            'Другой способ оплаты →',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.ink3,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     const _StorageHint(),
                   ],
@@ -549,11 +573,19 @@ class _SubmitCta extends StatelessWidget {
   final int totalRub;
   final bool loading;
   final VoidCallback onTap;
-  const _SubmitCta({required this.totalRub, required this.loading, required this.onTap});
+  // Если true и totalRub>0 — CTA стилизуется как «СБП» (иконка QR + подпись «через СБП»).
+  final bool isSbp;
+  const _SubmitCta({
+    required this.totalRub,
+    required this.loading,
+    required this.onTap,
+    this.isSbp = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final label = totalRub == 0 ? 'Создать бесплатно' : 'Создать за $totalRub ₽';
+    final free = totalRub == 0;
+    final label = free ? 'Создать бесплатно' : 'Оплатить $totalRub ₽ через СБП';
     return GestureDetector(
       onTap: loading ? null : onTap,
       child: Container(
@@ -567,7 +599,25 @@ class _SubmitCta extends StatelessWidget {
         child: Center(
           child: loading
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isSbp && !free) ...[
+                      const Icon(Icons.qr_code_scanner, size: 20, color: Colors.white),
+                      const SizedBox(width: 10),
+                    ],
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

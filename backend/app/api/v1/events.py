@@ -146,7 +146,10 @@ async def create_checkout(
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> CheckoutOut:
     key = idempotency_key or str(uuid4())
-    return await payment_service.create_checkout(session, user_id, event_id, payload.plan, key)
+    return await payment_service.create_checkout(
+        session, user_id, event_id, payload.plan, key,
+        payment_method=payload.payment_method,
+    )
 
 
 @router.post("/{event_id}/extend", response_model=ExtendOut)
@@ -163,7 +166,8 @@ async def extend_storage(
     """
     key = idempotency_key or str(uuid4())
     return await payment_service.create_extend_checkout(
-        session, user_id, event_id, payload.period, key
+        session, user_id, event_id, payload.period, key,
+        payment_method=payload.payment_method,
     )
 
 
@@ -183,7 +187,8 @@ async def upgrade_event(
     """
     key = idempotency_key or str(uuid4())
     return await payment_service.create_upgrade_checkout(
-        session, user_id, event_id, payload.kind, key
+        session, user_id, event_id, payload.kind, key,
+        payment_method=payload.payment_method,
     )
 
 

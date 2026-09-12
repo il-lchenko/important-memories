@@ -36,6 +36,10 @@ def _create_mock(amount_kopecks: int, idempotency_key: str) -> YookassaPayment:
     return YookassaPayment(id=payment_id, confirmation_url=confirmation_url, status="pending")
 
 
+# Разрешённые payment_method_data.type для YooKassa — см. docs.
+_ALLOWED_METHODS = {"sbp", "bank_card", "yoo_money", "sberbank"}
+
+
 def _create_real_sync(
     amount_kopecks: int,
     idempotency_key: str,
@@ -43,13 +47,14 @@ def _create_real_sync(
     description: str,
     metadata: dict,
     user_email: str,
+    payment_method: str | None,
 ) -> YookassaPayment:
     from yookassa import Configuration, Payment
 
     Configuration.account_id = settings.YOOKASSA_SHOP_ID
     Configuration.secret_key = settings.YOOKASSA_SECRET.get_secret_value()
 
-    body = {
+    body: dict = {
         "amount": {
             "value": f"{amount_kopecks / 100:.2f}",
             "currency": "RUB",
@@ -72,6 +77,11 @@ def _create_real_sync(
             ],
         },
     }
+    # Если хотим предзапросить конкретный способ (СБП) — YooKassa покажет только его.
+    # Без payment_method_data клиент выбирает на странице YooKassa (карта / СБП / кошелёк).
+    if payment_method and payment_method in _ALLOWED_METHODS:
+        body["payment_method_data"] = {"type": payment_method}
+
     try:
         payment = Payment.create(body, idempotency_key)
     except Exception as exc:
@@ -92,6 +102,7 @@ async def create_payment(
     amount_kopecks: int,
     idempotency_key: str,
     user_email: str,
+    payment_method: str | None = None,
 ) -> YookassaPayment:
     return_url = f"{settings.PUBLIC_PWA_BASE_URL}/payment/return"
     description = f"Important Memories — тариф {plan}, ивент {event_id}"
@@ -109,4 +120,5 @@ async def create_payment(
         description,
         metadata,
         user_email,
+        payment_method,
     )

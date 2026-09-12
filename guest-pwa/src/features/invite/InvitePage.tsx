@@ -8,8 +8,11 @@ interface InvitePreview {
   display_name: string
   event_title: string
   event_short_code: string
+  event_status?: string
+  public_share_token?: string | null
   used: boolean
   expired: boolean
+  event_closed?: boolean
 }
 
 interface JoinResponse {
@@ -161,6 +164,38 @@ export default function InvitePage() {
           Срок действия приглашения истёк.
         </p>
         <button className="btn" style={{ marginTop: 24 }} onClick={() => navigate('/')}>
+          На главную
+        </button>
+      </div>
+    )
+  }
+
+  if (preview.event_closed) {
+    const publicToken = preview.public_share_token
+    return (
+      <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🎞️</div>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24, margin: '0 0 12px' }}>
+          Событие завершилось
+        </h1>
+        <p style={{ color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
+          «{preview.event_title}» уже закрыт для съёмки.
+          {publicToken ? ' Откройте альбом по публичной ссылке ниже.' : ''}
+        </p>
+        {publicToken && (
+          <button
+            className="btn"
+            style={{ marginTop: 24 }}
+            onClick={() => navigate(`/a/${publicToken}`)}
+          >
+            Открыть альбом
+          </button>
+        )}
+        <button
+          className={publicToken ? 'btn-ghost' : 'btn'}
+          style={{ marginTop: 12 }}
+          onClick={() => navigate('/')}
+        >
           На главную
         </button>
       </div>

@@ -139,6 +139,8 @@ class _InviteJoinScreenState extends ConsumerState<InviteJoinScreen> {
     final eventTitle = p['event_title'] as String? ?? '';
     final used = p['used'] as bool? ?? false;
     final expired = p['expired'] as bool? ?? false;
+    final eventClosed = p['event_closed'] as bool? ?? false;
+    final publicToken = p['public_share_token'] as String?;
 
     if (used) {
       return _ErrorState(
@@ -149,6 +151,15 @@ class _InviteJoinScreenState extends ConsumerState<InviteJoinScreen> {
     if (expired) {
       return _ErrorState(
         message: 'Срок приглашения истёк. Попросите хоста создать новое.',
+        onBack: () => context.go('/guest/entry'),
+      );
+    }
+    if (eventClosed) {
+      // Событие завершено — снимать нельзя. Если есть публичная ссылка — предложим её.
+      return _ErrorState(
+        message: publicToken != null
+            ? 'Событие «$eventTitle» уже завершилось. Хост может дать вам открытую ссылку на альбом — попросите её.'
+            : 'Событие «$eventTitle» уже завершилось. Снимать больше нельзя.',
         onBack: () => context.go('/guest/entry'),
       );
     }
