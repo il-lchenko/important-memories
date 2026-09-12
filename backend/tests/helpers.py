@@ -42,3 +42,11 @@ def future_event_payload(title: str = "Test event") -> dict:
         "end_at": (now + timedelta(days=11)).isoformat(),
         "event_type": "wedding",
     }
+
+
+def fp(seed: str = "1") -> str:
+    """Валидный fingerprint (8..64 hex) для тестов. Раньше в тестах писали
+    'fp-1'/'fp-2', но новый Pydantic-валидатор требует hex-строку."""
+    # 8-hex достаточно — регекс `^[a-fA-F0-9]{8,64}$` пропустит.
+    raw = "".join(f"{ord(c):02x}" for c in seed)[:8].ljust(8, "0")
+    return raw

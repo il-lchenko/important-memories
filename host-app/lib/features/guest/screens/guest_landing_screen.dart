@@ -76,6 +76,18 @@ class _GuestLandingScreenState extends ConsumerState<GuestLandingScreen> {
       context.go('/guest/camera/$eventId');
     } catch (e) {
       if (!mounted) return;
+      final code = extractErrorCode(e);
+      if (code == 'PIN_REQUIRED') {
+        // Событие защищено PIN. Уходим на экран ввода — там повторим POST с pin.
+        final preview = ref.read(guestEventPreviewProvider(widget.code)).valueOrNull;
+        final title = preview?['title'] as String?;
+        context.push(
+          '/guest/pin/${widget.code}',
+          extra: {'guestName': name, 'eventTitle': title},
+        );
+        setState(() => _loading = false);
+        return;
+      }
       setState(() {
         _error = extractUserMessage(e);
         _loading = false;

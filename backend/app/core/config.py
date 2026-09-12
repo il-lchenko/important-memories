@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     PUBLIC_API_BASE_URL: str = "http://localhost:8000"
     PUBLIC_PWA_BASE_URL: str = "https://192.168.1.109:5173"
 
+    # Соль для хеширования IP и fingerprint в join_attempts — не PII после хеширования,
+    # но позволяет отличать разных нарушителей. Утечка соли не критична (кроме перебора
+    # IP-адресов из /24 подсети).
+    ANTI_BRUTE_HASH_SALT: SecretStr = SecretStr(
+        "change-me-in-prod-anti-brute-salt-6f2b1e9c"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

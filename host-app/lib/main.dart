@@ -51,14 +51,28 @@ class _AppState extends ConsumerState<App> {
   }
 
   void _handleUri(Uri uri) {
-    // https://impomento.pro/g/CODE → /guest/landing/CODE
+    // https://impomento.pro/g/CODE[?p=1234] → /guest/landing/CODE (или /guest/pin/CODE если p= есть)
+    // https://impomento.pro/i/TOKEN → invite (POST /guest/invites/TOKEN/join)
     final segments = uri.pathSegments;
     if (segments.length >= 2 && segments[0] == 'g') {
       final code = segments[1];
+      final pin = uri.queryParameters['p'];
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) ref.read(appRouterProvider).go('/guest/landing/$code');
+        if (!mounted) return;
+        final router = ref.read(appRouterProvider);
+        if (pin != null && RegExp(r'^\d{4}$').hasMatch(pin)) {
+          // QR со встроенным PIN — открываем PIN-экран сразу с pin в extra,
+          // экран автоматически сабмитит.
+          router.go(
+            '/guest/pin/$code',
+            extra: {'guestName': null, 'eventTitle': null, 'prefilledPin': pin},
+          );
+        } else {
+          router.go('/guest/landing/$code');
+        }
       });
     }
+    // TODO: /i/TOKEN (invite link) — добавить когда будет InviteJoinScreen.
   }
 
   @override

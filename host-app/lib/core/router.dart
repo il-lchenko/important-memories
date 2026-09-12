@@ -28,6 +28,7 @@ import '../features/guest/screens/guest_entry_screen.dart';
 import '../features/guest/screens/qr_scanner_screen.dart';
 import '../features/guest/screens/code_input_screen.dart';
 import '../features/guest/screens/guest_landing_screen.dart';
+import '../features/guest/screens/pin_input_screen.dart';
 import '../features/guest/screens/guest_camera_screen.dart';
 import '../features/guest/screens/guest_home_screen.dart';
 import '../features/guest/screens/sign_choice_screen.dart';
@@ -164,6 +165,18 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/guest/landing/:code',
         builder: (c, s) => GuestLandingScreen(code: s.pathParameters['code']!),
+      ),
+      GoRoute(
+        path: '/guest/pin/:code',
+        builder: (c, s) {
+          final extra = (s.extra as Map?)?.cast<String, dynamic>() ?? const {};
+          return PinInputScreen(
+            code: s.pathParameters['code']!,
+            guestName: extra['guestName'] as String?,
+            eventTitle: extra['eventTitle'] as String?,
+            prefilledPin: extra['prefilledPin'] as String?,
+          );
+        },
       ),
       GoRoute(path: '/guest/home',    builder: (c, s) => const GuestHomeScreen()),
       GoRoute(path: '/guest/profile', builder: (c, s) => const GuestProfileScreen()),

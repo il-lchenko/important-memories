@@ -240,7 +240,7 @@ async def _auto_complete_if_expired(session: AsyncSession, event: Event) -> None
 
 async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
     from sqlalchemy import func, select
-    from app.domain.models import Frame, Guest
+    from app.domain.models import Frame, FrameStatus, Guest
 
     events = await event_repo.list_for_user(session, user_id)
     if not events:
@@ -257,14 +257,17 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
         await session.commit()
 
     event_ids = [e.id for e in events]
+    # Гость «активный» = у него есть хотя бы один uploaded-кадр. Считаем DISTINCT
+    # напрямую по таблице frames — надёжнее чем Guest.frames_used (может рассинхрониться).
     g_rows = await session.execute(
-        select(Guest.event_id, func.count(Guest.id))
-        .where(Guest.event_id.in_(event_ids))
-        .group_by(Guest.event_id)
+        select(Frame.event_id, func.count(func.distinct(Frame.guest_id)))
+        .where(Frame.event_id.in_(event_ids), Frame.status == FrameStatus.UPLOADED)
+        .group_by(Frame.event_id)
     )
+    # Считаем только фактически загруженные кадры — удалённые/pending исключены.
     f_rows = await session.execute(
         select(Frame.event_id, func.count(Frame.id))
-        .where(Frame.event_id.in_(event_ids))
+        .where(Frame.event_id.in_(event_ids), Frame.status == FrameStatus.UPLOADED)
         .group_by(Frame.event_id)
     )
     guests_map = {r[0]: r[1] for r in g_rows}
@@ -274,17 +277,19 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
 
 async def get_event(session: AsyncSession, user_id: UUID, event_id: UUID) -> EventOut:
     from sqlalchemy import func, select
-    from app.domain.models import Frame, Guest
+    from app.domain.models import Frame, FrameStatus
 
     event = await _load_owned(session, event_id, user_id)
     await _auto_complete_if_expired(session, event)
     if event in session.dirty:
         await session.commit()
     g = (await session.execute(
-        select(func.count(Guest.id)).where(Guest.event_id == event_id)
+        select(func.count(func.distinct(Frame.guest_id)))
+        .where(Frame.event_id == event_id, Frame.status == FrameStatus.UPLOADED)
     )).scalar_one()
     f = (await session.execute(
-        select(func.count(Frame.id)).where(Frame.event_id == event_id)
+        select(func.count(Frame.id))
+        .where(Frame.event_id == event_id, Frame.status == FrameStatus.UPLOADED)
     )).scalar_one()
     return _to_out(event, int(g), int(f))
 
@@ -437,8 +442,11 @@ async def regenerate_public_share(
     return event.public_share_token
 
 
-def build_qr_png(short_code: str) -> tuple[str, bytes]:
-    short_url = f"{settings.PUBLIC_PWA_BASE_URL.rstrip('/')}/g/{short_code}"
+def build_qr_png(short_code: str, *, pin: str | None = None) -> tuple[str, bytes]:
+    """Собирает QR-код с URL альбома. Если pin передан — включаем в URL как ?p=PIN,
+    чтобы сканирование оставалось одношаговым (клиент подставляет PIN автоматом)."""
+    base = f"{settings.PUBLIC_PWA_BASE_URL.rstrip('/')}/g/{short_code}"
+    short_url = f"{base}?p={pin}" if pin else base
     img = qrcode.make(short_url)
     buf = BytesIO()
     img.save(buf, format="PNG")
@@ -501,7 +509,10 @@ async def generate_qr(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> tuple[str, bytes]:
     event = await _load_owned(session, event_id, user_id)
-    return build_qr_png(event.short_code)
+    # Если PIN включён — встраиваем в QR, чтобы сканирование давало сразу
+    # автосабмит (см. main.dart deep-link handler + PWA URLSearchParams).
+    pin = event.entry_pin if event.pin_enabled else None
+    return build_qr_png(event.short_code, pin=pin)
 
 
 async def upload_cover(

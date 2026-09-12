@@ -13,6 +13,8 @@ import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../album/album_provider.dart';
 import '../events_provider.dart';
+import '../widgets/join_stats_card.dart';
+import '../widgets/pin_card.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   final String eventId;
@@ -54,6 +56,8 @@ class EventDetailScreen extends ConsumerWidget {
               _CoverSection(eventId: eventId, event: event),
               _MetricsRow(eventId: eventId, event: event),
               _ActionList(eventId: eventId, event: event),
+              PinCard(eventId: eventId),
+              JoinStatsCard(eventId: eventId),
               const SizedBox(height: 40),
             ],
           ),
@@ -797,6 +801,16 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                     _SheetAction(icon: Icons.calendar_today_outlined, label: 'Даты события', hint: dateHint, onTap: _editEventDates),
                   ],
                   _SheetAction(icon: Icons.timer_outlined, label: 'Время открытия альбома', hint: _revealMeta(settings), onTap: _editRevealTime),
+                  const Divider(color: AppColors.line, height: 24),
+                  _SheetAction(
+                    icon: Icons.tune_outlined,
+                    label: 'Расширенные настройки',
+                    hint: 'План, продление, ссылки альбома',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/events/${widget.eventId}/settings');
+                    },
+                  ),
                   const Divider(color: AppColors.line, height: 24),
                   _SheetAction(
                     icon: _deleting ? Icons.hourglass_bottom_outlined : Icons.delete_outline,

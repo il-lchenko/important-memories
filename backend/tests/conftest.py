@@ -29,7 +29,8 @@ async def _clean_db_and_redis():
     async with engine.begin() as conn:
         await conn.execute(text(
             "TRUNCATE users, events, event_settings, guests, frames, "
-            "payments, device_tokens, email_codes, reports, audit_log "
+            "payments, device_tokens, email_codes, reports, audit_log, "
+            "join_attempts, invite_tokens "
             "RESTART IDENTITY CASCADE"
         ))
     yield

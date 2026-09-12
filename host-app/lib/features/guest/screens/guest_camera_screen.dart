@@ -151,6 +151,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   // Соотношение кадра: 3:4 (film-style) или полноэкран (по экрану устройства).
   _AspectMode _aspectMode = _AspectMode.ratio34;
 
+  // Polling статуса события — если хост завершил / истёк end_at, редиректим в альбом.
+  Timer? _statusTimer;
+
   @override
   void initState() {
     super.initState();
@@ -158,6 +161,30 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _loadPrefs().then((_) => _initCamera());
     WidgetsBinding.instance.addPostFrameCallback((_) => _showPendingToast());
+    // Polling статуса каждые 15с: если event.status != active — уводим в альбом.
+    _checkEventStatus();
+    _statusTimer = Timer.periodic(const Duration(seconds: 15), (_) => _checkEventStatus());
+  }
+
+  Future<void> _checkEventStatus() async {
+    if (!mounted) return;
+    try {
+      final token = await GuestPrefs.tokenFor(widget.eventId);
+      if (token.isEmpty) return;
+      final resp = await ref.read(dioProvider).get(
+        'guest/sessions/me',
+        options: Options(headers: {'X-Guest-Token': token}),
+      );
+      if (!mounted) return;
+      final status = resp.data['event']?['status'] as String?;
+      if (status != null && status != 'active' && status != 'draft') {
+        // Событие завершено или отменено — уводим в альбом (там же откроется reveal).
+        _statusTimer?.cancel();
+        if (mounted) context.go('/events/${widget.eventId}/album');
+      }
+    } catch (_) {
+      // Тихо игнорируем — polling пере-попытается.
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -267,16 +294,17 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   }
 
   DeviceOrientation _orientationFor(int quarter) {
-    // Маппинг наших четвертей в Flutter DeviceOrientation.
-    // q=1: top — слева (наклон НАЛЕВО) → landscapeRight
-    // q=3: top — справа (наклон НАПРАВО) → landscapeLeft
+    // Empirical mapping для camera plugin на Android при залоченном portrait UI.
+    // q=1 (accel angleDeg≈+90, top телефона смотрит вправо) → landscapeLeft
+    // q=3 (accel angleDeg≈-90, top телефона смотрит влево) → landscapeRight
+    // Прежняя пара (Right/Left) давала 180° перевёрнутое фото в ОБОИХ landscape.
     switch (quarter) {
       case 1:
-        return DeviceOrientation.landscapeRight;
+        return DeviceOrientation.landscapeLeft;
       case 2:
         return DeviceOrientation.portraitDown;
       case 3:
-        return DeviceOrientation.landscapeLeft;
+        return DeviceOrientation.landscapeRight;
       default:
         return DeviceOrientation.portraitUp;
     }
@@ -388,6 +416,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _ctrl?.dispose();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
@@ -454,14 +483,15 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         targetRatio = _quarterIsLandscape(quarter) ? 1 / screenRatio : screenRatio;
       }
 
-      // Обрабатываем в фоне (film filter + ориентация + кроп до targetRatio).
+      // Обрабатываем в фоне (film filter + EXIF-ориентация + кроп до targetRatio).
+      // maxSize 4000 → сохраняем ~12MP (полный размер камеры), чтобы при скачивании
+      // фото было в высоком качестве.
       final result = await compute(
         processImageInIsolate,
         {
           'bytes': rawBytes,
           'preset': _lutPreset,
-          'maxSize': 2560,
-          'quarter': quarter,
+          'maxSize': 4000,
           'targetRatio': targetRatio,
         },
       );
@@ -524,8 +554,27 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           if (p == null || p.frameNum != frameNum) return;
           _preview = p.copyWith(frameId: frameId, status: _UploadStatus.ok);
         });
-      }).catchError((_) {
+      }).catchError((e) {
         if (!mounted) return;
+        // 409 от backend означает «съёмка завершена / альбом закрыт».
+        // Сразу уводим гостя в альбом (там reveal / архив).
+        if (e is DioException && e.response?.statusCode == 409) {
+          _statusTimer?.cancel();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Съёмка завершена — открываем альбом',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 13),
+              ),
+              backgroundColor: AppColors.dark3,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) context.go('/events/${widget.eventId}/album');
+          });
+          return;
+        }
         setState(() {
           final p = _preview;
           if (p == null || p.frameNum != frameNum) return;
@@ -554,8 +603,12 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       data: {'content_type': 'image/jpeg', 'size_bytes': bytes.length},
       options: guestOpts,
     );
-    final frameId = presignResp.data['frame_id'] as String;
-    final uploadUrl = presignResp.data['upload_url'] as String;
+    final pdata = presignResp.data;
+    final frameId = (pdata is Map ? pdata['frame_id'] : null) as String?;
+    final uploadUrl = (pdata is Map ? pdata['upload_url'] : null) as String?;
+    if (frameId == null || uploadUrl == null) {
+      throw StateError('Некорректный ответ сервера (presign).');
+    }
 
     final s3Dio = Dio();
     await s3Dio.put(
@@ -1512,22 +1565,36 @@ class _FramePreviewState extends State<_FramePreview> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(2),
                             child: d.isProcessing
-                                ? Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      imageWidget,
-                                      const ColoredBox(color: Color(0x59000000)),
-                                      const Center(
-                                        child: SizedBox(
-                                          width: 22,
-                                          height: 22,
+                                // Пока идёт обработка — не показываем сырые байты
+                                // (без EXIF-ротации Image.memory иногда рисует их «на боку»).
+                                // Показываем тёмный поларойд-плейсхолдер с надписью и спиннером.
+                                ? Container(
+                                    color: AppColors.dark,
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const SizedBox(
+                                          width: 24,
+                                          height: 24,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 1.8,
                                             color: AppColors.drAmber,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 14),
+                                        Text(
+                                          'ПРОЯВЛЕНИЕ…',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            letterSpacing: 2.4,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.drText.withValues(alpha: 0.75),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   )
                                 : imageWidget,
                           ),

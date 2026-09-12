@@ -10,6 +10,7 @@ interface EventPreview {
   lut_preset: string
   status: string
   cover_url?: string | null
+  pin_required?: boolean
 }
 
 function filmLabel(lut: string): string {
@@ -220,6 +221,113 @@ function NameStep({
   )
 }
 
+// ── Step 2b: PIN entry (only if event has pin_enabled) ──────────────────────
+function PinStep({
+  eventTitle, pin, onChange, onBack, onSubmit, loading, error, prefilledPin, onAutoSubmit,
+}: {
+  eventTitle: string; pin: string; onChange: (v: string) => void;
+  onBack: () => void; onSubmit: () => void; loading: boolean; error: string | null;
+  prefilledPin?: string; onAutoSubmit: (p: string) => void;
+}) {
+  const inputRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+
+  // Auto-focus first cell, auto-submit если pin пришёл из URL ?p=
+  useEffect(() => {
+    inputRefs[0].current?.focus()
+    if (prefilledPin && /^\d{4}$/.test(prefilledPin)) {
+      onAutoSubmit(prefilledPin)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const digits = pin.padEnd(4, ' ').split('').map((c) => c.trim())
+
+  const handleCellChange = (i: number, v: string) => {
+    const digit = v.replace(/\D/g, '').slice(0, 1)
+    const arr = digits.slice()
+    arr[i] = digit
+    const newPin = arr.join('').replace(/\s/g, '')
+    onChange(newPin)
+    if (digit && i < 3) inputRefs[i + 1].current?.focus()
+    if (digit && i === 3 && newPin.length === 4) {
+      inputRefs[3].current?.blur()
+      // auto-submit
+      setTimeout(() => onSubmit(), 50)
+    }
+  }
+  const handleKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !digits[i] && i > 0) {
+      inputRefs[i - 1].current?.focus()
+    }
+  }
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const txt = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4)
+    if (txt.length === 4) {
+      e.preventDefault()
+      onChange(txt)
+      inputRefs[3].current?.blur()
+      setTimeout(() => onSubmit(), 50)
+    }
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
+      <button onClick={onBack} style={{ padding: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
+        Назад
+      </button>
+
+      <div style={{ flex: 1, padding: '20px 24px 0', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
+          PIN события
+        </div>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
+          Введите PIN
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 20px' }}>
+          {eventTitle ? `«${eventTitle}» защищён 4-значным PIN.` : 'Событие защищено 4-значным PIN.'} Спросите у организатора.
+        </p>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <input
+              key={i}
+              ref={inputRefs[i]}
+              type="tel"
+              inputMode="numeric"
+              maxLength={1}
+              value={digits[i] || ''}
+              onChange={(e) => handleCellChange(i, e.target.value)}
+              onKeyDown={(e) => handleKey(i, e)}
+              onPaste={handlePaste}
+              disabled={loading}
+              style={{
+                flex: 1, textAlign: 'center', fontFamily: 'Inter, sans-serif',
+                fontSize: 24, fontWeight: 700, padding: '18px 0',
+                borderRadius: 10, background: 'var(--paper)',
+                border: `1.5px solid ${error ? 'var(--shutter)' : (digits[i] ? 'var(--amber)' : 'rgba(26,23,20,.13)')}`,
+                color: digits[i] ? 'var(--amber)' : 'var(--ink)',
+              }}
+            />
+          ))}
+        </div>
+        {error && <p style={{ color: 'var(--shutter)', fontSize: 13, marginTop: 14 }}>{error}</p>}
+      </div>
+
+      <div style={{ padding: '16px 20px', paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)', background: 'var(--paper)', flexShrink: 0 }}>
+        <button
+          className="btn"
+          onClick={onSubmit}
+          disabled={loading || pin.length !== 4}
+        >
+          {loading ? 'Проверяем...' : 'Войти в альбом'}
+          {!loading && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Step 3: Camera permission ────────────────────────────────────────────────
 function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
   eventTitle: string; guestName: string; onBack: () => void; onAllow: () => void;
@@ -308,9 +416,12 @@ function restoreSession(shortCode: string): boolean {
 // ── Main component ───────────────────────────────────────────────────────────
 export default function LandingScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
+  const [urlSearch] = useState(() => new URLSearchParams(window.location.search))
+  const prefilledPin = urlSearch.get('p') || undefined
   const navigate = useNavigate()
-  const [step, setStep] = useState<'landing' | 'name' | 'permission'>('landing')
+  const [step, setStep] = useState<'landing' | 'name' | 'pin' | 'permission'>('landing')
   const [name, setName] = useState('')
+  const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<EventPreview | null>(null)
@@ -338,18 +449,45 @@ export default function LandingScreen() {
       .catch((e) => console.error('event_preview_failed', e))
   }, [shortCode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleJoin = async () => {
+  const handleJoin = async (pinOverride?: string) => {
     if (!name.trim() || !shortCode) return
     setLoading(true)
     setError(null)
+    const effectivePin = pinOverride ?? pin
     try {
-      const { data } = await guestApi.createSession(shortCode, name.trim())
+      const { data } = await guestApi.createSession(
+        shortCode, name.trim(), effectivePin || undefined
+      )
       saveSession(shortCode, data.guest_token, data.guest_id, name.trim(), data.event)
       setStep('permission')
     } catch (err: unknown) {
-      const e = err as { response?: { status?: number; data?: { error?: { message?: string; details?: Record<string, unknown> }; detail?: string } } }
+      const e = err as { response?: { status?: number; data?: { error?: { code?: string; message?: string; details?: Record<string, unknown> }; detail?: string } } }
       const status = e?.response?.status
+      const errCode = e?.response?.data?.error?.code
       const backendMsg = e?.response?.data?.error?.message ?? e?.response?.data?.detail ?? ''
+      // PIN flow: 400 + code=PIN_REQUIRED → показать PIN-экран
+      if (status === 400 && errCode === 'PIN_REQUIRED') {
+        setStep('pin')
+        setLoading(false)
+        return
+      }
+      // BAD_PIN — оставляем на PIN-экране, показываем ошибку
+      if (status === 400 && errCode === 'BAD_PIN') {
+        setError('Неверный PIN. Проверьте у организатора.')
+        setPin('')
+        setLoading(false)
+        return
+      }
+      if (status === 429 && errCode === 'RATE_LIMITED') {
+        setError('Слишком много попыток. Попробуйте через час.')
+        setLoading(false)
+        return
+      }
+      if (status === 429 && errCode === 'ALBUM_CAP') {
+        setError('Вы вошли в 3 альбома за сутки — это лимит защиты от перебора.')
+        setLoading(false)
+        return
+      }
       if (status === 409) {
         // Refetch preview so landing shows fresh status/max_guests state.
         try {
@@ -390,8 +528,19 @@ export default function LandingScreen() {
       eventTitle={preview?.title ?? ''}
       name={name} onChange={setName}
       onBack={() => setStep('landing')}
-      onNext={handleJoin}
+      onNext={() => handleJoin()}
       loading={loading} error={error}
+    />
+  )
+  if (step === 'pin') return (
+    <PinStep
+      eventTitle={preview?.title ?? ''}
+      pin={pin} onChange={setPin}
+      onBack={() => setStep('name')}
+      onSubmit={() => handleJoin(pin)}
+      loading={loading} error={error}
+      prefilledPin={prefilledPin}
+      onAutoSubmit={(p) => { setPin(p); handleJoin(p) }}
     />
   )
   return (

@@ -44,7 +44,7 @@ async def _activate(client: AsyncClient, token: str) -> dict:
     return event
 
 
-async def _join_and_register(client: AsyncClient, event: dict, fp: str = "fp-1") -> tuple[str, UUID]:
+async def _join_and_register(client: AsyncClient, event: dict, fp: str = "11223344") -> tuple[str, UUID]:
     join = await client.post(
         "/api/v1/guest/sessions",
         json={"short_code": event["short_code"], "name": "Аня", "fingerprint": fp},
@@ -131,7 +131,7 @@ async def test_album_pagination_via_cursor(client: AsyncClient) -> None:
     event = await _activate(client, token)
     now = datetime.now(timezone.utc)
     for i in range(3):
-        _, fid = await _join_and_register(client, event, fp=f"fp-{i}")
+        _, fid = await _join_and_register(client, event, fp=f"{i:08x}")
         await _seed_uploaded_frame(fid, captured_at=now + timedelta(seconds=i))
 
     first = await client.get(

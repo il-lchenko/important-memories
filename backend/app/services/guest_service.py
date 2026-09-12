@@ -5,22 +5,51 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError
+from app.core.client_ctx import hash_fingerprint, hash_ip
+from app.core.errors import (
+    AlbumCapError,
+    BadPinError,
+    ConflictError,
+    NotFoundError,
+    PinRequiredError,
+    RateLimitError,
+)
 from app.core.logging import logger
-from app.domain.models import Event, EventStatus, Guest
+from app.domain.models import Event, EventStatus, Guest, JoinAttemptOutcome
 from app.domain.schemas.events import EventSettingsOut
 from app.domain.schemas.guests import GuestEventOut, GuestSessionOut
 from app.core.config import settings
 from app.infra import fcm_client, rate_limiter, s3_client
-from app.repos import device_repo, event_repo, frame_repo, guest_repo, user_repo
+from app.repos import (
+    device_repo,
+    event_repo,
+    frame_repo,
+    guest_repo,
+    join_attempt_repo,
+    user_repo,
+)
 
 
-# Anti-bruteforce for short_code guessing.
-# Constant-time delay on failed lookup — timing attacks мало помогают.
-_SHORT_CODE_FAIL_DELAY_SEC = 0.3
-# After 30 failed short_code lookups per hour from one IP → block that IP for 1h.
-_SHORT_CODE_FAIL_LIMIT = 30
-_SHORT_CODE_FAIL_WINDOW = 3600
+# Anti-bruteforce для угадывания short_code / PIN.
+# Константный delay на любой outcome — не сигналим таймингом «код существует».
+_JOIN_DELAY_SEC = 0.3
+
+# Rate-limit на IP:
+# - bad_code (промах по коду): 10/час — ужёсточили с 30
+# - session-create (любая попытка POST /sessions): 10/час
+_BAD_CODE_LIMIT_PER_IP = 10
+_BAD_CODE_WINDOW_SEC = 3600
+_SESSION_LIMIT_PER_IP = 10
+_SESSION_WINDOW_SEC = 3600
+
+# Rate-limit на fingerprint:
+# - bad_code промахи: 5/час
+# - bad_pin промахи: 5/час
+# - новые события (успешный join новых альбомов): 3/сутки
+_BAD_CODE_LIMIT_PER_FP = 5
+_BAD_PIN_LIMIT_PER_FP = 5
+_ALBUM_CAP_PER_FP = 3
+_ALBUM_CAP_WINDOW_SEC = 86400  # 24h
 
 
 async def auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
@@ -38,22 +67,78 @@ async def auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
     logger.info("event_auto_completed", event_id=str(event.id), reason="end_at_passed")
 
 
-async def _register_short_code_failure(client_ip: str | None) -> None:
-    """Constant delay + Redis counter. Escalates to hard lockout after 30 fails/hour."""
-    await asyncio.sleep(_SHORT_CODE_FAIL_DELAY_SEC)
+async def _delay() -> None:
+    """Константный delay на любой outcome — убирает timing-oracle
+    «код существует vs. не существует»."""
+    await asyncio.sleep(_JOIN_DELAY_SEC)
+
+
+async def _check_session_rate(client_ip: str | None) -> None:
+    """Общий rate-limit на POST /sessions по IP. Останавливает флуд до входа
+    в основную логику. Раньше этой защиты не было — можно было спамить POST
+    сколько угодно после того, как найдёшь валидный код."""
     if not client_ip:
         return
-    try:
+    await rate_limiter.check_and_incr(
+        f"guest:sessions_ip:{client_ip}",
+        limit=_SESSION_LIMIT_PER_IP,
+        window_sec=_SESSION_WINDOW_SEC,
+    )
+
+
+async def _register_bad_code(client_ip: str | None, fp_hash: str | None) -> None:
+    """Промах по short_code. Инкрементим IP и fp счётчики; каждый выше своего
+    предела → 429."""
+    if client_ip:
         count = await rate_limiter.check_and_incr(
-            f"guest:short_code_fail:{client_ip}",
-            limit=_SHORT_CODE_FAIL_LIMIT,
-            window_sec=_SHORT_CODE_FAIL_WINDOW,
+            f"guest:bad_code_ip:{client_ip}",
+            limit=_BAD_CODE_LIMIT_PER_IP,
+            window_sec=_BAD_CODE_WINDOW_SEC,
         )
-        if count >= _SHORT_CODE_FAIL_LIMIT * 0.8:
-            logger.warning("short_code_bruteforce_suspected", client_ip=client_ip, count=count)
-    except Exception:
-        # rate_limiter itself raises RateLimitError above the limit — that becomes HTTP 429.
-        raise
+        if count >= _BAD_CODE_LIMIT_PER_IP * 0.8:
+            logger.warning("bad_code_ip_high", ip=client_ip, count=count)
+    if fp_hash:
+        await rate_limiter.check_and_incr(
+            f"guest:bad_code_fp:{fp_hash}",
+            limit=_BAD_CODE_LIMIT_PER_FP,
+            window_sec=_BAD_CODE_WINDOW_SEC,
+        )
+
+
+async def _register_bad_pin(fp_hash: str | None) -> None:
+    """Промах по PIN. Считаем только по fingerprint — если хост включил PIN,
+    гости с одного устройства не должны подобрать чужой PIN. IP не трогаем,
+    чтобы не рушить лимит одного WiFi (в кафе много клиентов за одним IP)."""
+    if fp_hash:
+        await rate_limiter.check_and_incr(
+            f"guest:bad_pin_fp:{fp_hash}",
+            limit=_BAD_PIN_LIMIT_PER_FP,
+            window_sec=_BAD_CODE_WINDOW_SEC,
+        )
+
+
+async def _check_album_cap(
+    session: AsyncSession, fp_hash: str | None, event_id: UUID
+) -> None:
+    """Не даём одному fingerprint присоединять >N новых альбомов за 24ч.
+    Re-join уже знакомого альбома (был успешный ok в окне) — не считается."""
+    if not fp_hash:
+        return
+    # 1) Проверка «это re-join знакомого альбома?»
+    already = await join_attempt_repo.has_ok_for_event_and_fingerprint(
+        session, event_id, fp_hash, hours=_ALBUM_CAP_WINDOW_SEC // 3600
+    )
+    if already:
+        return
+    # 2) Иначе смотрим сколько distinct событий уже присоединил за окно.
+    count = await join_attempt_repo.count_new_events_for_fingerprint(
+        session, fp_hash, hours=_ALBUM_CAP_WINDOW_SEC // 3600
+    )
+    if count >= _ALBUM_CAP_PER_FP:
+        raise AlbumCapError(
+            "Слишком много новых альбомов за сутки",
+            details={"max_per_day": _ALBUM_CAP_PER_FP, "window_hours": 24},
+        )
 
 
 _AVATAR_URL_TTL = 86400  # 24h — как для album URLs
@@ -105,21 +190,53 @@ async def join(
     *,
     actor_user_id: UUID | None = None,
     client_ip: str | None = None,
+    pin: str | None = None,
+    invite_bypass: bool = False,
 ) -> GuestSessionOut:
     """Создать или вернуть существующую гость-сессию.
 
-    Если actor_user_id задан (Bearer токен в запросе) — гость линкуется к юзеру:
-    - Проверяется существующий Guest по (user_id, event_id) — если есть, возвращаем его
-    - При создании name по умолчанию = user.display_name (или явное name из payload)
-    - guest.user_id = actor_user_id
+    Anti-brute защита (все — константный delay + запись в join_attempts):
+    - short_code промах → 429 если >10/час на IP или >5/час на fingerprint
+    - PIN промах → 429 если >5/час на fingerprint
+    - Cap «3 новых альбома / 24ч» на fingerprint (re-join не считается)
+    - `invite_bypass=True` (пришёл по /guest/invites/<token>) — обходит PIN и cap
 
-    Если actor_user_id == None — анонимный flow (как раньше):
-    - Поиск по (fingerprint, event_id)
-    - name обязательное
+    Если actor_user_id задан — гость линкуется к юзеру (get_by_event_and_user).
+    Иначе анонимный (get_by_event_and_fingerprint).
     """
+    fp_hash = hash_fingerprint(fingerprint)
+    ip_hash_ = hash_ip(client_ip)
+
+    # 0. Rate-limit на POST /sessions по IP — до любой работы.
+    try:
+        await _check_session_rate(client_ip)
+    except RateLimitError:
+        await join_attempt_repo.record(
+            session, event_id=None, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.RATE_LIMITED,
+        )
+        await _delay()
+        raise
+
     event = await event_repo.get_by_short_code(session, short_code)
     if event is None:
-        await _register_short_code_failure(client_ip)
+        try:
+            await _register_bad_code(client_ip, fp_hash)
+        except RateLimitError:
+            await join_attempt_repo.record(
+                session, event_id=None, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                short_code_tried=short_code, pin_tried=bool(pin),
+                outcome=JoinAttemptOutcome.RATE_LIMITED,
+            )
+            await _delay()
+            raise
+        await join_attempt_repo.record(
+            session, event_id=None, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.BAD_CODE,
+        )
+        await _delay()
         # Generic message — не помогаем брутфорсеру отличать «нет кода» от «неверный код».
         raise NotFoundError("Код не найден")
 
@@ -130,41 +247,116 @@ async def join(
     # даже в DRAFT / COMPLETED — это даёт ему встроенную камеру в приложении.
     is_owner_join = actor_user_id is not None and actor_user_id == event.user_id
     if event.status != EventStatus.ACTIVE and not is_owner_join:
+        await join_attempt_repo.record(
+            session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.EVENT_CLOSED,
+        )
+        await _delay()
         raise ConflictError(
             "Ивент ещё не начался или уже завершён",
             details={"status": event.status.value},
         )
 
-    if not is_owner_join and event.start_at > datetime.now(timezone.utc):
+    # event.start_at nullable в модели — защищаемся от TypeError при сравнении.
+    if (
+        not is_owner_join
+        and event.start_at is not None
+        and event.start_at > datetime.now(timezone.utc)
+    ):
+        await join_attempt_repo.record(
+            session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.EVENT_CLOSED,
+        )
+        await _delay()
         raise ConflictError(
             "Ивент ещё не начался",
             details={"start_at": event.start_at.isoformat()},
         )
 
-    # 1. Авторизованный flow — поиск по user_id
+    # PIN-проверка: только если событие требует PIN и это не invite-bypass и не хост.
+    if event.pin_enabled and event.entry_pin and not invite_bypass and not is_owner_join:
+        if not pin:
+            await join_attempt_repo.record(
+                session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                short_code_tried=short_code, pin_tried=False,
+                outcome=JoinAttemptOutcome.PIN_REQUIRED,
+            )
+            await _delay()
+            raise PinRequiredError("Введите PIN события")
+        if pin != event.entry_pin:
+            try:
+                await _register_bad_pin(fp_hash)
+            except RateLimitError:
+                await join_attempt_repo.record(
+                    session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                    short_code_tried=short_code, pin_tried=True,
+                    outcome=JoinAttemptOutcome.RATE_LIMITED,
+                )
+                await _delay()
+                raise
+            await join_attempt_repo.record(
+                session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                short_code_tried=short_code, pin_tried=True,
+                outcome=JoinAttemptOutcome.BAD_PIN,
+            )
+            await _delay()
+            raise BadPinError("Неверный PIN")
+
+    # 1. Авторизованный flow — поиск по user_id (существующий гость → возвращаем сразу)
     if actor_user_id is not None:
         existing = await guest_repo.get_by_event_and_user(session, event.id, actor_user_id)
         if existing is not None:
-            # Юзер уже подключался к этому событию. Опционально обновить имя если передано.
             if name and name != existing.name:
                 existing.name = name[:40]
                 await session.commit()
             frames_used = await frame_repo.count_uploaded_for_guest(session, existing.id)
+            await join_attempt_repo.record(
+                session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                short_code_tried=short_code, pin_tried=bool(pin),
+                outcome=JoinAttemptOutcome.OK,
+            )
+            await _delay()
             return _build_session_out(existing, frames_used)
 
     # 2. Анонимный (или авторизованный без существующего guest) — fallback на fingerprint
     existing = await guest_repo.get_by_event_and_fingerprint(session, event.id, fingerprint)
     if existing is not None:
-        # Если гость уже есть по fingerprint и сейчас пришёл с Bearer — линкуем
         if actor_user_id is not None and existing.user_id is None:
             existing.user_id = actor_user_id
             await session.commit()
         frames_used = await frame_repo.count_uploaded_for_guest(session, existing.id)
+        await join_attempt_repo.record(
+            session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.OK,
+        )
+        await _delay()
         return _build_session_out(existing, frames_used)
 
-    # 3. Создаём нового гостя
+    # 3. Проверяем cap «3 новых альбома / 24ч» перед созданием нового гостя.
+    # Invite-bypass и хост события не считаются.
+    if not invite_bypass and not is_owner_join:
+        try:
+            await _check_album_cap(session, fp_hash, event.id)
+        except AlbumCapError:
+            await join_attempt_repo.record(
+                session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+                short_code_tried=short_code, pin_tried=bool(pin),
+                outcome=JoinAttemptOutcome.ALBUM_CAP,
+            )
+            await _delay()
+            raise
+
     guests_count = await event_repo.count_guests(session, event.id)
     if guests_count >= event.settings.max_guests:
+        await join_attempt_repo.record(
+            session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+            short_code_tried=short_code, pin_tried=bool(pin),
+            outcome=JoinAttemptOutcome.GUEST_LIMIT,
+        )
+        await _delay()
         raise ConflictError(
             "Guest limit reached",
             details={"max_guests": event.settings.max_guests},
@@ -193,6 +385,14 @@ async def join(
     result = _build_session_out(guest, frames_used=0, event=event)
 
     await session.commit()
+
+    # Audit: успешный OK. Delay ставим после commit, чтобы не держать транзакцию.
+    await join_attempt_repo.record(
+        session, event_id=event.id, ip_hash=ip_hash_, fingerprint_hash=fp_hash,
+        short_code_tried=short_code, pin_tried=bool(pin),
+        outcome=JoinAttemptOutcome.OK,
+    )
+    await _delay()
 
     # Notify host that a new guest joined
     host_tokens = await device_repo.get_tokens_for_user(session, event.user_id)

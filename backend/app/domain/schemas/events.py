@@ -55,6 +55,8 @@ class EventOut(BaseModel):
     settings: EventSettingsOut
     guests_count: int = 0
     frames_count: int = 0
+    # Флаг «PIN включён». Само значение PIN — только через GET /events/{id}/pin.
+    pin_enabled: bool = False
 
 
 class EventCreateIn(BaseModel):

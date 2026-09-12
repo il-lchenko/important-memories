@@ -87,3 +87,15 @@ class ReportStatus(StrEnum):
 class PhotoFormat(StrEnum):
     PORTRAIT_34 = "portrait_34"
     LANDSCAPE_43 = "landscape_43"
+
+
+class JoinAttemptOutcome(StrEnum):
+    """Outcome of a guest join attempt — used for anti-bruteforce audit + host stats."""
+    OK = "ok"                          # created new session or matched existing
+    BAD_CODE = "bad_code"              # short_code not found
+    BAD_PIN = "bad_pin"                # code correct, PIN wrong
+    PIN_REQUIRED = "pin_required"      # code correct, PIN not supplied but required
+    RATE_LIMITED = "rate_limited"      # blocked by rate limiter
+    EVENT_CLOSED = "event_closed"      # event not ACTIVE
+    GUEST_LIMIT = "guest_limit"        # max_guests reached
+    ALBUM_CAP = "album_cap"            # fingerprint tried to join >N events in 24h

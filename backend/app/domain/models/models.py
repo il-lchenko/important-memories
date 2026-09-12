@@ -34,6 +34,7 @@ from app.domain.models.enums import (
     EventStatus,
     EventType,
     FrameStatus,
+    JoinAttemptOutcome,
     LutPreset,
     PaymentStatus,
     PhotoFormat,
@@ -64,6 +65,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    avatar_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = _ts()
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -97,6 +99,13 @@ class Event(Base):
     # По ссылке /a/<token> любой может открыть альбом без ввода имени.
     public_share_token: Mapped[str | None] = mapped_column(
         String(64), unique=True, nullable=True, index=True
+    )
+    # Второй фактор входа. Если pin_enabled=True — гость должен ввести entry_pin
+    # (4 цифры), чтобы создать/восстановить сессию. QR-код содержит ?p=PIN, чтобы
+    # сканирование оставалось одношаговым; ручной ввод — двухшаговый (код → PIN).
+    entry_pin: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    pin_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
     )
     # Storage retention: when the album's photos will be deleted from S3.
     # Set automatically on activate() based on Plan; extendable via /events/{id}/extend.
@@ -320,3 +329,60 @@ class AuditLog(Base):
     payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = _ts()
+
+
+class JoinAttempt(Base):
+    """Аудит попыток входа в альбом. Пишется на каждый POST /guest/sessions
+    и GET /guest/events/{code}. Даёт хосту статистику + возможность построить
+    алерт по всплеску bad_pin/bad_code. IP и fingerprint хранятся хешами (SHA-256
+    от `<value>:<PII_SALT>`) — не PII, но позволяет отличать разных нарушителей.
+    """
+    __tablename__ = "join_attempts"
+    __table_args__ = (
+        Index("ix_join_attempts_event_created", "event_id", "created_at"),
+        Index("ix_join_attempts_ip_created", "ip_hash", "created_at"),
+        Index("ix_join_attempts_fp_created", "fingerprint_hash", "created_at"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    # event_id nullable — при неверном short_code события не существует.
+    event_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="SET NULL"), nullable=True
+    )
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    short_code_tried: Mapped[str] = mapped_column(String(16), nullable=False)
+    pin_tried: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    outcome: Mapped[JoinAttemptOutcome] = mapped_column(
+        _enum_col(JoinAttemptOutcome, "join_attempt_outcome"), nullable=False
+    )
+    created_at: Mapped[datetime] = _ts()
+
+
+class InviteToken(Base):
+    """Персональное приглашение — обходит PIN и лимит «3 альбома/24ч».
+    Хост генерирует токен для конкретного гостя («Пригласить Анну» → отправляет
+    ссылку). При переходе по ссылке /i/<token> гость создаёт сессию без второго
+    фактора. Токен одноразовый (used_at ставится при первом использовании) и
+    может иметь expires_at.
+    """
+    __tablename__ = "invite_tokens"
+    __table_args__ = (
+        Index("ix_invite_tokens_event", "event_id"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    event_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False
+    )
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    # Имя-подсказка для отображения хосту («для кого этот инвайт»). Не подставляется гостю.
+    display_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    used_by_guest_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("guests.id", ondelete="SET NULL"), nullable=True
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

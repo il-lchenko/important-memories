@@ -72,20 +72,48 @@ api.interceptors.response.use(
   },
 )
 
+// Fingerprint устройства для гостевой сессии.
+// Раньше — deterministic djb2 хеш UA+screen+lang+tz (8 hex, 32 бита).
+// Сейчас — persistent random 32-hex, живёт в localStorage. Плюсы:
+//   - выше энтропия (128 бит вместо 32) → сложнее подобрать
+//   - устойчиво к смене UA/размера окна (юзер не «теряется» при обновлении браузера)
+// Backwards compat: если старый ключ существует, оставляем его — гость с ним уже
+// подключён к событиям, менять fingerprint потеряет сессию.
 function generateFingerprint(): string {
-  const raw = [
-    navigator.userAgent,
-    String(screen.width),
-    String(screen.height),
-    navigator.language,
-    String(new Date().getTimezoneOffset()),
-  ].join(':')
-  let hash = 5381
-  for (let i = 0; i < raw.length; i++) {
-    hash = ((hash << 5) + hash) + raw.charCodeAt(i)
-    hash >>>= 0
+  const NEW_KEY = 'im_fp_v2'
+  const LEGACY_KEY = 'im_fp'
+  try {
+    // 1) новый persistent random, если уже сгенерён — используем
+    const existing = localStorage.getItem(NEW_KEY)
+    if (existing && /^[a-f0-9]{16,64}$/.test(existing)) return existing
+    // 2) сохраняем legacy-хеш, если он был в старом ключе — не теряем сессии
+    const legacy = localStorage.getItem(LEGACY_KEY)
+    if (legacy && /^[a-f0-9]{8,64}$/.test(legacy)) {
+      localStorage.setItem(NEW_KEY, legacy)
+      return legacy
+    }
+    // 3) генерируем новый random через crypto (bitcount 128)
+    const bytes = new Uint8Array(16)
+    crypto.getRandomValues(bytes)
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+    localStorage.setItem(NEW_KEY, hex)
+    return hex
+  } catch {
+    // Приватный режим / отсутствует localStorage → fallback на deterministic hash.
+    const raw = [
+      navigator.userAgent,
+      String(screen.width),
+      String(screen.height),
+      navigator.language,
+      String(new Date().getTimezoneOffset()),
+    ].join(':')
+    let hash = 5381
+    for (let i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) + hash) + raw.charCodeAt(i)
+      hash >>>= 0
+    }
+    return hash.toString(16).padStart(8, '0')
   }
-  return hash.toString(16).padStart(8, '0')
 }
 
 export interface GuestEventSettings {
@@ -139,6 +167,7 @@ export interface FrameUpdatePayload {
   voice_s3_key?: string | null
   voice_duration_ms?: number | null
   voice_peaks?: number[] | null
+  rotation?: 0 | 90 | 180 | 270
   clear_caption?: boolean
   clear_voice?: boolean
 }
@@ -185,11 +214,12 @@ export interface GuestProfileUpdatePayload {
 }
 
 export const guestApi = {
-  createSession(shortCode: string, guestName: string) {
+  createSession(shortCode: string, guestName: string, pin?: string) {
     return api.post<GuestSessionResponse>('/guest/sessions', {
       short_code: shortCode,
       name: guestName,
       fingerprint: generateFingerprint(),
+      ...(pin ? { pin } : {}),
     })
   },
   getSession() {

@@ -31,30 +31,24 @@ export function useCamera() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
-    // Request max resolution the browser can provide (4K ideal).
-    // Ideal — только «хотелка»; браузер сам подберёт максимум сенсора.
-    // В capture() потом делаем downscale к 2560 длинной стороне перед LUT,
-    // чтобы обработка не съедала 5+ секунд на 4K canvas.
-    const constraints: MediaStreamConstraints[] = [
-      {
-        video: {
-          facingMode,
-          width: { ideal: 3840 },
-          height: { ideal: 2160 },
-        },
-        audio: false,
-      },
-      {
-        video: {
-          facingMode,
-          width: { ideal: 2048 },
-          height: { ideal: 1536 },
-        },
-        audio: false,
-      },
-      { video: { facingMode }, audio: false },
-      { video: true, audio: false },
-    ]
+    // Разные ideals для front/back — иначе фронталка не тянет 4K и падает
+    // fallback-ом в 720p (юзер видит «плохое качество селфи»).
+    // Для user (front): попросить 2560×1440 → 1920×1080 → без constraint (max сенсора).
+    // Для environment (back): 4K → 3MP → без constraint.
+    const isFront = facingMode === 'user'
+    const constraints: MediaStreamConstraints[] = isFront
+      ? [
+          { video: { facingMode, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false },
+          { video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
+          { video: { facingMode }, audio: false },
+          { video: true, audio: false },
+        ]
+      : [
+          { video: { facingMode, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false },
+          { video: { facingMode, width: { ideal: 2048 }, height: { ideal: 1536 } }, audio: false },
+          { video: { facingMode }, audio: false },
+          { video: true, audio: false },
+        ]
     for (const c of constraints) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia(c)
@@ -168,10 +162,9 @@ export function useCamera() {
       }
     }
 
-    // Downscale к 2560 по длинной стороне ДО отрисовки/LUT: браузер делает
-    // ресайз в drawImage бесплатно (bilinear), LUT потом работает быстро.
-    // Итог: ~5 Мп, 1-2 MB, обработка секунды вместо десятка.
-    const MAX_LONG_SIDE = 2560
+    // Downscale к 4000 по длинной стороне — сохраняем ~12 Мп (полный размер камеры),
+    // чтобы при скачивании фото было в высоком качестве. LUT-обработка в Web Worker.
+    const MAX_LONG_SIDE = 4000
     const longer = Math.max(sw, sh)
     const scaleDown = longer > MAX_LONG_SIDE ? MAX_LONG_SIDE / longer : 1
     const outW = Math.round(sw * scaleDown)
@@ -213,10 +206,12 @@ export function useCamera() {
       }
       ctx.drawImage(video, origSx, origSy, cropW, cropH, 0, 0, cropW, cropH)
     } else {
-      // Stream and target orientations match — plain center-crop.
-      // Но для landscape нужно проверить: пользователь мог держать телефон
-      // «перевёрнутым» landscape (secondary orientation) → камера отдаст
-      // upside-down поток. Тогда rotate 180° чтобы верх фото был вверху сцены.
+      // Stream и target ориентации совпадают — простой центр-кроп.
+      // Раньше здесь была ветка isSecondaryLandscape с 180° поворотом
+      // (через screen.orientation.type + gamma-fallback), но она давала
+      // перевёрнутое фото в ОБОИХ landscape на Android Chrome — современный
+      // браузер уже отдаёт видео в правильной ориентации для текущей физ.
+      // ориентации устройства, дополнительный rotate только ломает результат.
       let sx: number, sy: number
       if (vw / vh > targetRatio) {
         sx = Math.round((vw - sw) / 2)
@@ -224,16 +219,6 @@ export function useCamera() {
       } else {
         sx = 0
         sy = Math.round((vh - sh) / 2)
-      }
-      const isSecondaryLandscape = targetIsLandscape && (() => {
-        const type = (screen.orientation?.type as string | undefined) ?? ''
-        if (type === 'landscape-secondary') return true
-        // Fallback через gamma: |gamma|>20 и gamma<0 в secondary-landscape
-        return Math.abs(gammaRef.current) > 20 && gammaRef.current < 0
-      })()
-      if (isSecondaryLandscape) {
-        ctx.translate(sw, sh)
-        ctx.rotate(Math.PI)
       }
       if (mirror) {
         ctx.translate(sw, 0)
@@ -248,7 +233,9 @@ export function useCamera() {
     await applyFilmLUT(ctx, outW, outH, lutPreset)
 
     return await new Promise<{ blob: Blob; width: number; height: number } | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b ? { blob: b, width: outW, height: outH } : null), 'image/jpeg', 0.92)
+      canvas.toBlob((b) => {
+        resolve(b ? { blob: b, width: outW, height: outH } : null)
+      }, 'image/jpeg', 0.92)
     })
   }, [])
 

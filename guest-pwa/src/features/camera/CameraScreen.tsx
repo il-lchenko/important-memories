@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCamera } from '../../hooks/useCamera'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
@@ -235,7 +235,12 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, c
 function OfflineScreen({ queue, onRetry, onContinue }: {
   queue: QueueItem[]; onRetry: () => void; onContinue: () => void;
 }) {
-  const thumbUrls = queue.map((q) => URL.createObjectURL(q.blob))
+  // Создаём URLs один раз на входящий queue, revoke в cleanup чтобы не текла память
+  // (createObjectURL в render → каждый render новые blob URLs, старые не освобождаются).
+  const thumbUrls = useMemo(() => queue.map((q) => URL.createObjectURL(q.blob)), [queue])
+  useEffect(() => {
+    return () => { thumbUrls.forEach((u) => URL.revokeObjectURL(u)) }
+  }, [thumbUrls])
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', paddingTop: 60 }}>
       <div style={{ padding: '14px 24px 0' }}>
@@ -413,13 +418,36 @@ export default function CameraScreen() {
   const lutLabel = _filmLabel(lutPreset)
 
   useEffect(() => {
-    guestApi.getSession().then(({ data }) => {
-      const remaining = data.frames_remaining
-      setFramesLeft(remaining)
-      setFramesTotal(data.event.settings.frames_per_guest)
-      if (remaining === 0) navigate(`/g/${shortCode}/done`, { replace: true })
-    }).catch(() => {})
+    // Проверяем состояние события каждые 15с: если reveal_at прошёл, host
+    // завершил событие или end_at наступил — редиректим гостя из камеры,
+    // чтобы нельзя было продолжать снимать после проявки.
+    let stopped = false
+    const check = async () => {
+      try {
+        const { data } = await guestApi.getSession()
+        if (stopped) return
+        setFramesLeft(data.frames_remaining)
+        setFramesTotal(data.event.settings.frames_per_guest)
+        const ev = data.event
+        const now = Date.now()
+        const revealAtStr = ev.settings?.reveal_at ?? null
+        const revealPassed = revealAtStr ? new Date(revealAtStr).getTime() <= now : false
+        const endAtStr = (ev as { end_at?: string | null }).end_at ?? null
+        const endPassed = endAtStr ? new Date(endAtStr).getTime() <= now : false
+        const finished = ev.status === 'completed' || ev.status === 'cancelled'
+        if (finished || revealPassed || endPassed) {
+          navigate(`/g/${shortCode}/album`, { replace: true })
+          return
+        }
+        if (data.frames_remaining === 0) {
+          navigate(`/g/${shortCode}/done`, { replace: true })
+        }
+      } catch { /* сеть отвалилась — попробуем в следующий тик */ }
+    }
+    check()
+    const timer = setInterval(check, 15000)
     preloadFilmLUT(lutPreset)
+    return () => { stopped = true; clearInterval(timer) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { start(facingMode) }, [facingMode]) // eslint-disable-line react-hooks/exhaustive-deps

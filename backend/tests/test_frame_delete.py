@@ -10,7 +10,7 @@ from app.domain.models import Frame, FrameStatus
 from tests.helpers import auth_headers, authenticate, future_event_payload
 
 
-async def _setup(client: AsyncClient, fp: str = "fp-1") -> tuple[str, dict, str, UUID]:
+async def _setup(client: AsyncClient, fp: str = "11223344") -> tuple[str, dict, str, UUID]:
     token = await authenticate(client)
     create = await client.post(
         "/api/v1/events/", json=future_event_payload(), headers=auth_headers(token)
@@ -75,7 +75,7 @@ async def test_other_guest_cannot_delete_frame(client: AsyncClient) -> None:
     token, event, _, frame_id = await _setup(client)
     other_join = await client.post(
         "/api/v1/guest/sessions",
-        json={"short_code": event["short_code"], "name": "Other", "fingerprint": "fp-2"},
+        json={"short_code": event["short_code"], "name": "Other", "fingerprint": "aabbccdd"},
     )
     other_token = other_join.json()["guest_token"]
     resp = await client.delete(

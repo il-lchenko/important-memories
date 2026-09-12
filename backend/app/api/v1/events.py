@@ -16,11 +16,25 @@ from app.domain.schemas.events import (
     EventUpdateIn,
 )
 from app.domain.schemas.frames import FrameRotationIn
-from app.domain.schemas.guests import InvitedEventOut
+from app.domain.schemas.guests import (
+    EventPinOut,
+    EventPinUpdateIn,
+    InviteCreateIn,
+    InviteTokenOut,
+    InvitedEventOut,
+    JoinStatsOut,
+)
 from app.repos import guest_repo
 from app.domain.schemas.payments import CheckoutIn, CheckoutOut, ExtendIn, ExtendOut, UpgradeIn, UpgradeOut
 from app.infra import queue
-from app.services import album_service, event_service, media_service, payment_service
+from app.services import (
+    album_service,
+    event_service,
+    invite_service,
+    media_service,
+    payment_service,
+    pin_service,
+)
 from app.services.event_service import _resolve_cover_url
 
 router = APIRouter()
@@ -190,6 +204,88 @@ async def reveal_event(
     session: SessionDep,
 ) -> EventOut:
     return await event_service.reveal_event(session, user_id, event_id)
+
+
+# ── PIN management ────────────────────────────────────────────────────────────
+@router.get("/{event_id}/pin", response_model=EventPinOut)
+async def get_pin(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> EventPinOut:
+    """Возвращает pin_enabled + entry_pin (только владельцу)."""
+    return await pin_service.get_pin(session, actor_user_id=user_id, event_id=event_id)
+
+
+@router.patch("/{event_id}/pin", response_model=EventPinOut)
+async def set_pin(
+    event_id: UUID,
+    payload: EventPinUpdateIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> EventPinOut:
+    """Set/rotate/disable PIN. См. EventPinUpdateIn для сценариев."""
+    return await pin_service.set_pin(
+        session,
+        actor_user_id=user_id,
+        event_id=event_id,
+        enabled=payload.enabled,
+        pin=payload.pin,
+    )
+
+
+# ── Personal invites ─────────────────────────────────────────────────────────
+@router.get("/{event_id}/invites", response_model=list[InviteTokenOut])
+async def list_invites(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> list[InviteTokenOut]:
+    return await invite_service.list_invites(
+        session, actor_user_id=user_id, event_id=event_id
+    )
+
+
+@router.post("/{event_id}/invites", response_model=InviteTokenOut, status_code=201)
+async def create_invite(
+    event_id: UUID,
+    payload: InviteCreateIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> InviteTokenOut:
+    return await invite_service.create_invite(
+        session, actor_user_id=user_id, event_id=event_id, payload=payload
+    )
+
+
+@router.delete("/{event_id}/invites/{invite_id}", status_code=204)
+async def delete_invite(
+    event_id: UUID,
+    invite_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> Response:
+    await invite_service.delete_invite(
+        session,
+        actor_user_id=user_id,
+        event_id=event_id,
+        invite_id=invite_id,
+    )
+    return Response(status_code=204)
+
+
+# ── Join attempt stats ───────────────────────────────────────────────────────
+@router.get("/{event_id}/join-stats", response_model=JoinStatsOut)
+async def get_join_stats(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+    hours: int = Query(default=24, ge=1, le=168),
+) -> JoinStatsOut:
+    """Агрегация попыток входа для хоста (по умолчанию за 24ч, макс 7 дней)."""
+    return await pin_service.get_join_stats(
+        session, actor_user_id=user_id, event_id=event_id, hours=hours
+    )
 
 
 @router.get("/{event_id}/public-share")

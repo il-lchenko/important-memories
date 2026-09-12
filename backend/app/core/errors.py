@@ -48,6 +48,29 @@ class RateLimitError(AppError):
     message = "Too many requests"
 
 
+class PinRequiredError(AppError):
+    """Клиент должен прислать PIN. Отдельный код, чтобы фронт мог отличить
+    от общего 400 и открыть PIN-экран."""
+    code = "PIN_REQUIRED"
+    http_status = 400
+    message = "PIN required"
+
+
+class BadPinError(AppError):
+    """Клиент прислал неверный PIN. Отдельный код, чтобы фронт мог показать
+    красную ошибку под полем без выхода на код-экран."""
+    code = "BAD_PIN"
+    http_status = 400
+    message = "Неверный PIN"
+
+
+class AlbumCapError(AppError):
+    """Fingerprint исчерпал лимит новых альбомов за 24ч."""
+    code = "ALBUM_CAP"
+    http_status = 429
+    message = "Слишком много новых альбомов за сутки"
+
+
 class ExternalServiceError(AppError):
     code = "EXTERNAL_SERVICE_ERROR"
     http_status = 502

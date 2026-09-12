@@ -16,7 +16,7 @@ async def _make_event_with_frame(client: AsyncClient) -> tuple[str, dict, str, U
     await client.post(f"/api/v1/events/{event['id']}/activate", headers=auth_headers(token))
     join = await client.post(
         "/api/v1/guest/sessions",
-        json={"short_code": event["short_code"], "name": "G", "fingerprint": "fp-r"},
+        json={"short_code": event["short_code"], "name": "G", "fingerprint": "deadbeef"},
     )
     guest_token = join.json()["guest_token"]
     gh = {"X-Guest-Token": guest_token}

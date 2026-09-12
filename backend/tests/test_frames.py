@@ -24,7 +24,7 @@ async def _setup_active_guest(client: AsyncClient, frames_per_guest: int | None 
     detail = await client.get(f"/api/v1/events/{event['id']}", headers=auth_headers(token))
     join = await client.post(
         "/api/v1/guest/sessions",
-        json={"short_code": detail.json()["short_code"], "name": "G", "fingerprint": "fp-1"},
+        json={"short_code": detail.json()["short_code"], "name": "G", "fingerprint": "11223344"},
     )
     return join.json()["guest_token"]
 
