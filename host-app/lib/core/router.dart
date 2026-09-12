@@ -12,6 +12,7 @@ import '../features/events/screens/dashboard_screen.dart';
 import '../features/events/screens/create_event_screen.dart';
 import '../features/events/screens/checkout_screen.dart';
 import '../features/events/screens/event_detail_screen.dart';
+import '../features/events/screens/invites_screen.dart';
 import '../features/events/screens/live_progress_screen.dart';
 import '../features/events/screens/qr_fullscreen_screen.dart';
 import '../features/events/screens/reveal_countdown_screen.dart';
@@ -29,6 +30,7 @@ import '../features/guest/screens/qr_scanner_screen.dart';
 import '../features/guest/screens/code_input_screen.dart';
 import '../features/guest/screens/guest_landing_screen.dart';
 import '../features/guest/screens/pin_input_screen.dart';
+import '../features/guest/screens/invite_join_screen.dart';
 import '../features/guest/screens/guest_camera_screen.dart';
 import '../features/guest/screens/guest_home_screen.dart';
 import '../features/guest/screens/sign_choice_screen.dart';
@@ -140,6 +142,10 @@ GoRouter appRouter(Ref ref) {
             path: 'settings',
             builder: (c, s) => AlbumSettingsScreen(eventId: s.pathParameters['id']!),
           ),
+          GoRoute(
+            path: 'invites',
+            builder: (c, s) => InvitesScreen(eventId: s.pathParameters['id']!),
+          ),
         ],
       ),
       GoRoute(
@@ -165,6 +171,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: '/guest/landing/:code',
         builder: (c, s) => GuestLandingScreen(code: s.pathParameters['code']!),
+      ),
+      GoRoute(
+        path: '/guest/invite/:token',
+        builder: (c, s) => InviteJoinScreen(token: s.pathParameters['token']!),
       ),
       GoRoute(
         path: '/guest/pin/:code',

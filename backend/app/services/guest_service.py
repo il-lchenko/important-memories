@@ -51,6 +51,11 @@ _BAD_PIN_LIMIT_PER_FP = 5
 _ALBUM_CAP_PER_FP = 3
 _ALBUM_CAP_WINDOW_SEC = 86400  # 24h
 
+# Suspicious-push хосту: если за последний час на событие пришло ≥20 неудачных
+# попыток (bad_code + bad_pin), шлём push (не чаще 1 раза в час на event).
+_SUSPICIOUS_THRESHOLD_1H = 20
+_SUSPICIOUS_COOLDOWN_SEC = 3600
+
 
 async def auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
     """Self-healing: если end_at прошёл, а статус всё ещё ACTIVE — закрываем событие.
@@ -115,6 +120,45 @@ async def _register_bad_pin(fp_hash: str | None) -> None:
             limit=_BAD_PIN_LIMIT_PER_FP,
             window_sec=_BAD_CODE_WINDOW_SEC,
         )
+
+
+async def _maybe_notify_suspicious(
+    session: AsyncSession, event: Event
+) -> None:
+    """Проверить всплеск неудачных попыток и, если пороговый — уведомить хоста.
+    Cooldown 1ч через Redis SETNX — не спамим повторно.
+    Не бросаем ничего наверх: аудит-нотификация не должна ронять guest-flow."""
+    try:
+        agg = await join_attempt_repo.stats_for_event(session, event.id, hours=1)
+        per = agg.get("per_outcome", {})
+        bad = int(per.get(JoinAttemptOutcome.BAD_CODE.value, 0)) + int(
+            per.get(JoinAttemptOutcome.BAD_PIN.value, 0)
+        )
+        if bad < _SUSPICIOUS_THRESHOLD_1H:
+            return
+        # Anti-spam: не чаще 1 раза в час.
+        already_sent = await rate_limiter.too_soon(
+            f"guest:suspicious_notified:{event.id}",
+            cooldown_sec=_SUSPICIOUS_COOLDOWN_SEC,
+        )
+        if already_sent:
+            return
+        host_tokens = await device_repo.get_tokens_for_user(session, event.user_id)
+        if not host_tokens:
+            return
+        await fcm_client.send_multicast(
+            tokens=host_tokens,
+            title="⚠ Подозрительная активность",
+            body=f"«{event.title}»: {bad} неудачных попыток входа за час",
+            data={"event_id": str(event.id), "type": "suspicious_activity"},
+        )
+        logger.warning(
+            "suspicious_notified",
+            event_id=str(event.id),
+            bad_count=bad,
+        )
+    except Exception as e:
+        logger.warning("suspicious_notify_failed", error=str(e))
 
 
 async def _check_album_cap(
@@ -301,6 +345,7 @@ async def join(
                 short_code_tried=short_code, pin_tried=True,
                 outcome=JoinAttemptOutcome.BAD_PIN,
             )
+            await _maybe_notify_suspicious(session, event)
             await _delay()
             raise BadPinError("Неверный PIN")
 

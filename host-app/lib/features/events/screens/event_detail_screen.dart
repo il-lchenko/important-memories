@@ -1214,6 +1214,12 @@ class _ActionList extends ConsumerWidget {
           if (status == 'draft')
             _DevActivateRow(eventId: eventId, ref: ref),
           _ActionRow(
+            icon: Icons.person_add_alt_1_outlined,
+            title: 'Пригласить лично',
+            meta: 'Именные ссылки в обход PIN',
+            onTap: () => context.push('/events/$eventId/invites'),
+          ),
+          _ActionRow(
             icon: Icons.tune_outlined,
             title: 'Настройки',
             meta: 'Плёнка, название, расписание',

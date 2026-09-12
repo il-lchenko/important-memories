@@ -71,8 +71,13 @@ class _AppState extends ConsumerState<App> {
           router.go('/guest/landing/$code');
         }
       });
+    } else if (segments.length >= 2 && segments[0] == 'i') {
+      // https://impomento.pro/i/TOKEN → InviteJoinScreen
+      final token = segments[1];
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(appRouterProvider).go('/guest/invite/$token');
+      });
     }
-    // TODO: /i/TOKEN (invite link) — добавить когда будет InviteJoinScreen.
   }
 
   @override

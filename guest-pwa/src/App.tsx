@@ -13,6 +13,7 @@ import SignChoiceScreen from './features/sign/SignChoiceScreen'
 import CaptionScreen from './features/sign/CaptionScreen'
 import VoiceScreen from './features/sign/VoiceScreen'
 import ProfileScreen from './features/profile/ProfileScreen'
+import InvitePage from './features/invite/InvitePage'
 
 export default function App() {
   return (
@@ -32,6 +33,8 @@ export default function App() {
         <Route path="/g/:shortCode/ended"                    element={<EventEndedScreen />} />
         <Route path="/g/:shortCode/not-started"              element={<NotStartedScreen />} />
         <Route path="/a/:token"                              element={<PublicAlbumScreen />} />
+        <Route path="/a/:token/f/:frameIndex"                element={<FrameFullscreen />} />
+        <Route path="/i/:token"                              element={<InvitePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
