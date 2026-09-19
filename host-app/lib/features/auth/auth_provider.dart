@@ -21,8 +21,14 @@ final currentUserProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 class Auth extends _$Auth {
   @override
   Future<bool> build() async {
-    final token = await _storage.read(key: 'access_token');
-    return token != null;
+    try {
+      final token = await _storage.read(key: 'access_token');
+      return token != null;
+    } catch (_) {
+      // Keystore недоступен (например, после апгрейда APK с другой подписью)
+      try { await _storage.deleteAll(); } catch (_) {}
+      return false;
+    }
   }
 
   Future<void> requestCode(String email) async {
@@ -38,8 +44,15 @@ class Auth extends _$Auth {
       'code': code,
       'fingerprint': fingerprint,
     });
-    await _storage.write(key: 'access_token',  value: resp.data['access_token']  as String);
-    await _storage.write(key: 'refresh_token', value: resp.data['refresh_token'] as String);
+    // Валидируем ответ — при частичном/пустом теле не даём приложению крашнуться.
+    final data = resp.data;
+    final access = (data is Map ? data['access_token'] : null) as String?;
+    final refresh = (data is Map ? data['refresh_token'] : null) as String?;
+    if (access == null || refresh == null || access.isEmpty || refresh.isEmpty) {
+      throw StateError('Некорректный ответ сервера. Попробуйте ещё раз.');
+    }
+    await _storage.write(key: 'access_token',  value: access);
+    await _storage.write(key: 'refresh_token', value: refresh);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_role', 'host');
     state = const AsyncData(true);

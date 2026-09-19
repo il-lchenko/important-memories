@@ -17,7 +17,10 @@ function initialFromName(name: string): string {
 }
 
 async function resizeToSquareJpeg(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file)
+  // imageOrientation: 'from-image' применяет EXIF-ориентацию к битмапу.
+  // Без этого iOS-фото приходили повёрнутыми, а центр-кроп попадал не в центр —
+  // юзер видел «случайный приближенный фрагмент» вместо своего лица.
+  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   const size = Math.min(bitmap.width, bitmap.height)
   const sx = Math.floor((bitmap.width - size) / 2)
   const sy = Math.floor((bitmap.height - size) / 2)
@@ -26,13 +29,14 @@ async function resizeToSquareJpeg(file: File): Promise<Blob> {
   canvas.height = 512
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas 2D unavailable')
+  ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(bitmap, sx, sy, size, size, 0, 0, 512, 512)
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error('toBlob failed'))),
       'image/jpeg',
-      0.85,
+      0.92,
     )
   })
 }

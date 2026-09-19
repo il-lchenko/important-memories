@@ -1,7 +1,10 @@
+import 'dart:io';
+import 'package:dio/dio.dart' as dio_pkg;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../auth/auth_provider.dart';
@@ -20,6 +23,10 @@ class ProfileScreen extends ConsumerWidget {
     );
     final displayName = userAsync.maybeWhen(
       data: (u) => u['display_name'] as String?,
+      orElse: () => null,
+    );
+    final avatarUrl = userAsync.maybeWhen(
+      data: (u) => u['avatar_url'] as String?,
       orElse: () => null,
     );
     final initial = (displayName?.isNotEmpty == true ? displayName! : email)
@@ -68,12 +75,14 @@ class ProfileScreen extends ConsumerWidget {
               initial: initial,
               name: nameLabel,
               email: email,
+              avatarUrl: avatarUrl,
               onTap: () => showModalBottomSheet(
                 context: context,
                 backgroundColor: Colors.transparent,
                 isScrollControlled: true,
                 builder: (_) => const _EditNameSheet(),
               ),
+              onAvatarTap: () => _pickAndUploadAvatar(context, ref),
             ),
             const SizedBox(height: 24),
 
@@ -172,11 +181,15 @@ class ProfileScreen extends ConsumerWidget {
                 if (context.mounted) context.go('/auth/email');
               },
             ),
+            const SizedBox(height: 10),
+            _DeleteAccountButton(
+              onTap: () => _confirmDeleteAccount(context, ref, email),
+            ),
             const SizedBox(height: 18),
 
             const Center(
               child: Text(
-                'IM · v1.0.53 · 2026',
+                'IM · v1.0.75 · 2026',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 10,
@@ -270,7 +283,7 @@ Future<void> _openAlbumSettingsPicker(BuildContext context, WidgetRef ref) async
                           children: [
                             Expanded(
                               child: Text(
-                                (e['name'] as String?) ?? 'Без названия',
+                                (e['title'] as String?) ?? (e['name'] as String?) ?? 'Без названия',
                                 style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w500,
@@ -344,8 +357,17 @@ class _UserCard extends StatelessWidget {
   final String initial;
   final String name;
   final String email;
+  final String? avatarUrl;
   final VoidCallback? onTap;
-  const _UserCard({required this.initial, required this.name, required this.email, this.onTap});
+  final VoidCallback? onAvatarTap;
+  const _UserCard({
+    required this.initial,
+    required this.name,
+    required this.email,
+    this.avatarUrl,
+    this.onTap,
+    this.onAvatarTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -359,25 +381,55 @@ class _UserCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFD4A373), Color(0xFFA6701A)],
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              initial,
-              style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                fontSize: 24,
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-              ),
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: Stack(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: avatarUrl == null
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFFD4A373), Color(0xFFA6701A)],
+                          )
+                        : null,
+                    image: avatarUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(avatarUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: avatarUrl == null
+                      ? Text(
+                          initial,
+                          style: GoogleFonts.playfairDisplay(
+                            fontFeatures: [const FontFeature.liningFigures()],
+                            fontSize: 24,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        )
+                      : null,
+                ),
+                Positioned(
+                  right: -2, bottom: -2,
+                  child: Container(
+                    width: 22, height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.amber,
+                      border: Border.all(color: AppColors.paper, width: 2),
+                    ),
+                    child: const Icon(Icons.camera_alt_outlined, size: 12, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 14),
@@ -624,6 +676,190 @@ class _LogoutButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _DeleteAccountButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _DeleteAccountButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: AppSizes.buttonHeight,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: AppColors.ink4.withValues(alpha: 0.35), width: 1),
+          borderRadius: AppRadius.mdBR,
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Удалить аккаунт',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _pickAndUploadAvatar(BuildContext context, WidgetRef ref) async {
+  try {
+    final picker = ImagePicker();
+    final xfile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (xfile == null || !context.mounted) return;
+    final file = File(xfile.path);
+    final bytes = await file.readAsBytes();
+    if (!context.mounted) return;
+
+    final api = ref.read(dioProvider);
+    final contentType = xfile.mimeType ?? 'image/jpeg';
+    final presign = await api.post(
+      'users/me/avatar/presign',
+      data: {'content_type': contentType, 'size_bytes': bytes.length},
+    );
+    final pdata = presign.data;
+    final uploadUrl = (pdata is Map ? pdata['upload_url'] : null) as String?;
+    final avatarKey = (pdata is Map ? pdata['avatar_key'] : null) as String?;
+    if (uploadUrl == null || avatarKey == null) {
+      throw StateError('Некорректный ответ сервера (avatar presign).');
+    }
+
+    // Прямая загрузка в S3 через presigned URL — не через api (без Bearer/interceptor).
+    await dio_pkg.Dio().put(
+      uploadUrl,
+      data: bytes,
+      options: dio_pkg.Options(
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': bytes.length.toString(),
+        },
+      ),
+    );
+
+    await api.patch('users/me', data: {'avatar_key': avatarKey});
+    ref.invalidate(currentUserProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Аватар обновлён', style: TextStyle(fontFamily: 'Inter'))),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(extractUserMessage(e))),
+      );
+    }
+  }
+}
+
+Future<void> _confirmDeleteAccount(
+  BuildContext context, WidgetRef ref, String email,
+) async {
+  final controller = TextEditingController();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (ctx, setD) {
+          final canDelete = controller.text.trim().toUpperCase() == 'УДАЛИТЬ';
+          return AlertDialog(
+            backgroundColor: AppColors.paper,
+            title: Text(
+              'Удалить аккаунт?',
+              style: GoogleFonts.playfairDisplay(
+                fontFeatures: [const FontFeature.liningFigures()],
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.ink,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Это действие нельзя отменить. Удалятся:',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink2, height: 1.4),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '• все альбомы и кадры\n• устройства и уведомления\n• персональные данные',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.5),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Для подтверждения введите слово УДАЛИТЬ:',
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.line),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppColors.shutter),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.ink),
+                  onChanged: (_) => setD(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Отмена', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink3)),
+              ),
+              TextButton(
+                onPressed: canDelete ? () => Navigator.of(ctx).pop(true) : null,
+                child: Text(
+                  'Удалить',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: canDelete ? AppColors.shutter : AppColors.ink4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+  if (confirmed != true || !context.mounted) return;
+  try {
+    final dio = ref.read(dioProvider);
+    await dio.delete('users/me');
+    await ref.read(authProvider.notifier).logout();
+    if (context.mounted) context.go('/auth/email');
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(extractUserMessage(e))),
+      );
+    }
   }
 }
 
