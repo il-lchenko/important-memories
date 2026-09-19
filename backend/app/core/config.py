@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     OTP_RATE_LIMIT_PER_EMAIL_SEC: int = 60
     OTP_RATE_LIMIT_PER_IP_HOUR: int = 10
 
+    # Email через Unisender (РФ-резидент, без трансграничной передачи ПД).
+    # Если UNISENDER_API_KEY задан — используется Unisender API.
+    # Legacy SMTP_* оставлены для local-dev через MailHog / smtplib.
+    UNISENDER_API_KEY: SecretStr = SecretStr("")
+    UNISENDER_FROM_EMAIL: str = "no-reply@impomento.pro"
+    UNISENDER_FROM_NAME: str = "ImpoMento"
+    UNISENDER_REPLY_TO: str = "support@impomento.pro"
+
     SMTP_HOST: str = "127.0.0.1"
     SMTP_PORT: int = 1025
     SMTP_USER: str = ""
