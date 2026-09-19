@@ -426,6 +426,11 @@ async def join(
     )
     await guest_repo.create(session, guest)
 
+    # Свяжем consent-записи, сделанные с этим fingerprint ДО создания Guest.
+    from app.repos import consent_repo as _consent_repo
+    if fp_hash:
+        await _consent_repo.link_fingerprint_to_guest(session, fp_hash, guest.id)
+
     # Build result before commit while event/settings are still loaded in session
     result = _build_session_out(guest, frames_used=0, event=event)
 

@@ -386,3 +386,46 @@ class InviteToken(Base):
         PG_UUID(as_uuid=True), ForeignKey("guests.id", ondelete="SET NULL"), nullable=True
     )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ConsentRecord(Base):
+    """Аудит принятия юр. документов пользователем.
+
+    Требование ст. 9 152-ФЗ (в редакции с 01.09.2025): оператор обязан
+    обеспечить возможность доказать получение согласия субъекта ПД. Для этого
+    на каждое принятие документа (Оферта / Политика / Согласие на ПД /
+    Правила контента) пишется отдельная запись с версией документа, временем,
+    хешем IP и user-agent.
+
+    user_id — заполняется для Хоста; guest_id/fingerprint_hash — для Гостя.
+    """
+    __tablename__ = "consent_records"
+    __table_args__ = (
+        Index("ix_consent_records_user_doc_version", "user_id", "doc_type", "doc_version"),
+        Index("ix_consent_records_guest_doc_version", "guest_id", "doc_type", "doc_version"),
+        Index("ix_consent_records_fp_doc_version", "fingerprint_hash", "doc_type", "doc_version"),
+        CheckConstraint(
+            "user_id IS NOT NULL OR guest_id IS NOT NULL OR fingerprint_hash IS NOT NULL",
+            name="ck_consent_records_subject_required",
+        ),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    guest_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("guests.id", ondelete="CASCADE"), nullable=True
+    )
+    # Fingerprint (хешированный) на случай если гость принял согласие до
+    # создания Guest-записи (fingerprint известен раньше).
+    fingerprint_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Тип документа: 'offer' | 'privacy' | 'consent' | 'content_rules'
+    doc_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Семантическая версия документа: '2.0', '2.1', ...
+    doc_version: Mapped[str] = mapped_column(String(16), nullable=False)
+    # Хеш IP (SHA-256 c salt) — не PII, но одинаковые IP дают одинаковый хеш.
+    ip_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # User-Agent, обрезанный до 200 символов.
+    user_agent: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    accepted_at: Mapped[datetime] = _ts()
