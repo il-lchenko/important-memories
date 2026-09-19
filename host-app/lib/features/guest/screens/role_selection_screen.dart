@@ -38,7 +38,7 @@ class RoleSelectionScreen extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const FLogoAnimated(size: 148, isDark: false),
+                  const FLogoAnimated(size: 148, isDark: false, loop: false),
                   const SizedBox(height: 20),
                   Text(
                     'ImpoMento',

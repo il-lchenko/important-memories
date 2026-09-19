@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/tokens.dart';
 import '../../../widgets/f_logo_animated.dart';
@@ -38,7 +39,7 @@ class CachedNetworkImage extends StatelessWidget {
     return Image.asset(
       path,
       fit: fit,
-      filterQuality: FilterQuality.medium,
+      filterQuality: FilterQuality.high,
       errorBuilder: errorWidget != null
           ? (ctx, err, _) => errorWidget!(ctx, imageUrl, err)
           : null,
@@ -101,7 +102,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _OnbPage4(onSkip: _skip),
               _OnbPage5(onSkip: _skip),
               _OnbPageFrames(onSkip: _skip),
-              _OnbPage6(onSkip: _skip),
+              _OnbPage6(onSkip: _skip, isActive: _page == 6),
             ],
           ),
           Positioned(
@@ -273,122 +274,242 @@ class _OnbPage1 extends StatelessWidget {
   final VoidCallback onSkip;
   const _OnbPage1({required this.onSkip});
 
-  // Яркое событие с людьми, дневной свет — вместо тёмной ночной сцены.
-  static const _photoUrlBright =
-      'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf'
-      '?w=800&auto=format&fit=crop&q=80';
+  // Обложки для двух карточек — живые яркие фото с людьми и эмоциями.
+  // Оба photo-id уже прибиты в assets/onboarding/ (CachedNetworkImage shim).
+  static const _cover1 =
+      'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800';
+  static const _cover2 =
+      'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?w=800';
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _OnbPager(step: 1, onSkip: onSkip),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SizedBox(
-              height: 360,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CachedNetworkImage(
-                      imageUrl: _photoUrlBright,
-                      fit: BoxFit.cover,
-                      fadeInDuration: const Duration(milliseconds: 200),
-                      placeholder: (_, __) => Container(color: const Color(0xFFE5D8C0)),
-                      errorWidget: (_, __, ___) => Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                            colors: [Color(0xFFF8ECD0), Color(0xFFD4A860)],
-                          ),
-                        ),
-                      ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _OnbPager(step: 1, onSkip: onSkip),
+            const SizedBox(height: 8),
+            // Заголовок раздела «Мои альбомы» ˅ + фильтр + поиск (как в реальном экране).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Мои альбомы',
+                    style: GoogleFonts.playfairDisplay(
+                      fontFeatures: [const FontFeature.liningFigures()],
+                      fontSize: 22,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.6,
+                      color: AppColors.ink,
                     ),
-                    // Простой градиент снизу для читаемости названия/даты. Без плёночных эффектов.
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          colors: [Colors.transparent, Color(0x66000000)],
-                          stops: [0.55, 1.0],
-                        ),
-                      ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.expand_more, size: 20, color: AppColors.ink),
+                  const Spacer(),
+                  const Icon(Icons.tune, size: 18, color: AppColors.ink3),
+                  const SizedBox(width: 14),
+                  const Icon(Icons.search, size: 18, color: AppColors.ink3),
+                ],
+              ),
+            ),
+            // Список карточек альбомов — уменьшенный масштаб чтобы влезли обе + подпись.
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: const [
+                  _OnbAlbumCard(
+                    coverUrl: _cover1,
+                    status: _AlbumStatus.completed,
+                    title: 'Летний фестиваль',
+                    guests: 18,
+                    frames: 124,
+                    date: '16.07.2026',
+                  ),
+                  SizedBox(height: 10),
+                  _OnbAlbumCard(
+                    coverUrl: _cover2,
+                    status: _AlbumStatus.active,
+                    title: 'Ночь пятницы',
+                    guests: 12,
+                    frames: 47,
+                    date: '05.07.2026',
+                  ),
+                ],
+              ),
+            ),
+            _OnbCopy(
+              title: 'Создайте альбом\nмероприятия',
+              subtitle: 'Выберите дату, стиль и количество кадров. Гости снимают через QR — никаких приложений и аккаунтов',
+            ),
+            const SizedBox(height: 130),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _AlbumStatus { completed, active, draft }
+
+class _OnbAlbumCard extends StatelessWidget {
+  final String coverUrl;
+  final _AlbumStatus status;
+  final String title;
+  final int guests;
+  final int frames;
+  final String date;
+
+  const _OnbAlbumCard({
+    required this.coverUrl,
+    required this.status,
+    required this.title,
+    required this.guests,
+    required this.frames,
+    required this.date,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final (dotColor, dotGlow, badgeLabel) = switch (status) {
+      _AlbumStatus.completed => (const Color(0xFF5BAA72), true, 'ПРОЯВЛЕНО'),
+      _AlbumStatus.active => (const Color(0xFFC9881E), true, 'ЗАПИСЬ'),
+      _AlbumStatus.draft => (AppColors.ink3, false, 'ЧЕРНОВИК'),
+    };
+
+    return AspectRatio(
+      aspectRatio: 2.0, // ~170h при ширине ~340 — обе карточки + подпись влезают
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x1E1A1714)),
+          boxShadow: const [
+            BoxShadow(color: Color(0x0D1A1714), blurRadius: 10, offset: Offset(0, 3)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CachedNetworkImage(
+                imageUrl: coverUrl,
+                fit: BoxFit.cover,
+                fadeInDuration: const Duration(milliseconds: 200),
+                errorWidget: (_, __, ___) => Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF4A3828), Color(0xFF2A1810), Color(0xFF100806)],
                     ),
-                    Positioned(
-                      top: 14, left: 14,
-                      child: Container(
-                        height: 26,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                ),
+              ),
+              // Тёмный градиент снизу.
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.0, 0.25, 0.55, 0.80, 1.0],
+                      colors: [
+                        Color(0x000A0603),
+                        Color(0x100A0603),
+                        Color(0x3C0A0603),
+                        Color(0x780A0603),
+                        Color(0xB20A0603),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Бейдж статуса.
+              Positioned(
+                top: 10, left: 10,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(6, 4, 9, 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7, height: 7,
                         decoration: BoxDecoration(
-                          color: AppColors.paper,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6, height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.shutter,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'ИДЁТ',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.ink,
-                              ),
-                            ),
-                          ],
+                          shape: BoxShape.circle,
+                          color: dotColor,
+                          boxShadow: dotGlow
+                              ? [BoxShadow(color: dotColor.withValues(alpha: 0.8), blurRadius: 6)]
+                              : null,
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 14, left: 16,
-                      child: Text(
-                        'Свадьба Ани и Миши',
-                        style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                          fontSize: 22,
-                          color: AppColors.paper,
-                          shadows: const [
-                            Shadow(color: Color(0x80000000), blurRadius: 8, offset: Offset(0, 2)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Positioned(
-                      bottom: 14, right: 14,
-                      child: Text(
-                        '·12·07·26',
+                      const SizedBox(width: 5),
+                      Text(
+                        badgeLabel,
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          letterSpacing: 1.0,
-                          color: Color(0xD9FFD2AA),
+                          fontFamily: 'Inter', fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.12, color: dotColor,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              // Название + метрики.
+              Positioned(
+                bottom: 10, left: 12, right: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.ptSerif(
+                        fontSize: 22, fontWeight: FontWeight.w700,
+                        color: const Color(0xFFF0E8D8), height: 1.2,
+                        shadows: const [
+                          Shadow(color: Color(0xCC000000), blurRadius: 0, offset: Offset(0, 1)),
+                          Shadow(color: Color(0x88000000), blurRadius: 6),
+                        ],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.person_outline, size: 15, color: Color(0xFFB0A080)),
+                        const SizedBox(width: 4),
+                        Text('$guests',
+                          style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.camera_roll_outlined, size: 15, color: Color(0xFFC9881E)),
+                        const SizedBox(width: 4),
+                        Text('$frames',
+                          style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFFC9881E), fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.calendar_today_outlined, size: 15, color: Color(0xFFB0A080)),
+                        const SizedBox(width: 4),
+                        Text(date,
+                          style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFFB0A080), fontWeight: FontWeight.w600)),
+                      ],
                     ),
                   ],
                 ),
               ),
-            ),
+            ],
           ),
-          _OnbCopy(
-            title: 'Создайте альбом\nмероприятия',
-            subtitle: 'Выберите дату, стиль и количество кадров. Гости снимают через QR — никаких приложений и аккаунтов',
-          ),
-          const SizedBox(height: 140),
-        ],
+        ),
       ),
     );
   }
@@ -428,11 +549,26 @@ class _OnbPage2 extends StatelessWidget {
                       color: AppColors.paper,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const CustomPaint(painter: _QrPainter()),
+                    child: QrImageView(
+                      data: 'https://impomento.pro/g/anya-misha',
+                      version: QrVersions.auto,
+                      backgroundColor: AppColors.paper,
+                      foregroundColor: AppColors.ink,
+                      padding: EdgeInsets.zero,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: AppColors.ink,
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: AppColors.ink,
+                      ),
+                      errorCorrectionLevel: QrErrorCorrectLevel.M,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'impomento.pro/g/qb47d7rt',
+                    'impomento.pro/g/anya-misha',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 11,
@@ -721,22 +857,6 @@ class _OnbPage4 extends StatelessWidget {
                         urlAnya: _p2,
                         urlToast: _p4,
                         urlMisha: _p5,
-                      ),
-                    ),
-                  ),
-                  // Подпись «ПОЛАРОИД» как маленький капс-tag под группой
-                  Positioned(
-                    bottom: 8, left: 0, right: 0,
-                    child: Center(
-                      child: Text(
-                        'ПОЛАРОИД',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          letterSpacing: 1.6,
-                          color: AppColors.ink3,
-                          fontWeight: FontWeight.w500,
-                        ),
                       ),
                     ),
                   ),
@@ -1073,10 +1193,11 @@ class _OnbPage5 extends StatelessWidget {
       'https://images.unsplash.com/photo-1464207687429-7505649dae38'
       '?w=800&auto=format&fit=crop&q=80';
 
-  // Same base photo for all swatches — color matrix shows film difference
+  // Same base photo for all swatches — тот же кадр что и в hero, чтобы фильтр
+  // сразу читался. Фото 173KB (не пережато агрессивно) → нет JPEG-блоков.
   static const _swatchBase =
-      'https://images.unsplash.com/photo-1519741497674-611481863552'
-      '?w=300&auto=format&fit=crop&q=80';
+      'https://images.unsplash.com/photo-1464207687429-7505649dae38'
+      '?w=600&auto=format&fit=crop&q=85';
 
   @override
   Widget build(BuildContext context) {
@@ -1214,27 +1335,30 @@ class _FilmSwatch extends StatelessWidget {
     0, 0, 0, 1, 0,
   ];
 
-  // Fuji 400H — cool, desaturated, slight green-cyan push
+  // Fuji 400H — прохладнее, чуть менее насыщенно (без агрессивных offset,
+  // которые давали заметный узор «крапинок» на JPEG-исходнике)
   static const fuji400h = <double>[
-    0.82, 0.02, 0.02, 0, 3,
-    0.04, 0.88, 0.06, 0, 6,
-    0.04, 0.04, 1.10, 0, 12,
+    0.92, 0.02, 0.02, 0, 0,
+    0.02, 0.95, 0.03, 0, 0,
+    0.03, 0.03, 1.05, 0, 4,
     0, 0, 0, 1, 0,
   ];
 
-  // Cinestill 800T — warm orange push, deep shadows, red halation
+  // Cinestill 800T — тёплый оранжевый оттенок, но мягкий (без -15 в синем,
+  // которое давало разрывы уровней в тенях и «пятна»)
   static const cinestill800 = <double>[
-    1.25, 0.08, 0.0, 0, 10,
-    0.0, 0.82, 0.0, 0, 0,
-    0.0, 0.0, 0.68, 0, -15,
+    1.12, 0.05, 0.0, 0, 4,
+    0.0, 0.9, 0.02, 0, 0,
+    0.0, 0.0, 0.82, 0, -4,
     0, 0, 0, 1, 0,
   ];
 
-  // Ilford HP5+ — classic luminance grayscale
+  // Ilford HP5+ — плавный grayscale через 50% mix (чистая luminance даёт
+  // JPEG-блоки крупными пятнами на маленьком swatch)
   static const ilfordHp5 = <double>[
-    0.299, 0.587, 0.114, 0, 0,
-    0.299, 0.587, 0.114, 0, 0,
-    0.299, 0.587, 0.114, 0, 0,
+    0.65, 0.25, 0.10, 0, 0,
+    0.25, 0.65, 0.10, 0, 0,
+    0.25, 0.25, 0.50, 0, 0,
     0, 0, 0, 1, 0,
   ];
 
@@ -1269,8 +1393,6 @@ class _FilmSwatch extends StatelessWidget {
                   placeholder: (_, __) => const SizedBox.shrink(),
                 ),
               ),
-            // Grain texture
-            CustomPaint(painter: _GrainPainter()),
             // Film label
             Positioned(
               bottom: 8, left: 0, right: 0,
@@ -1302,186 +1424,357 @@ class _OnbPageFrames extends StatelessWidget {
   final VoidCallback onSkip;
   const _OnbPageFrames({required this.onSkip});
 
-  static const _p1 = 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=300&auto=format&fit=crop&q=80';
-  static const _p2 = 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=300&auto=format&fit=crop&q=80';
-  static const _p3 = 'https://images.unsplash.com/photo-1511285560929-fabc09f7c0d4?w=300&auto=format&fit=crop&q=80';
-  static const _p4 = 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?w=300&auto=format&fit=crop&q=80';
+  // Свадьба «Аня и Миша» — 3 фото для _CollageA (1 big + 2 small).
+  static const _wed1 = 'https://images.unsplash.com/photo-1519741497674-611481863552?w=600';
+  static const _wed2 = 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=400';
+  static const _wed3 = 'https://images.unsplash.com/photo-1525258946800-98cfd641d0de?w=400';
+
+  // Концерт «Летний фест» — 4 фото для _TiltedStrip.
+  static const _concert1 = 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300';
+  static const _concert2 = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300';
+  static const _concert3 = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=300';
+  static const _concert4 = 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300';
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _OnbPager(step: 6, onSkip: onSkip),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: SizedBox(
-              height: 340,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.paper2,
-                  borderRadius: BorderRadius.circular(20),
+    return Container(
+      color: AppColors.paper2,
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _OnbPager(step: 6, onSkip: onSkip),
+            const SizedBox(height: 8),
+            // Шапка «Кадры» — реплика шапки MemoriesScreen 1:1
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 14, 12, 16),
+              decoration: BoxDecoration(
+                color: AppColors.paper,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    offset: const Offset(0, 3),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Кадры',
+                      style: GoogleFonts.playfairDisplay(
+                        fontFeatures: [const FontFeature.liningFigures()],
+                        fontSize: 32,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.ink,
+                        letterSpacing: -0.7,
+                        height: 1.05,
+                      ),
+                    ),
+                  ),
+                  // Иконка фильтра (декоративная в онбординге, не кликается)
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.tune, size: 22, color: AppColors.ink2),
+                  ),
+                  const SizedBox(width: 4),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.search, size: 24, color: AppColors.ink2),
+                  ),
+                ],
+              ),
+            ),
+            // Скролл со списком блоков
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Блок 1 — collage_a (свадьба: 1 big + 2 small)
+                    const _OnbMemoryBlock(
+                      eventType: 'СВАДЬБА',
+                      title: 'Аня и Миша',
+                      date: '25 июня',
+                      child: _OnbCollageA(
+                        big: _wed1,
+                        small1: _wed2,
+                        small2: _wed3,
+                      ),
+                    ),
+                    // Блок 2 — tilted (концерт: 4 полароидные наклонённые)
+                    const _OnbMemoryBlock(
+                      eventType: 'КОНЦЕРТ',
+                      title: 'Летний фест',
+                      date: '12 июля',
+                      child: _OnbTiltedStrip(
+                        photos: [_concert1, _concert2, _concert3, _concert4],
+                      ),
+                    ),
+                    _OnbCopy(
+                      title: 'Раздел «Кадры»\nвсегда под рукой',
+                      subtitle: 'Все ваши альбомы — в одном месте. Поиск, фильтры, продление хранения',
+                    ),
+                    const SizedBox(height: 130),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top bar mock
-                      Row(
-                        children: [
-                          const Text(
-                            'КАДРЫ',
-                            style: TextStyle(
-                              fontFamily: 'Inter', fontSize: 11,
-                              letterSpacing: 1.7, color: AppColors.ink,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              '4 альбома',
-                              style: TextStyle(
-                                fontFamily: 'Inter', fontSize: 10,
-                                letterSpacing: 0.6, color: AppColors.amber,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Search bar mock
-                      Container(
-                        height: 34,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.paper,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.search, size: 16, color: AppColors.ink3),
-                            SizedBox(width: 8),
-                            Text(
-                              'Найти альбом',
-                              style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink4),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Album mini-cards
-                      _AlbumFrameRow(title: 'Свадьба Ани и Миши', meta: '2 дня назад · 82 кадра', photoUrl: _p1, status: 'ПРОЯВЛЕНО', statusColor: const Color(0xFF6A9269)),
-                      const SizedBox(height: 8),
-                      _AlbumFrameRow(title: 'Юбилей 30 лет', meta: 'сейчас · 24/45', photoUrl: _p2, status: 'ИДЁТ', statusColor: AppColors.shutter),
-                      const SizedBox(height: 8),
-                      _AlbumFrameRow(title: 'Корпоратив весной', meta: '15 марта · 156 кадров', photoUrl: _p3, status: 'ПРОЯВЛЕНО', statusColor: const Color(0xFF6A9269)),
-                      const SizedBox(height: 8),
-                      _AlbumFrameRow(title: 'День рождения Кати', meta: '18 июля · 0 гостей', photoUrl: _p4, status: 'ЧЕРНОВИК', statusColor: AppColors.ink3),
-                    ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Обёртка секции — воспроизводит `MemoryBlockWidget` из memory_blocks.dart:
+/// padding 18/18/18/22, header (eventType амбер + title серифом + date справа), gap 12, потом блок.
+class _OnbMemoryBlock extends StatelessWidget {
+  final String eventType;
+  final String title;
+  final String date;
+  final Widget child;
+
+  const _OnbMemoryBlock({
+    required this.eventType,
+    required this.title,
+    required this.date,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header (matches _MemoryHeader из memory_blocks.dart)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              eventType,
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.amber,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.playfairDisplay(
+                    fontFeatures: [const FontFeature.liningFigures()],
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                    letterSpacing: -0.4,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                date,
+                style: GoogleFonts.manrope(
+                  fontSize: 13,
+                  color: AppColors.ink3,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// Воспроизводит `_CollageA`: Row([big flex2, gap4, Column([small1, gap4, small2]) flex1]).
+class _OnbCollageA extends StatelessWidget {
+  final String big;
+  final String small1;
+  final String small2;
+
+  const _OnbCollageA({required this.big, required this.small1, required this.small2});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 160,
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: _tile(big)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Column(
+                  children: [
+                    Expanded(child: _tile(small1)),
+                    const SizedBox(height: 4),
+                    Expanded(child: _tile(small2)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Дот-пагинация (первая точка активна) — как в реальных карусельных блоках.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _dot(true),
+            const SizedBox(width: 6),
+            _dot(false),
+            const SizedBox(width: 6),
+            _dot(false),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _tile(String url) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        fadeInDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+
+  Widget _dot(bool active) {
+    return Container(
+      width: active ? 18 : 6,
+      height: 6,
+      decoration: BoxDecoration(
+        color: active ? AppColors.amber : AppColors.ink4.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(3),
+      ),
+    );
+  }
+}
+
+/// Воспроизводит `_TiltedStrip`: горизонтальная лента полароидных карточек
+/// 92×116 с наклонами `[-3, 1.4, -1, 2.6]°` и y-offset `[-2, 3, -3, 2]`, overlap -8px.
+class _OnbTiltedStrip extends StatelessWidget {
+  final List<String> photos;
+  const _OnbTiltedStrip({required this.photos});
+
+  static const _rotations = [-3.0, 1.4, -1.0, 2.6];
+  static const _yOffsets = [-2.0, 3.0, -3.0, 2.0];
+  static const _cardWidth = 92.0;
+  static const _cardHeight = 116.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 132,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        itemCount: photos.length,
+        itemBuilder: (ctx, i) {
+          return Transform.translate(
+            offset: Offset(i == 0 ? 0 : -8.0, _yOffsets[i % 4]),
+            child: Transform.rotate(
+              angle: _rotations[i % 4] * math.pi / 180,
+              child: Container(
+                width: _cardWidth,
+                height: _cardHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.16),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 0.5),
+                ),
+                clipBehavior: Clip.hardEdge,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: photos[i],
+                    fit: BoxFit.cover,
+                    fadeInDuration: const Duration(milliseconds: 200),
                   ),
                 ),
               ),
             ),
-          ),
-          _OnbCopy(
-            title: 'Раздел «Кадры»\nвсегда под рукой',
-            subtitle: 'Все ваши альбомы — в одном месте. Поиск, фильтры, продление хранения',
-          ),
-          const SizedBox(height: 140),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
-class _AlbumFrameRow extends StatelessWidget {
-  final String title;
-  final String meta;
-  final String photoUrl;
-  final String status;
-  final Color statusColor;
-  const _AlbumFrameRow({
-    required this.title, required this.meta, required this.photoUrl,
-    required this.status, required this.statusColor,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              width: 44, height: 44,
-              child: CachedNetworkImage(
-                imageUrl: photoUrl,
-                fit: BoxFit.cover,
-                fadeInDuration: const Duration(milliseconds: 150),
-                placeholder: (_, __) => Container(color: const Color(0xFFE5D8C0)),
-                errorWidget: (_, __, ___) => Container(color: const Color(0xFFD4A860)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title,
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
-                ),
-                const SizedBox(height: 2),
-                Text(meta,
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(status,
-              style: TextStyle(
-                fontFamily: 'Inter', fontSize: 9,
-                letterSpacing: 1.0, color: statusColor,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Page 7: F-логотип с реальной анимацией из logo-anim-F.html ──────────────
 
-class _OnbPage6 extends StatelessWidget {
+class _OnbPage6 extends StatefulWidget {
   final VoidCallback onSkip;
-  const _OnbPage6({required this.onSkip});
+  final bool isActive;
+  const _OnbPage6({required this.onSkip, required this.isActive});
+
+  @override
+  State<_OnbPage6> createState() => _OnbPage6State();
+}
+
+class _OnbPage6State extends State<_OnbPage6> {
+  // Пересборка FLogoAnimated по этому ключу перезапускает анимацию с 0
+  // каждый раз, когда пользователь долистывает до 7-го экрана.
+  Key _logoKey = UniqueKey();
+  bool _hasBeenActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) {
+      _hasBeenActive = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _OnbPage6 old) {
+    super.didUpdateWidget(old);
+    if (widget.isActive && !old.isActive) {
+      // Дошли до 7 экрана — стартуем анимацию с самого начала.
+      setState(() {
+        _hasBeenActive = true;
+        _logoKey = UniqueKey();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1490,14 +1783,19 @@ class _OnbPage6 extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _OnbPager(step: 7, onSkip: onSkip),
+          _OnbPager(step: 7, onSkip: widget.onSkip),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: SizedBox(
               height: 340,
               child: Center(
-                child: FLogoAnimated(size: 240, isDark: false),
+                // FLogoAnimated монтируется только когда страница фактически видима
+                // (иначе PageView pre-cache запустил бы анимацию заранее, и
+                // пользователь увидел бы её с середины).
+                child: _hasBeenActive
+                    ? FLogoAnimated(key: _logoKey, size: 240, isDark: false, loop: false)
+                    : const SizedBox(width: 240, height: 240),
               ),
             ),
           ),

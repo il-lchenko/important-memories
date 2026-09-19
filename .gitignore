@@ -74,6 +74,12 @@ host-app/build/
 host-app/.flutter-plugins
 host-app/.flutter-plugins-dependencies
 
+# Release signing (Android) — НИКОГДА не коммитить!
+# Потеря jks = невозможно обновлять приложение в RuStore/Google Play.
+host-app/android/key.properties
+host-app/android/app/*.jks
+host-app/android/app/*.keystore
+
 # Claude local memory (mirrors ~/.claude/projects/.../memory/)
 memory/
 

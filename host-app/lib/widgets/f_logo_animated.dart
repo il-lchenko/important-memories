@@ -19,11 +19,13 @@ class FLogoAnimated extends StatefulWidget {
   final double size;
   final bool isDark;
   final bool loop;
+  final double speed;
   const FLogoAnimated({
     super.key,
     required this.size,
     this.isDark = false,
-    this.loop = true,
+    this.loop = false,
+    this.speed = 1.0,
   });
 
   @override
@@ -33,12 +35,15 @@ class FLogoAnimated extends StatefulWidget {
 class _FLogoAnimatedState extends State<FLogoAnimated>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
-  static const _cycle = Duration(milliseconds: 5200);
+  static const _baseCycle = Duration(milliseconds: 5200);
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: _cycle);
+    final duration = Duration(
+      milliseconds: (_baseCycle.inMilliseconds / widget.speed).round(),
+    );
+    _c = AnimationController(vsync: this, duration: duration);
     if (widget.loop) {
       _c.repeat();
     } else {

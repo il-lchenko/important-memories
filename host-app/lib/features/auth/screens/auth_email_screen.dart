@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../auth_provider.dart';
@@ -27,10 +28,10 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
   void initState() {
     super.initState();
     _termsRecognizer = TapGestureRecognizer()..onTap = () {
-      // TODO: открыть документ с условиями
+      launchUrl(Uri.parse('https://impomento.pro/offer'), mode: LaunchMode.externalApplication);
     };
     _privacyRecognizer = TapGestureRecognizer()..onTap = () {
-      // TODO: открыть политику конфиденциальности
+      launchUrl(Uri.parse('https://impomento.pro/privacy'), mode: LaunchMode.externalApplication);
     };
   }
 
@@ -136,28 +137,39 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
               // main content
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // decorative logo
+                      // decorative logo (centered, larger)
                       Image.asset(
                         'assets/brand/logo-F-light.png',
-                        width: 96, height: 96,
+                        width: 176, height: 176,
                         fit: BoxFit.contain,
                         filterQuality: FilterQuality.high,
                       ),
-                      const SizedBox(height: 20),
-                      // title
-                      Text(
-                        'Вход\nв ImpoMento',
+                      const SizedBox(height: 22),
+                      // title (centered, 2 lines) — "M" в ImpoMento амбер, как в брендовом lockup
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: 'Вход\nв Impo'),
+                            TextSpan(
+                              text: 'M',
+                              style: TextStyle(color: AppColors.amber),
+                            ),
+                            const TextSpan(text: 'ento'),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.displayMedium,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
 
                       // subtitle
                       Text(
                         'Укажите вашу почту.\nВышлем на неё код для авторизации',
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.ink3,
                         ),

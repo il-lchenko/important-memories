@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +12,14 @@ import '../../../utils/guest_prefs.dart';
 import '../../../widgets/f_logo_animated.dart';
 import '../auth_provider.dart';
 
+// Тайминг сплэша: 200мс пусто → 3400мс F-анимация (speed 1.5×, нормальный темп) →
+// 100мс дельта до автоперехода (буквально «анимация закончилась → приложение»).
+// Кнопка «Начать» — только на первом запуске, появляется в самом конце анимации.
+// Для авторизованных юзеров — мгновенный переход в /dashboard без ожидания.
+const Duration _splashStartDelay = Duration(milliseconds: 200);
+const Duration _autoNavDelay = Duration(milliseconds: 3600);
+const double _logoSpeed = 1.5;
+
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -18,21 +28,36 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _entry;
   bool _isFirstLaunch = true;
   bool _routing = false;
+  bool _showLogo = false;
+  bool _showWordmark = false;
+  bool _showSubtitle = false;
+  bool _showButton = false;
 
   static const _storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    _entry = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..forward();
 
-    // Определяем: первый запуск (show button) или последующий (auto-nav через 1.5с).
+    // Задержка старта — экран сначала показывается пустым, чтобы не «пол анимации уже прошло».
+    Future.delayed(_splashStartDelay, () {
+      if (mounted) setState(() => _showLogo = true);
+    });
+    // Wordmark — на 71% пути анимации (~2460мс при speed 1.5×).
+    Future.delayed(_splashStartDelay + const Duration(milliseconds: 2460), () {
+      if (mounted) setState(() => _showWordmark = true);
+    });
+    // Subtitle — сразу после wordmark.
+    Future.delayed(_splashStartDelay + const Duration(milliseconds: 2930), () {
+      if (mounted) setState(() => _showSubtitle = true);
+    });
+    // Кнопка «Начать» появляется в конце (за 200мс до автоперехода).
+    Future.delayed(_autoNavDelay - const Duration(milliseconds: 200), () {
+      if (mounted) setState(() => _showButton = true);
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkFirstLaunch());
   }
 
@@ -40,12 +65,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     final prefs = await SharedPreferences.getInstance();
     final onboardingDone = prefs.getBool('onboarding_done') ?? false;
     final hasRole = prefs.getString('selected_role') != null;
+    String? token;
+    try {
+      token = await _storage.read(key: 'access_token');
+    } catch (_) {
+      try { await _storage.deleteAll(); } catch (_) {}
+    }
     if (!mounted) return;
     final isFirst = !onboardingDone && !hasRole;
     setState(() => _isFirstLaunch = isFirst);
-    if (!isFirst) {
-      // Быстрый splash для возвратов: 1.5 сек — увидел лого и полетели дальше.
-      Future.delayed(const Duration(milliseconds: 1500), () {
+    if (token != null) {
+      // Уже авторизован — мгновенный переход, без ожидания анимации.
+      _continue();
+    } else if (!isFirst) {
+      // Не первый запуск — доиграем анимацию и уйдём автоматически.
+      Future.delayed(_autoNavDelay, () {
         if (mounted && !_routing) _continue();
       });
     }
@@ -55,7 +89,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     if (_routing || !mounted) return;
     setState(() => _routing = true);
 
-    final token = await _storage.read(key: 'access_token');
+    String? token;
+    try {
+      token = await _storage.read(key: 'access_token');
+    } catch (_) {
+      try { await _storage.deleteAll(); } catch (_) {}
+    }
     if (!mounted) return;
 
     if (token != null) {
@@ -95,120 +134,121 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
     } else if (selectedRole == 'host') {
       context.go(onboardingDone ? '/auth/email' : '/onboarding');
     } else {
-      // Первая сессия: онбординг сразу (без промежуточного role-selection —
-      // выбор роли есть на онбординге финалом).
       context.go(onboardingDone ? '/role' : '/onboarding');
     }
   }
 
   @override
-  void dispose() {
-    _entry.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    // Логотип F: 210dp на среднем телефоне, чуть больше на планшете. Не гигант.
+    final logoSize = math.min(media.size.width * 0.48, 240.0);
+    // Wordmark ~1.2× шире логотипа — визуально сбалансированная композиция.
+    final wordmarkWidth = logoSize * 1.15;
+
+    const fadeDuration = Duration(milliseconds: 600);
+
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const Spacer(flex: 3),
-            // ── Логотип: реальная анимация из logo-anim-F.html ──────────────
-            const FLogoAnimated(size: 220, isDark: false),
-            const SizedBox(height: 28),
-            // ── Название: fade-in + сдвиг снизу ─────────────────────────────
-            AnimatedBuilder(
-              animation: _entry,
-              builder: (_, __) {
-                final t = _entry.value.clamp(0.0, 1.0);
-                return Opacity(
-                  opacity: t,
-                  child: Transform.translate(
-                    offset: Offset(0, (1 - t) * 12),
-                    child: Column(
-                      children: [
-                        Text(
-                          'ImpoMento',
-                          style: GoogleFonts.playfairDisplay(
-                            fontFeatures: [const FontFeature.liningFigures()],
-                            fontSize: 44,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.5,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'ОДНОРАЗОВАЯ КАМЕРА · ВАШИ МОМЕНТЫ',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10,
-                            letterSpacing: 2.2,
-                            color: AppColors.ink4,
-                          ),
-                        ),
-                      ],
+            // Всё лого-содержимое строго по центру экрана, друг под другом.
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Резервируем место под лого, чтобы Column не «прыгал» после появления.
+                  SizedBox(
+                    width: logoSize,
+                    height: logoSize,
+                    child: _showLogo
+                        ? FLogoAnimated(
+                            size: logoSize,
+                            isDark: false,
+                            loop: false,
+                            speed: _logoSpeed,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: 22),
+                  AnimatedOpacity(
+                    opacity: _showWordmark ? 1.0 : 0.0,
+                    duration: fadeDuration,
+                    curve: Curves.easeOut,
+                    child: AnimatedSlide(
+                      offset: _showWordmark ? Offset.zero : const Offset(0, 0.25),
+                      duration: fadeDuration,
+                      curve: Curves.easeOut,
+                      child: Image.asset(
+                        'assets/brand/wordmark-title-light.png',
+                        width: wordmarkWidth,
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
-                );
-              },
+                  const SizedBox(height: 12),
+                  AnimatedOpacity(
+                    opacity: _showSubtitle ? 1.0 : 0.0,
+                    duration: fadeDuration,
+                    curve: Curves.easeOut,
+                    child: Text(
+                      'DISPOSABLE · 2026',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        letterSpacing: 4.4,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.amber,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(flex: 4),
-            // ── Кнопка «Продолжить» (только первый запуск) ──────────────────
+            // Кнопка «Начать» — только на первом запуске, появляется последней и плавно.
             if (_isFirstLaunch)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 0, 32, 40),
-                child: AnimatedBuilder(
-                  animation: _entry,
-                  builder: (_, __) {
-                    final t = ((_entry.value - 0.4) / 0.6).clamp(0.0, 1.0);
-                    return Opacity(
-                      opacity: t,
-                      child: Transform.translate(
-                        offset: Offset(0, (1 - t) * 20),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _continue,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.amber,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Начать',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.arrow_forward, size: 20),
-                              ],
-                            ),
+              Positioned(
+                left: 32,
+                right: 32,
+                bottom: 44,
+                child: AnimatedOpacity(
+                  opacity: _showButton ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOut,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      onPressed: _showButton ? _continue : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.amber,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Начать',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
                           ),
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              )
-            else
-              const SizedBox(height: 56 + 40),
+              ),
           ],
         ),
       ),
     );
   }
-
 }

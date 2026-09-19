@@ -61,9 +61,15 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     super.dispose();
   }
 
+  bool _isStarting = false;
   Future<void> _startRecording() async {
-    final status = await Permission.microphone.request();
-    if (!status.isGranted || !mounted) return;
+    // Double-tap guard: без него параллельные запросы permission-prompt
+    // + две запущенные recorder-сессии.
+    if (_isStarting) return;
+    _isStarting = true;
+    try {
+      final status = await Permission.microphone.request();
+      if (!status.isGranted || !mounted) return;
 
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
@@ -108,7 +114,10 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
       if (_elapsedMs >= _maxMs) _stopRecording();
     });
 
-    setState(() => _state = _RecordState.recording);
+      setState(() => _state = _RecordState.recording);
+    } finally {
+      _isStarting = false;
+    }
   }
 
   Future<void> _stopRecording() async {
@@ -197,8 +206,12 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
         },
         options: guestOpts,
       );
-      final voiceS3Key = presignResp.data['voice_s3_key'] as String;
-      final uploadUrl = presignResp.data['upload_url'] as String;
+      final pdata = presignResp.data;
+      final voiceS3Key = (pdata is Map ? pdata['voice_s3_key'] : null) as String?;
+      final uploadUrl = (pdata is Map ? pdata['upload_url'] : null) as String?;
+      if (voiceS3Key == null || uploadUrl == null) {
+        throw StateError('Некорректный ответ сервера (voice presign).');
+      }
 
       // 2. PUT to S3 (separate Dio, no auth headers)
       final s3Dio = Dio();

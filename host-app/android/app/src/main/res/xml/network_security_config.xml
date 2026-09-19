@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+            <!-- Let's Encrypt ISRG Root X1 — bundled в APK,
+                 чтобы на Android 6.0/7.0 (у которых нет LE root в system store)
+                 приложение доверяло сертификату impomento.pro. -->
+            <certificates src="@raw/isrg_root_x1"/>
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">impomento.pro</domain>
+        <domain includeSubdomains="true">twcstorage.ru</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+            <certificates src="@raw/isrg_root_x1"/>
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
