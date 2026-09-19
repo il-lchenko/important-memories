@@ -263,4 +263,16 @@ export const guestApi = {
   updateFrame(frameId: string, payload: FrameUpdatePayload) {
     return api.patch<void>(`/guest/frames/${frameId}`, payload)
   },
+  acceptConsent(docType: 'offer' | 'privacy' | 'consent' | 'content_rules', docVersion: string) {
+    // Гость принимает документ ДО создания Guest-записи в БД. Запись пишется
+    // на fingerprint; при join backend свяжет fingerprint → guest_id.
+    return api.post<{ id: string; doc_type: string; doc_version: string; accepted_at: string }>(
+      '/guest/consent',
+      {
+        doc_type: docType,
+        doc_version: docVersion,
+        fingerprint: generateFingerprint(),
+      },
+    )
+  },
 }

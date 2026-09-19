@@ -8,6 +8,7 @@ import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/auth_email_screen.dart';
 import '../features/auth/screens/auth_otp_screen.dart';
+import '../features/auth/screens/consent_screen.dart';
 import '../features/events/screens/dashboard_screen.dart';
 import '../features/events/screens/create_event_screen.dart';
 import '../features/events/screens/checkout_screen.dart';
@@ -83,6 +84,7 @@ GoRouter appRouter(Ref ref) {
         path: '/auth/otp',
         builder: (c, s) => AuthOtpScreen(email: s.uri.queryParameters['email'] ?? ''),
       ),
+      GoRoute(path: '/auth/consent', builder: (c, s) => const ConsentScreen()),
       // Main tabs — wrapped in StatefulShellRoute so AppBottomNav stays static.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

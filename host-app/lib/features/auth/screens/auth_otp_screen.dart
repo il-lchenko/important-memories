@@ -42,7 +42,17 @@ class _AuthOtpScreenState extends ConsumerState<AuthOtpScreen> {
     setState(() { _loading = true; _errorMsg = null; });
     try {
       await ref.read(authProvider.notifier).verifyCode(widget.email, _code);
-      if (mounted) context.go('/dashboard');
+      // Проверяем, приняты ли актуальные версии юр. документов.
+      // Если не приняты — сначала на /auth/consent, иначе — сразу на /dashboard.
+      bool needsConsent = false;
+      try {
+        final dio = ref.read(dioProvider);
+        final resp = await dio.get('consent/status');
+        needsConsent = (resp.data is Map) && (resp.data['needs_accept'] == true);
+      } catch (_) {
+        // При ошибке статуса не блокируем вход — консент можно принять позже.
+      }
+      if (mounted) context.go(needsConsent ? '/auth/consent' : '/dashboard');
     } catch (e) {
       if (mounted) {
         setState(() => _errorMsg = extractUserMessage(e));
