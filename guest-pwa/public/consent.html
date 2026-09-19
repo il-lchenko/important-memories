@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="doc-version" content="2.2" />
+<title>Согласие на обработку персональных данных — ImpoMento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--paper:#F6F2E8;--paper-2:#FCFAF5;--paper-3:#EFE9DA;--ink:#1A1714;--ink-2:#45403A;--ink-3:#756E64;--line:rgba(26,23,20,0.10);--amber:#C9881E;--amber-soft:rgba(201,136,30,0.10);}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+  .container{display:grid;grid-template-columns:220px 1fr;gap:48px;max-width:1080px;margin:0 auto;padding:48px 32px}
+  aside.toc{position:sticky;top:24px;align-self:start;max-height:calc(100vh - 48px);overflow-y:auto;font-size:12.5px;border-right:1px solid var(--line);padding-right:16px}
+  aside.toc h3{font-family:'Fraunces',serif;font-size:13px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:1px}
+  aside.toc ol{list-style:none;padding:0;margin:0;counter-reset:toc}
+  aside.toc li{counter-increment:toc;margin:4px 0}
+  aside.toc a{display:block;color:var(--ink-2);text-decoration:none;padding:3px 6px;border-radius:4px;line-height:1.4}
+  aside.toc a::before{content:counter(toc) ". ";color:var(--ink-3);font-family:'Inter',sans-serif;font-size:10px;margin-right:4px}
+  aside.toc a:hover{background:var(--amber-soft);color:var(--ink)}
+  main{min-width:0;max-width:760px}
+  header.doc-head{margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid var(--line)}
+  header.doc-head .eyebrow{font-family:'Inter',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--amber);margin-bottom:12px}
+  header.doc-head h1{font-family:'Fraunces',serif;font-weight:600;font-size:36px;line-height:1.15;margin:0 0 12px;letter-spacing:-0.5px}
+  header.doc-head .meta{display:flex;gap:24px;font-size:12px;color:var(--ink-3);font-family:'Inter',sans-serif;flex-wrap:wrap}
+  section{margin:40px 0;scroll-margin-top:24px}
+  section > h2{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:-0.3px}
+  section > h2 .num{font-family:'Inter',sans-serif;font-size:12px;color:var(--amber);margin-right:10px;font-weight:500}
+  h3{font-family:'Inter',sans-serif;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--ink-3);margin:24px 0 8px}
+  p{margin:0 0 12px}
+  a{color:var(--amber);text-decoration:underline;text-underline-offset:3px}
+  ul,ol{padding-left:22px}
+  ul li,ol li{margin:4px 0}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  thead th{text-align:left;background:var(--paper-3);color:var(--ink);font-weight:600;padding:10px 12px;border-bottom:2px solid var(--amber);font-size:11.5px;text-transform:uppercase;letter-spacing:0.5px}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:nth-child(even){background:var(--paper-2)}
+  .card{background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:16px 0;font-size:14px}
+  .card.amber{background:var(--amber-soft);border-color:rgba(201,136,30,0.25)}
+  .placeholder{display:inline-block;background:var(--amber-soft);color:var(--amber);padding:1px 6px;border-radius:3px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600}
+  footer.doc-foot{margin-top:64px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);text-align:center;font-family:'Inter',sans-serif}
+  @media(max-width:900px){.container{grid-template-columns:1fr;padding:24px 16px;gap:0}aside.toc{display:none}header.doc-head h1{font-size:28px}}
+  @media print{body{background:#fff;font-size:11pt}aside.toc{display:none}.container{display:block;max-width:100%;padding:0}section{page-break-inside:avoid;margin:24px 0}a{color:var(--ink);text-decoration:underline}.placeholder{background:#fff;border:1px dashed var(--ink-3)}}
+</style>
+</head>
+<body>
+<div class="container">
+<aside class="toc">
+  <h3>Содержание</h3>
+  <ol>
+    <li><a href="#p1">О документе</a></li>
+    <li><a href="#p2">Оператор</a></li>
+    <li><a href="#p3">Субъект и способ выражения согласия</a></li>
+    <li><a href="#p4">Перечень персональных данных</a></li>
+    <li><a href="#p5">Цели обработки</a></li>
+    <li><a href="#p6">Действия с данными</a></li>
+    <li><a href="#p7">Обработчики</a></li>
+    <li><a href="#p8">Срок и порядок отзыва</a></li>
+    <li><a href="#p9">Особенности для лиц 14–18 лет</a></li>
+  </ol>
+</aside>
+
+<main>
+<header class="doc-head">
+  <div class="eyebrow">Согласие субъекта на обработку персональных данных · Отдельный документ по 152-ФЗ ст. 9 (в редакции с 01.09.2025)</div>
+  <h1>Согласие на обработку персональных данных</h1>
+  <div class="meta">
+    <span>Редакция от: <strong><span class="placeholder">{{DATE_EFFECTIVE}}</span></strong></span>
+    <span>Оператор: <strong><span class="placeholder">{{FULL_NAME}}</span></strong></span>
+    <span>Версия: <strong>2.2</strong></span>
+  </div>
+</header>
+
+<section id="p1">
+  <h2><span class="num">01</span>О настоящем документе</h2>
+  <p>Настоящий документ является Согласием субъекта на обработку персональных данных (далее — «Согласие»), оформленным <strong>отдельно от иной документации Сервиса</strong> в соответствии с требованием статьи 9 Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных» (в редакции, действующей с 1 сентября 2025 года).</p>
+
+  <div class="card amber">
+    Согласие оформляется в электронной форме путём проставления отдельной отметки «Я даю согласие на обработку персональных данных» при регистрации в приложении ImpoMento или при присоединении к Событию в качестве Гостя. Факт получения Согласия, версия документа, дата и время принятия, IP-адрес (в хешированном виде) фиксируются Оператором в электронном журнале в целях доказывания получения согласия (152-ФЗ ст. 9 ч. 1).
+  </div>
+
+  <p>Настоящее Согласие является свободным, конкретным, информированным и сознательным выражением воли субъекта персональных данных.</p>
+
+  <p>Настоящее Согласие связано с использованием Пользователем приложения ImpoMento и не распространяется на иные сервисы или ресурсы, не принадлежащие Оператору.</p>
+</section>
+
+<section id="p2">
+  <h2><span class="num">02</span>Оператор персональных данных</h2>
+  <div class="card">
+    <p><strong>Наименование Оператора:</strong> <span class="placeholder">{{FULL_NAME}}</span><br>
+    <strong>Правовой статус:</strong> физическое лицо, применяющее специальный налоговый режим «Налог на профессиональный доход» (НПД)<br>
+    <strong>ИНН:</strong> <span class="placeholder">{{INN}}</span><br>
+    <strong>Адрес:</strong> г. Москва<br>
+    <strong>Email для обращений:</strong> <a href="mailto:support@impomento.pro">support@impomento.pro</a></p>
+  </div>
+</section>
+
+<section id="p3">
+  <h2><span class="num">03</span>Субъект персональных данных и способ выражения согласия</h2>
+  <p>Субъектом персональных данных является Пользователь Сервиса ImpoMento — физическое лицо, регистрирующее учётную запись Хоста или присоединяющееся к Событию в качестве Гостя.</p>
+
+  <p>Согласие даётся Пользователем в электронной форме в момент регистрации в приложении путём:</p>
+  <ul>
+    <li>ознакомления с текстом настоящего Согласия по ссылке в интерфейсе приложения;</li>
+    <li>проставления отдельной отметки (чекбокса) «Я даю согласие на обработку персональных данных»;</li>
+    <li>подтверждения действий кнопкой «Продолжить» (для Хоста — с последующим вводом кода из email; для Гостя — с последующим переходом к экрану камеры).</li>
+  </ul>
+
+  <p>Согласие даётся отдельно от Публичной оферты и Политики конфиденциальности. При регистрации Пользователь проставляет три раздельные отметки, имеющие разное правовое значение:</p>
+  <ul>
+    <li><strong>Принятие Публичной оферты</strong> — акцепт договора об оказании услуг в смысле ст. 438 ГК РФ;</li>
+    <li><strong>Ознакомление с Политикой конфиденциальности</strong> — подтверждение того, что Пользователь ознакомился с порядком обработки Оператором персональных данных (Политика является информационным документом, не самостоятельным согласием);</li>
+    <li><strong>Согласие на обработку персональных данных</strong> — отдельное юридически значимое волеизъявление субъекта ПД по ст. 9 152-ФЗ.</li>
+  </ul>
+  <p>Настоящий документ является третьей из указанных отметок.</p>
+</section>
+
+<section id="p4">
+  <h2><span class="num">04</span>Перечень персональных данных, на обработку которых даётся согласие</h2>
+  <p>Согласие предоставляется на обработку следующих категорий персональных данных:</p>
+  <table>
+    <thead><tr><th>Категория</th><th>Кто предоставляет</th></tr></thead>
+    <tbody>
+      <tr><td>Email-адрес</td><td>Хост</td></tr>
+      <tr><td>Отображаемое имя</td><td>Хост, Гость</td></tr>
+      <tr><td>Фотография аватара (по желанию)</td><td>Хост, Гость</td></tr>
+      <tr><td>Идентификатор устройства (fingerprint браузера / устройства)</td><td>Гость (автоматически)</td></tr>
+      <tr><td>Фотографии, загружаемые Пользователем</td><td>Хост, Гость</td></tr>
+      <tr><td>Голосовые заметки и текстовые подписи</td><td>Хост, Гость</td></tr>
+      <tr><td>IP-адрес</td><td>Автоматически при подключении</td></tr>
+      <tr><td>Тип устройства, версия ОС, версия приложения</td><td>Автоматически из HTTP-заголовков</td></tr>
+      <tr><td>Токен push-уведомлений (при разрешении пользователем)</td><td>Автоматически</td></tr>
+      <tr><td>Данные о платежах (идентификатор, сумма, статус)</td><td>Через ЮKassa при покупке Тарифа</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="p5">
+  <h2><span class="num">05</span>Цели обработки</h2>
+  <p>Согласие даётся на обработку персональных данных для целей, необходимых для функционирования Сервиса:</p>
+  <ol>
+    <li>Идентификация и аутентификация Пользователя;</li>
+    <li>Создание, хранение и предоставление доступа к Событиям и альбомам;</li>
+    <li>Приём, хранение и обработка фотографий, голосовых заметок и подписей, загружаемых Пользователями;</li>
+    <li>Обработка платежей через платёжный сервис ЮKassa;</li>
+    <li>Отправка сервисных сообщений (кодов входа, уведомлений о состоянии События, напоминаний о сроке хранения);</li>
+    <li>Обеспечение технической работоспособности и безопасности Сервиса, защита от неправомерных действий;</li>
+    <li>Обезличенная аналитика использования Сервиса — для его улучшения;</li>
+    <li>Рассмотрение обращений, жалоб и требований в соответствии с законодательством;</li>
+    <li>Соблюдение обязанностей Оператора, установленных законодательством Российской Федерации.</li>
+  </ol>
+
+  <div class="card amber">
+    <strong>Что Оператор не делает.</strong> Согласие не распространяется на использование ПД для маркетингового профилирования, продажи третьим лицам, показа таргетированной рекламы за пределами Сервиса, обработки биометрических данных в смысле ст. 11 152-ФЗ (распознавание лица для установления личности не осуществляется).
+  </div>
+</section>
+
+<section id="p6">
+  <h2><span class="num">06</span>Перечень действий с персональными данными и способ обработки</h2>
+  <p>Оператор осуществляет с персональными данными следующие действия: сбор, запись, систематизация, накопление, хранение, уточнение (обновление, изменение), извлечение, использование, передача (в объёме, необходимом для оказания услуг и указанном в разделе 7), обезличивание, блокирование, удаление и уничтожение.</p>
+
+  <p>Обработка осуществляется:</p>
+  <ul>
+    <li>с использованием средств автоматизации (программного обеспечения на серверах Оператора);</li>
+    <li>без использования средств автоматизации — при работе с обращениями, поступающими на support-email.</li>
+  </ul>
+
+  <p>При обработке фотографий Оператор автоматически удаляет EXIF-метаданные, содержащие GPS-координаты, серийный номер устройства и иные сведения, не необходимые для оказания услуги.</p>
+</section>
+
+<section id="p7">
+  <h2><span class="num">07</span>Обработчики, привлекаемые Оператором</h2>
+  <p>Согласие распространяется на передачу персональных данных следующим обработчикам, привлекаемым Оператором на основании договоров с условиями конфиденциальности (152-ФЗ ст. 6 ч. 3). Все обработчики расположены на территории Российской Федерации:</p>
+  <ul>
+    <li><strong>ООО «Тайм Веб» (Timeweb Cloud)</strong> — предоставление инфраструктуры (серверы, база данных, объектное хранилище);</li>
+    <li><strong>ООО «НКО ЮMoney» (ЮKassa)</strong> — приём платежей (реквизиты банковских карт Оператор не получает и не хранит);</li>
+    <li><strong>ООО «Юнисендер Рус» (Unisender)</strong> — доставка транзакционных писем;</li>
+    <li><strong>ООО «ВК» / RuStore Notification Service</strong> — доставка push-уведомлений на устройства Пользователей;</li>
+    <li><strong>ООО «ЯНДЕКС» (Yandex Metrica)</strong> — обезличенная аналитика;</li>
+    <li><strong>Собственная система мониторинга ошибок (GlitchTip)</strong>, развёрнутая на серверах Оператора в РФ.</li>
+  </ul>
+
+  <div class="card amber">
+    <strong>Трансграничная передача не осуществляется.</strong> Оператор не передаёт персональные данные лицам, находящимся за пределами Российской Федерации. Уведомление о намерении осуществлять трансграничную передачу (152-ФЗ ст. 12) Оператором в Роскомнадзор не подавалось — по причине отсутствия таковой передачи.
+  </div>
+</section>
+
+<section id="p8">
+  <h2><span class="num">08</span>Срок действия согласия и порядок его отзыва</h2>
+
+  <p><strong>Срок действия согласия:</strong> согласие действует с момента его дачи и до наступления одного из следующих событий:</p>
+  <ul>
+    <li>Пользователь отзывает согласие в порядке, установленном ниже;</li>
+    <li>Пользователь удаляет свою учётную запись в приложении;</li>
+    <li>достижение целей обработки или их утрата.</li>
+  </ul>
+
+  <h3>Как отозвать согласие</h3>
+  <p>Согласие может быть отозвано в любой момент одним из способов:</p>
+  <ul>
+    <li>в приложении: «Настройки» → «Удалить аккаунт» (удаление учётной записи автоматически влечёт отзыв согласия и удаление ПД в сроки, установленные Политикой конфиденциальности);</li>
+    <li>по электронной почте: направить запрос на <a href="mailto:support@impomento.pro">support@impomento.pro</a> с темой «ПД: отзыв согласия».</li>
+  </ul>
+
+  <h3>Сроки после отзыва</h3>
+  <p>После получения отзыва согласия Оператор обязан прекратить обработку персональных данных или обеспечить прекращение такой обработки лицом, действующим по поручению Оператора, в срок, не превышающий <strong>30 календарных дней</strong> с даты поступления отзыва (152-ФЗ ст. 9 ч. 2, ст. 21 ч. 5).</p>
+
+  <p>Для отдельных операций применяются иные сроки, установленные <a href="https://impomento.pro/privacy">Политикой конфиденциальности</a>, раздел 12: 10 рабочих дней для доступа к своим ПД и требования о прекращении обработки; 24 часа для удаления изображения по требованию Изображённого лица.</p>
+
+  <h3>Исключения из отзыва согласия</h3>
+  <p>После отзыва согласия обработка отдельных категорий данных может продолжаться на ином правовом основании, предусмотренном законом (152-ФЗ ст. 6 п. 1). В частности:</p>
+  <ul>
+    <li><strong>Платёжные данные</strong> (идентификатор платежа, сумма, дата, email плательщика, номер кассового чека) — сохраняются 5 лет в силу требований Налогового кодекса РФ и ФЗ «О применении контрольно-кассовой техники».</li>
+    <li><strong>Audit trail записей о принятии согласий</strong> (версия документа, дата/время, хешированный IP) — сохраняются 3 года после последнего использования Сервиса в целях доказывания заключения договора и получения согласия (ст. 9 ч. 1 152-ФЗ).</li>
+    <li><strong>Файлы, ранее загруженные Гостем в альбом Хоста</strong> (фотографии, голосовые заметки), объективно содержат изображения и/или голоса других участников События. После отзыва согласия Гостем прекращается обработка персональных данных этого Гостя (его имя, идентификаторы обезличиваются), однако сами файлы могут продолжать храниться до окончания оплаченного Хостом срока хранения — на основании законных интересов Хоста и других участников События в сохранности общего альбома памятного мероприятия, при соблюдении прав изображённых и записанных лиц (пп. 7 ч. 1 ст. 6 152-ФЗ; подробнее — раздел 10 Политики конфиденциальности). Гость дополнительно вправе как отдельно взятое лицо, изображённое или записанное на конкретном файле, потребовать удаления самого файла целиком — в порядке, установленном разделом 10 Политики (срок — 24 часа).</li>
+  </ul>
+
+  <p>О применении любого из указанных исключений Оператор уведомляет Пользователя при обработке его запроса. Указанное не отменяет прекращения обработки ПД для всех иных целей.</p>
+</section>
+
+<section id="p9">
+  <h2><span class="num">09</span>Особенности для лиц в возрасте от 14 до 18 лет</h2>
+  <p>Настоящее Согласие может быть дано лицом, достигшим возраста 14 лет, самостоятельно — в объёме, соответствующем возможностям такого лица по действующему законодательству Российской Федерации.</p>
+
+  <p>Лица в возрасте от 14 до 18 лет, принимающие настоящее Согласие в качестве Хоста (при регистрации и оплате Тарифа), подтверждают, что действия по заключению возмездного договора с Оператором совершаются ими с ведома и согласия своих законных представителей — родителей, усыновителей, попечителей (Гражданский кодекс РФ, статья 26).</p>
+
+  <p>Использование Сервиса лицами, не достигшими возраста 14 лет, не допускается. В случае обнаружения такого использования учётная запись подлежит блокировке, соответствующие персональные данные — удалению.</p>
+</section>
+
+<section>
+  <h2><span class="num">✉</span>Контакты по вопросам согласия</h2>
+  <div class="card">
+    <p><strong>Оператор:</strong> <span class="placeholder">{{FULL_NAME}}</span><br>
+    ИНН: <span class="placeholder">{{INN}}</span><br>
+    Email: <a href="mailto:support@impomento.pro">support@impomento.pro</a></p>
+    <p style="margin:12px 0 0;"><strong>По вопросам обработки ПД и отзыву согласия:</strong> тема письма должна начинаться с «ПД:».</p>
+    <p style="margin:12px 0 0;"><strong>Надзорный орган:</strong> Роскомнадзор, <a href="https://rkn.gov.ru">rkn.gov.ru</a>.</p>
+  </div>
+  <p>Дополнительные документы: <a href="https://impomento.pro/offer">Публичная оферта</a>, <a href="https://impomento.pro/privacy">Политика конфиденциальности</a>, <a href="https://impomento.pro/content-rules">Правила пользовательского контента</a>.</p>
+</section>
+
+<footer class="doc-foot">
+  ImpoMento (Important Memories) · Согласие на обработку персональных данных · Версия 2.2 · Редакция от <span class="placeholder">{{DATE_EFFECTIVE}}</span>
+</footer>
+</main>
+</div>
+</body>
+</html>
