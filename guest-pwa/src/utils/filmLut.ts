@@ -110,6 +110,65 @@ function getNoiseTile(): HTMLCanvasElement {
 
 export async function preloadFilmLUT(_preset: string): Promise<void> { /* curves are sync */ }
 
+// ─── Web Worker offload (main pixel loop) ────────────────────────────────────
+// LUT-фаза раньше блокировала main thread на 2–4с для кадра 2560px. Теперь
+// выносим её в worker: main поток свободен, UI отзывчив, capture-фаза быстрее.
+
+let _worker: Worker | null = null
+let _workerReqId = 0
+const _workerPending = new Map<number, (buf: ArrayBuffer) => void>()
+
+function getWorker(): Worker | null {
+  if (_worker !== null) return _worker
+  if (typeof Worker === 'undefined') return null
+  try {
+    _worker = new Worker(new URL('./filmLutWorker.ts', import.meta.url), { type: 'module' })
+    _worker.onmessage = (e: MessageEvent<{ id: number; buffer: ArrayBuffer }>) => {
+      const cb = _workerPending.get(e.data.id)
+      if (cb) {
+        _workerPending.delete(e.data.id)
+        cb(e.data.buffer)
+      }
+    }
+    _worker.onerror = (err) => {
+      console.warn('filmLutWorker error, falling back to main thread', err)
+      _worker = null
+    }
+    return _worker
+  } catch (e) {
+    console.warn('filmLutWorker init failed', e)
+    return null
+  }
+}
+
+async function applyPixelPhaseInWorker(
+  imageData: ImageData,
+  preset: string,
+): Promise<ImageData | null> {
+  const worker = getWorker()
+  if (!worker) return null
+  return await new Promise<ImageData>((resolve, reject) => {
+    const id = ++_workerReqId
+    const w = imageData.width, h = imageData.height
+    _workerPending.set(id, (buf) => {
+      try {
+        const out = new ImageData(new Uint8ClampedArray(buf), w, h)
+        resolve(out)
+      } catch (e) {
+        reject(e)
+      }
+    })
+    const buf = imageData.data.buffer
+    worker.postMessage({ id, preset, buffer: buf, width: w, height: h }, [buf])
+    setTimeout(() => {
+      if (_workerPending.has(id)) {
+        _workerPending.delete(id)
+        reject(new Error('worker timeout'))
+      }
+    }, 8000)
+  }).catch(() => null)
+}
+
 export async function applyFilmLUT(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -123,53 +182,50 @@ export async function applyFilmLUT(
 
   const [rLUT, gLUT, bLUT] = luts
   const imageData = ctx.getImageData(0, 0, width, height)
-  const d = imageData.data
   const { saturation: sat, fade, shadowTint, highlightTint, temperature: temp, bw } = film
 
-  if (bw) {
-    for (let i = 0; i < d.length; i += 4) {
-      const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0
-      const v = rLUT[lum]
-      d[i] = d[i + 1] = d[i + 2] = v
-    }
+  // 1) Пробуем перенести пиксельный цикл в Web Worker (main thread свободен).
+  const workerResult = await applyPixelPhaseInWorker(imageData, preset)
+  if (workerResult) {
+    ctx.putImageData(workerResult, 0, 0)
   } else {
-    for (let i = 0; i < d.length; i += 4) {
-      let r = rLUT[d[i]], g = gLUT[d[i + 1]], b = bLUT[d[i + 2]]
-
-      // Fade (lift blacks)
-      if (fade > 0) {
-        r = r + (255 - r) * fade * 0.18
-        g = g + (255 - g) * fade * 0.18
-        b = b + (255 - b) * fade * 0.18
+    // 2) Fallback: main thread (старые браузеры / worker не поднялся).
+    const d = imageData.data
+    if (bw) {
+      for (let i = 0; i < d.length; i += 4) {
+        const lum = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) | 0
+        const v = rLUT[lum]
+        d[i] = d[i + 1] = d[i + 2] = v
       }
-
-      // Tone-split tint
-      const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255
-      const shadowW = (1 - lum) * (1 - lum)
-      const highW = lum * lum
-      r += shadowTint[0] * shadowW + highlightTint[0] * highW
-      g += shadowTint[1] * shadowW + highlightTint[1] * highW
-      b += shadowTint[2] * shadowW + highlightTint[2] * highW
-
-      // Temperature
-      if (temp !== 0) {
-        r += temp * 0.15
-        b -= temp * 0.15
+    } else {
+      for (let i = 0; i < d.length; i += 4) {
+        let r = rLUT[d[i]], g = gLUT[d[i + 1]], b = bLUT[d[i + 2]]
+        if (fade > 0) {
+          r = r + (255 - r) * fade * 0.18
+          g = g + (255 - g) * fade * 0.18
+          b = b + (255 - b) * fade * 0.18
+        }
+        const lum = (r * 0.299 + g * 0.587 + b * 0.114) / 255
+        const shadowW = (1 - lum) * (1 - lum)
+        const highW = lum * lum
+        r += shadowTint[0] * shadowW + highlightTint[0] * highW
+        g += shadowTint[1] * shadowW + highlightTint[1] * highW
+        b += shadowTint[2] * shadowW + highlightTint[2] * highW
+        if (temp !== 0) {
+          r += temp * 0.15
+          b -= temp * 0.15
+        }
+        if (sat !== 1) {
+          const ly = r * 0.299 + g * 0.587 + b * 0.114
+          r = ly + (r - ly) * sat
+          g = ly + (g - ly) * sat
+          b = ly + (b - ly) * sat
+        }
+        d[i] = clamp(r); d[i + 1] = clamp(g); d[i + 2] = clamp(b)
       }
-
-      // Saturation (luminance-preserving)
-      if (sat !== 1) {
-        const ly = r * 0.299 + g * 0.587 + b * 0.114
-        r = ly + (r - ly) * sat
-        g = ly + (g - ly) * sat
-        b = ly + (b - ly) * sat
-      }
-
-      d[i] = clamp(r); d[i + 1] = clamp(g); d[i + 2] = clamp(b)
     }
+    ctx.putImageData(imageData, 0, 0)
   }
-
-  ctx.putImageData(imageData, 0, 0)
 
   // Halation (только Cinestill) — красное свечение вокруг ярких/красных областей
   if (film.halation && film.halation > 0) {

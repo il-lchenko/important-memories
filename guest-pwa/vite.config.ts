@@ -66,7 +66,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: ({ url, request }) => request.destination === 'image' && url.pathname.startsWith('/s3/'),
+            urlPattern: ({ url, request }) => request.destination === 'image' && (url.pathname.startsWith('/s3/') || url.hostname === 's3.twcstorage.ru'),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'im-album-images',

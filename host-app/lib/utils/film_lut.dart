@@ -154,23 +154,15 @@ Map<String, Object> processImageInIsolate(Map<String, Object> params) {
   final bytes = params['bytes'] as Uint8List;
   final preset = params['preset'] as String;
   final maxSize = (params['maxSize'] as int?) ?? 4000;
-  final quarter = (params['quarter'] as int?) ?? 0;
   final targetRatio = (params['targetRatio'] as double?);
 
   var image = img.decodeImage(bytes)!;
+  // bakeOrientation читает EXIF и физически поворачивает пиксели.
+  // Camera plugin (Android) с lockCaptureOrientation пишет корректный EXIF Orientation,
+  // так что после bakeOrientation image.width/height уже соответствуют «правильному верху».
+  // Manual rotate 180°/-90° по гироскопу давал разные результаты на разных устройствах и
+  // приводил к перевёрнутым фото — убран.
   image = img.bakeOrientation(image).convert(numChannels: 3);
-
-  final isLandscape = image.width > image.height;
-  final quarterIsLandscape = quarter == 1 || quarter == 3;
-
-  if (isLandscape && quarterIsLandscape) {
-    // Landscape shot: camera plugin returns upside-down landscape — flip 180°.
-    image = img.copyRotate(image, angle: 180);
-  } else if (isLandscape && !quarterIsLandscape) {
-    // Portrait shot but image is still landscape — bakeOrientation had no EXIF to act on.
-    // Sensor top = right side of phone → scene UP is at RIGHT of landscape → rotate 90° CCW.
-    image = img.copyRotate(image, angle: -90);
-  }
 
   // Центральный кроп до targetRatio (w/h) — если задан.
   // Камера всегда снимает 4:3 (или 3:4 после поворота). Для 3:4 — no-op.

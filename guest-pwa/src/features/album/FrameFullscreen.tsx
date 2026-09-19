@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReportModal from './ReportModal'
+import { guestApi } from '../../api/client'
 
 interface Frame {
   id: string
@@ -46,14 +47,21 @@ function IcBtn({ onClick, children, disabled }: { onClick?: () => void; children
 }
 
 export default function FrameFullscreen() {
-  const { shortCode, frameIndex } = useParams<{ shortCode: string; frameIndex: string }>()
+  const { shortCode, token, frameIndex } = useParams<{ shortCode?: string; token?: string; frameIndex: string }>()
   const navigate = useNavigate()
   const { state } = useLocation() as { state: { frames: Frame[]; totalFrames: number } | null }
+  // Публичный режим: открыт по /a/:token/f/:idx. Редактирование запрещено,
+  // ротация работает только локально, кнопка «Жалоба» скрыта, «Скачать» и
+  // «Поделиться» доступны, автор виден.
+  const isPublic = Boolean(token)
 
   const [showReport, setShowReport] = useState(false)
   const [saving, setSaving] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(() => parseInt(frameIndex ?? '0', 10))
   const [rotation, setRotation] = useState(0)
+  const [initialRotation, setInitialRotation] = useState(0)
+  const [savingRotation, setSavingRotation] = useState(false)
+  const [rotationToast, setRotationToast] = useState<string | null>(null)
   const touchStartX = useRef<number | null>(null)
 
   const frames: Frame[] = state?.frames ?? []
@@ -65,8 +73,36 @@ export default function FrameFullscreen() {
 
   // Sync rotation from frame data whenever the displayed frame changes
   useEffect(() => {
-    setRotation(frame?.rotation ?? 0)
+    const r = frame?.rotation ?? 0
+    setRotation(r)
+    setInitialRotation(r)
   }, [frame?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rotationDirty = rotation !== initialRotation
+
+  const handleSaveRotation = useCallback(async () => {
+    if (!frame || savingRotation) return
+    if (isPublic || !frame.is_mine) {
+      // В публичном просмотре сохранять на сервер нельзя — ротация только локальная.
+      return
+    }
+    setSavingRotation(true)
+    try {
+      await guestApi.updateFrame(frame.id, { rotation: rotation as 0 | 90 | 180 | 270 })
+      // Мутируем frame в location.state — при возврате в альбом или переоткрытии
+      // этого же кадра сохранённая ротация не откатится обратно к серверному значению
+      // из stale state.
+      frame.rotation = rotation
+      setInitialRotation(rotation)
+      setRotationToast('Ротация сохранена')
+      setTimeout(() => setRotationToast(null), 1600)
+    } catch {
+      setRotationToast('Не удалось сохранить')
+      setTimeout(() => setRotationToast(null), 2000)
+    } finally {
+      setSavingRotation(false)
+    }
+  }, [frame, rotation, savingRotation])
 
   const goTo = useCallback((idx: number) => {
     if (idx >= 0 && idx < frames.length) setCurrentIndex(idx)
@@ -85,7 +121,7 @@ export default function FrameFullscreen() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') goTo(currentIndex - 1)
       else if (e.key === 'ArrowRight') goTo(currentIndex + 1)
-      else if (e.key === 'Escape') navigate(`/g/${shortCode}/album`)
+      else if (e.key === 'Escape') navigate(isPublic ? `/a/${token}` : `/g/${shortCode}/album`)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -103,7 +139,7 @@ export default function FrameFullscreen() {
     else goTo(currentIndex - 1)
   }
 
-  const back = () => navigate(`/g/${shortCode}/album`)
+  const back = () => navigate(isPublic ? `/a/${token}` : `/g/${shortCode}/album`)
 
   const handleShare = async () => {
     if (!frame) return
@@ -171,11 +207,15 @@ export default function FrameFullscreen() {
           {currentIndex + 1} / {totalFrames}
         </span>
 
-        <IcBtn onClick={() => setShowReport(true)}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="1.5" fill="currentColor" /><circle cx="6" cy="12" r="1.5" fill="currentColor" /><circle cx="18" cy="12" r="1.5" fill="currentColor" />
-          </svg>
-        </IcBtn>
+        {isPublic ? (
+          <span style={{ width: 36, height: 36 }} />
+        ) : (
+          <IcBtn onClick={() => setShowReport(true)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="1.5" fill="currentColor" /><circle cx="6" cy="12" r="1.5" fill="currentColor" /><circle cx="18" cy="12" r="1.5" fill="currentColor" />
+            </svg>
+          </IcBtn>
+        )}
       </div>
 
       {/* Dot indicators — between counter and photo */}
@@ -201,11 +241,12 @@ export default function FrameFullscreen() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <img
+        <RotatedImage
           key={frame.id}
           src={frame.preview_url ?? frame.full_url}
-          alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', display: 'block', transform: `rotate(${rotation}deg)`, transition: 'transform 0.3s ease' }}
+          rotation={rotation}
+          naturalWidth={frame.width}
+          naturalHeight={frame.height}
         />
 
         {/* Prev arrow — left edge tap zone */}
@@ -274,7 +315,7 @@ export default function FrameFullscreen() {
 
       {/* Guest name + capture time — отдельная нижняя мета-полоса. */}
       <div style={{ flexShrink: 0, padding: '18px 20px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden', minWidth: 0, flex: 1 }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%',
             background: frame.guest_avatar_url ? undefined : 'rgba(255,179,71,0.14)',
@@ -288,14 +329,18 @@ export default function FrameFullscreen() {
           }}>
             {!frame.guest_avatar_url && (frame.guest_name?.[0]?.toUpperCase() ?? '?')}
           </div>
-          <span style={{
+          {/* Caveat cursive имеет overhang на курсивах — без paddingRight последняя
+              буква/росчерк обрезается ellipsis'ом даже когда места хватает. */}
+          <div style={{
             fontFamily: 'Caveat, cursive', fontSize: 26, lineHeight: 1,
             color: 'rgba(246,242,232,.92)',
             textShadow: '0 1px 3px rgba(0,0,0,.4)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            minWidth: 0, flex: 1,
+            paddingRight: 6,
           }}>
             {frame.guest_name}
-          </span>
+          </div>
         </div>
         <span style={{
           fontFamily: 'Inter, sans-serif', fontSize: 11,
@@ -342,21 +387,173 @@ export default function FrameFullscreen() {
           <span>{saving ? '...' : 'Сохранить'}</span>
         </button>
 
-        {/* Report */}
-        <button onClick={() => setShowReport(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dr-text)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>
-          <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', color: 'var(--shutter)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="13" /><circle cx="12" cy="16.5" r=".5" fill="currentColor" />
-            </svg>
-          </div>
-          <span>Жалоба</span>
-        </button>
+        {/* Report — только для авторизованных гостей */}
+        {!isPublic && (
+          <button onClick={() => setShowReport(true)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dr-text)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', color: 'var(--shutter)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="13" /><circle cx="12" cy="16.5" r=".5" fill="currentColor" />
+              </svg>
+            </div>
+            <span>Жалоба</span>
+          </button>
+        )}
       </div>
 
       {showReport && (
         <ReportModal frameId={frame.id} onClose={() => setShowReport(false)} />
       )}
+
+      {rotationDirty && frame.is_mine && (
+        <div
+          style={{
+            position: 'fixed',
+            left: 20,
+            right: 20,
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 100px)',
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            background: 'rgba(20,14,10,.92)',
+            border: '1px solid rgba(255,179,71,.28)',
+            borderRadius: 16,
+            padding: '12px 14px',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 10px 30px rgba(0,0,0,.45)',
+          }}
+        >
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(246,242,232,.9)' }}>
+            Сохранить ротацию?
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setRotation(initialRotation)}
+              disabled={savingRotation}
+              style={{
+                background: 'transparent', color: 'rgba(246,242,232,.7)',
+                border: '1px solid rgba(255,255,255,.15)', borderRadius: 12,
+                padding: '8px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13,
+                cursor: savingRotation ? 'default' : 'pointer',
+              }}
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSaveRotation}
+              disabled={savingRotation}
+              style={{
+                background: 'var(--amber, #C9881E)', color: '#fff',
+                border: 'none', borderRadius: 12,
+                padding: '8px 16px', fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
+                cursor: savingRotation ? 'wait' : 'pointer',
+                opacity: savingRotation ? 0.7 : 1,
+              }}
+            >
+              {savingRotation ? '…' : 'Сохранить'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {rotationToast && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            transform: 'translateX(-50%)',
+            zIndex: 70,
+            background: 'rgba(20,14,10,.92)',
+            color: 'rgba(255,179,71,.95)',
+            border: '1px solid rgba(255,179,71,.28)',
+            borderRadius: 999,
+            padding: '8px 16px',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 13,
+            backdropFilter: 'blur(10px)',
+          }}
+        >
+          {rotationToast}
+        </div>
+      )}
+
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+function RotatedImage({
+  src,
+  rotation,
+  naturalWidth,
+  naturalHeight,
+}: {
+  src: string
+  rotation: number
+  naturalWidth: number
+  naturalHeight: number
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      setBox({ w: r.width, h: r.height })
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const swap = rotation === 90 || rotation === 270
+  const ar = naturalWidth > 0 && naturalHeight > 0 ? naturalWidth / naturalHeight : 1
+  const effAR = swap ? 1 / ar : ar
+
+  let renderedW = 0
+  let renderedH = 0
+  if (box.w > 0 && box.h > 0) {
+    renderedW = box.w
+    renderedH = renderedW / effAR
+    if (renderedH > box.h) {
+      renderedH = box.h
+      renderedW = renderedH * effAR
+    }
+  }
+
+  // CSS-rotate вращает layout box вокруг центра. Чтобы после rotate картинка
+  // заняла effective area (renderedW × renderedH) — задаём img в размерах ДО
+  // поворота, т.е. при swap width=renderedH, height=renderedW.
+  const imgW = swap ? renderedH : renderedW
+  const imgH = swap ? renderedW : renderedH
+
+  return (
+    <div
+      ref={wrapRef}
+      style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      {imgW > 0 && (
+        <img
+          src={src}
+          alt=""
+          style={{
+            width: imgW,
+            height: imgH,
+            display: 'block',
+            transform: `rotate(${rotation}deg)`,
+            transformOrigin: 'center center',
+            transition: 'transform 0.3s ease, width 0.2s ease, height 0.2s ease',
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { publicApi } from '../../api/client'
 import type { Frame, AlbumOut, ViewMode } from './AlbumScreen'
 import {
@@ -12,6 +12,7 @@ import {
 
 export default function PublicAlbumScreen() {
   const { token } = useParams<{ token: string }>()
+  const navigate = useNavigate()
 
   const [meta, setMeta] = useState<{ title: string; id: string } | null>(null)
   const [frames, setFrames] = useState<Frame[]>([])
@@ -71,11 +72,11 @@ export default function PublicAlbumScreen() {
   )
 
   const openFrame = (i: number) => {
-    const frame = frames[i]
-    if (!frame) return
-    // Публичный просмотр — открываем полноразмерное фото в новой вкладке.
-    // Без rotation/report/скачивания: посторонним эти действия не нужны.
-    window.open(frame.full_url, '_blank', 'noopener,noreferrer')
+    if (!frames[i]) return
+    // Публичный просмотр — тот же FrameFullscreen, но по маршруту /a/:token/f/:idx.
+    // Внутри FrameFullscreen isPublic=true → редактирование/жалоба скрыты,
+    // ротация только локально; скачать, поделиться, автор видны.
+    navigate(`/a/${token}/f/${i}`, { state: { frames, totalFrames } })
   }
 
   const shareLink = async () => {

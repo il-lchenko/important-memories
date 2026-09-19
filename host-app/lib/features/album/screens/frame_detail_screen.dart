@@ -14,6 +14,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../events/events_provider.dart';
 import '../album_provider.dart';
 
 class FrameDetailScreen extends ConsumerStatefulWidget {
@@ -168,6 +169,8 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
       await dio.delete('events/${widget.eventId}/frames/$frameId');
       ref.invalidate(eventAlbumProvider(widget.eventId));
       ref.invalidate(eventAlbumMetaProvider(widget.eventId));
+      ref.invalidate(eventsProvider);
+      ref.invalidate(invitedEventsProvider);
       if (mounted) {
         // Если это был последний кадр или удалили текущий — вернёмся назад
         if (total <= 1) {
