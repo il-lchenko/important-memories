@@ -8,13 +8,22 @@ from app.core.config import settings
 
 @lru_cache
 def get_s3_client():
+    # request_checksum_calculation="when_required" — иначе botocore >=1.36 добавляет
+    # x-amz-sdk-checksum-algorithm + Content-Encoding: aws-chunked ко всем put_object,
+    # а не-AWS S3 (twcstorage.ru) отдаёт этот header обратно на GET, ломая рендер
+    # картинок в браузере.
     return boto3.client(
         "s3",
         endpoint_url=settings.S3_ENDPOINT,
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
         region_name=settings.S3_REGION,
-        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        config=Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            request_checksum_calculation="when_required",
+            response_checksum_validation="when_required",
+        ),
     )
 
 

@@ -20,6 +20,19 @@ async def get_by_yookassa_id(session: AsyncSession, yookassa_id: str) -> Payment
     return (await session.execute(stmt)).scalar_one_or_none()
 
 
+async def get_by_yookassa_id_for_update(
+    session: AsyncSession, yookassa_id: str
+) -> Payment | None:
+    """SELECT ... FOR UPDATE — используется в webhook-обработчике для защиты
+    от двойного применения upgrade/extend при retry-е YooKassa."""
+    stmt = (
+        select(Payment)
+        .where(Payment.yookassa_id == yookassa_id)
+        .with_for_update()
+    )
+    return (await session.execute(stmt)).scalar_one_or_none()
+
+
 async def create(session: AsyncSession, payment: Payment) -> Payment:
     session.add(payment)
     await session.flush()

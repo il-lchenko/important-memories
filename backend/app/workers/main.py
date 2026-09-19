@@ -17,6 +17,7 @@ from arq.connections import RedisSettings
 
 from app.core.config import settings
 from app.core.logging import configure_logging, logger
+from app.workers.auto_complete import auto_complete_expired_events
 from app.workers.cleanup import cleanup_expired_frames, retry_failed_uploads
 from app.workers.notifications import notify_expiring_events
 from app.workers.reveal import execute_reveal
@@ -38,6 +39,8 @@ class WorkerSettings:
         cron(cleanup_expired_frames, hour={3}, minute={0}, run_at_startup=False),
         # Daily at 12:00 UTC (15:00 MSK) — enough headroom for late-night morning check.
         cron(notify_expiring_events, hour={12}, minute={0}, run_at_startup=False),
+        # Каждую минуту: перевод ACTIVE → COMPLETED для событий с истёкшим end_at.
+        cron(auto_complete_expired_events, minute=set(range(0, 60)), run_at_startup=True),
     ]
     redis_settings = _redis_settings()
     keep_result = 7 * 24 * 3600

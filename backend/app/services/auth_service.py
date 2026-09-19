@@ -82,7 +82,13 @@ async def request_otp(session: AsyncSession, email: str, client_ip: str) -> Emai
             html=html,
         )
     except Exception as exc:
-        logger.warning("email_delivery_failed_otp_fallback", to=email, otp_code=code, error=str(exc))
+        # НЕ логируем email и OTP-код в открытом виде — PII/security violation.
+        # Пользователь запросит новый код если этот не пришёл.
+        logger.warning(
+            "email_delivery_failed",
+            email_domain=email.rsplit("@", 1)[-1] if "@" in email else "unknown",
+            error_type=type(exc).__name__,
+        )
 
     return EmailRequestOut(expires_in=settings.OTP_TTL_MIN * 60)
 

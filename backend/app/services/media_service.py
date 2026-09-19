@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -68,12 +69,19 @@ async def presign_upload(
             details={"start_at": guest.event.start_at.isoformat()},
         )
 
+    # Блокируем Guest row чтобы конкурентные presign от того же гостя
+    # (двойной клик, две вкладки, дубликаты FCM) не пробили квоту кадров.
+    await session.execute(
+        select(Guest).where(Guest.id == guest.id).with_for_update()
+    )
     used = await frame_repo.count_uploaded_for_guest(session, guest.id)
+    # Считаем и PENDING (ещё не uploaded, но уже зарезервированы presign'ом).
+    pending = await frame_repo.count_pending_for_guest(session, guest.id)
     limit = guest.event.settings.frames_per_guest
-    if used >= limit:
+    if used + pending >= limit:
         raise ConflictError(
             "Frame quota exceeded",
-            details={"used": used, "limit": limit},
+            details={"used": used, "pending": pending, "limit": limit},
         )
 
     frame_id = uuid4()
@@ -209,6 +217,9 @@ async def update_frame(
         frame.voice_peaks = payload.voice_peaks
         if frame.voice_s3_key:
             frame.caption = None
+
+    if payload.rotation is not None:
+        frame.rotation = payload.rotation
 
     await session.commit()
     return frame

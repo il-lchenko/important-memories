@@ -52,12 +52,13 @@ class FrameVoicePresignOut(BaseModel):
 
 
 class FrameUpdateIn(BaseModel):
-    """Guest updates caption or voice metadata for their own frame."""
+    """Guest updates caption, voice or rotation for their own frame."""
 
     caption: str | None = Field(default=None, max_length=120)
     voice_s3_key: str | None = Field(default=None, max_length=1024)
     voice_duration_ms: int | None = Field(default=None, ge=0, le=25_000)
     voice_peaks: list[float] | None = Field(default=None)
+    rotation: int | None = Field(default=None)
     clear_caption: bool = False
     clear_voice: bool = False
 
@@ -76,6 +77,15 @@ class FrameUpdateIn(BaseModel):
         for p in v:
             if p < 0 or p > 1:
                 raise ValueError("Peak values must be in [0, 1]")
+        return v
+
+    @field_validator("rotation")
+    @classmethod
+    def _validate_rotation(cls, v: int | None) -> int | None:
+        if v is None:
+            return v
+        if v not in (0, 90, 180, 270):
+            raise ValueError("Rotation must be one of 0, 90, 180, 270")
         return v
 
 
