@@ -74,7 +74,7 @@ async def test_update_settings_changes_plan_and_limits(client: AsyncClient) -> N
     event_id = create.json()["id"]
     resp = await client.patch(
         f"/api/v1/events/{event_id}/settings",
-        json={"plan": "p50", "frames_per_guest": 36, "lut_preset": "fuji"},
+        json={"plan": "p50", "frames_per_guest": 36, "lut_preset": "fuji400h"},
         headers=auth_headers(token),
     )
     assert resp.status_code == 200, resp.text
@@ -82,23 +82,26 @@ async def test_update_settings_changes_plan_and_limits(client: AsyncClient) -> N
     assert settings["plan"] == "p50"
     assert settings["max_guests"] == 50
     assert settings["frames_per_guest"] == 36
-    assert settings["lut_preset"] == "fuji"
+    assert settings["lut_preset"] == "fuji400h"
 
 
 @pytest.mark.asyncio
-async def test_delayed_reveal_requires_reveal_at_after_end(client: AsyncClient) -> None:
+async def test_delayed_reveal_rejects_past_reveal_at(client: AsyncClient) -> None:
+    """Delayed-режим требует reveal_at строго в будущем.
+    Валидация "reveal_at после end_at" была убрана — reveal может быть
+    когда угодно после установки, включая до окончания События."""
     token = await authenticate(client)
     create = await client.post(
         "/api/v1/events/", json=future_event_payload(), headers=auth_headers(token)
     )
     event_id = create.json()["id"]
-    end_at = datetime.fromisoformat(create.json()["end_at"])
+    now = datetime.now(timezone.utc)
 
     bad = await client.patch(
         f"/api/v1/events/{event_id}/settings",
         json={
             "reveal_mode": "delayed",
-            "reveal_at": (end_at - timedelta(hours=1)).isoformat(),
+            "reveal_at": (now - timedelta(hours=1)).isoformat(),
         },
         headers=auth_headers(token),
     )
@@ -108,7 +111,7 @@ async def test_delayed_reveal_requires_reveal_at_after_end(client: AsyncClient) 
         f"/api/v1/events/{event_id}/settings",
         json={
             "reveal_mode": "delayed",
-            "reveal_at": (end_at + timedelta(hours=2)).isoformat(),
+            "reveal_at": (now + timedelta(hours=2)).isoformat(),
         },
         headers=auth_headers(token),
     )

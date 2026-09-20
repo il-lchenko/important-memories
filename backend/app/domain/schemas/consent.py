@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
-DocType = Literal["offer", "privacy", "consent", "content_rules"]
+DocType = Literal["offer", "privacy", "consent", "content_rules", "age_confirmation"]
 
 
 class ConsentAcceptIn(BaseModel):

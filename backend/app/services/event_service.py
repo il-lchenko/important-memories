@@ -234,8 +234,6 @@ async def _auto_complete_if_expired(session: AsyncSession, event: Event) -> None
     if event.end_at is None or event.end_at > datetime.now(timezone.utc):
         return
     event.status = EventStatus.COMPLETED
-    if event.public_share_token is None:
-        event.public_share_token = token_urlsafe(24)
 
 
 async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
@@ -250,8 +248,6 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
     for e in events:
         if e.status == EventStatus.ACTIVE and e.end_at is not None and e.end_at <= datetime.now(timezone.utc):
             e.status = EventStatus.COMPLETED
-            if e.public_share_token is None:
-                e.public_share_token = token_urlsafe(24)
             changed = True
     if changed:
         await session.commit()
@@ -365,12 +361,6 @@ async def activate_event(
     return _to_out(event)
 
 
-def _ensure_public_share_token(event: Event) -> None:
-    """При переходе события в COMPLETED генерим read-only токен для публичной ссылки."""
-    if event.public_share_token is None:
-        event.public_share_token = token_urlsafe(24)
-
-
 async def complete_event(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> EventOut:
@@ -381,7 +371,6 @@ async def complete_event(
             details={"status": event.status.value},
         )
     event.status = EventStatus.COMPLETED
-    _ensure_public_share_token(event)
     await session.commit()
     return _to_out(event)
 
@@ -397,7 +386,6 @@ async def reveal_event(
             details={"status": event.status.value},
         )
     event.status = EventStatus.COMPLETED
-    _ensure_public_share_token(event)
     await session.commit()
 
     # Notify host (fire-and-forget: don't block the response)
@@ -415,11 +403,21 @@ async def reveal_event(
 
 async def get_public_share(
     session: AsyncSession, user_id: UUID, event_id: UUID
+) -> str | None:
+    """Возвращает текущий токен открытой ссылки или None, если Хост её не создавал."""
+    event = await _load_owned(session, event_id, user_id)
+    return event.public_share_token
+
+
+async def enable_public_share(
+    session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> str:
+    """Хост явно включает открытую ссылку. Действие фиксирует принятие
+    ответственности за распространение (privacy v2.2 §10, оферта §7)."""
     event = await _load_owned(session, event_id, user_id)
     if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
         raise ConflictError(
-            "Публичная ссылка доступна после завершения альбома",
+            "Открытая ссылка доступна после завершения альбома",
             details={"status": event.status.value},
         )
     if event.public_share_token is None:
@@ -428,13 +426,24 @@ async def get_public_share(
     return event.public_share_token
 
 
+async def disable_public_share(
+    session: AsyncSession, user_id: UUID, event_id: UUID
+) -> None:
+    """Хост отключает открытую ссылку — токен обнуляется, старая ссылка сразу
+    перестаёт работать (album_service проверяет NULL)."""
+    event = await _load_owned(session, event_id, user_id)
+    if event.public_share_token is not None:
+        event.public_share_token = None
+        await session.commit()
+
+
 async def regenerate_public_share(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> str:
     event = await _load_owned(session, event_id, user_id)
     if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
         raise ConflictError(
-            "Публичная ссылка доступна после завершения альбома",
+            "Открытая ссылка доступна после завершения альбома",
             details={"status": event.status.value},
         )
     event.public_share_token = token_urlsafe(24)

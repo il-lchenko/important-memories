@@ -129,6 +129,9 @@ async def register_frame(
     frame.uploaded_at = datetime.now(captured_at.tzinfo)
     frame.width = width
     frame.height = height
+    # Явный flush перед подсчётом — иначе SELECT не увидит только что uploaded frame
+    # и вернёт заниженный used → лишний кадр в frames_remaining.
+    await session.flush()
     used = await frame_repo.count_uploaded_for_guest(session, guest.id)
     guest.frames_used = used
     await session.commit()

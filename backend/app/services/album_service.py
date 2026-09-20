@@ -50,7 +50,14 @@ def _is_revealed_for_guests(event: Event) -> bool:
 _ALBUM_URL_TTL = 86400  # 24 h — long enough to view, share, and download without re-fetching
 
 
-def _to_frame_out(frame: Frame, guest_name: str, is_mine: bool, guest_avatar_key: str | None = None) -> AlbumFrameOut:
+_DELETED_GUEST_NAME = "Гость"
+
+
+def _to_frame_out(frame: Frame, guest_name: str | None, is_mine: bool, guest_avatar_key: str | None = None) -> AlbumFrameOut:
+    # Гость отозвал согласие → guest_id обнулён, отображаем как «Гость» без аватара.
+    if guest_name is None:
+        guest_name = _DELETED_GUEST_NAME
+        guest_avatar_key = None
     thumb_url = s3_client.presign_get(frame.thumbnail_url, expires_in=_ALBUM_URL_TTL) if frame.thumbnail_url else None
     preview_url = s3_client.presign_get(frame.preview_url, expires_in=_ALBUM_URL_TTL) if frame.preview_url else None
     full_url = s3_client.presign_get(frame.s3_key, expires_in=_ALBUM_URL_TTL)
@@ -137,7 +144,7 @@ async def get_album(
 
     stmt = (
         select(Frame, Guest.name, Guest.avatar_key)
-        .join(Guest, Guest.id == Frame.guest_id)
+        .outerjoin(Guest, Guest.id == Frame.guest_id)
         .where(
             Frame.event_id == event_id,
             Frame.status == FrameStatus.UPLOADED,
@@ -164,7 +171,7 @@ async def get_album(
     items = [
         _to_frame_out(
             frame, name,
-            is_mine=(my_guest_id is not None and frame.guest_id == my_guest_id),
+            is_mine=(my_guest_id is not None and frame.guest_id is not None and frame.guest_id == my_guest_id),
             guest_avatar_key=avatar_key,
         )
         for frame, name, avatar_key in rows
@@ -208,7 +215,7 @@ async def get_public_album(
 
     frame_stmt = (
         select(Frame, Guest.name, Guest.avatar_key)
-        .join(Guest, Guest.id == Frame.guest_id)
+        .outerjoin(Guest, Guest.id == Frame.guest_id)
         .where(
             Frame.event_id == event.id,
             Frame.status == FrameStatus.UPLOADED,

@@ -637,7 +637,7 @@ export default function LandingScreen() {
     setLoading(true)
     setError(null)
     try {
-      const CONSENT_VERSION = '2.0'
+      const CONSENT_VERSION = '2.2'
       const docs: Array<'offer' | 'privacy' | 'consent' | 'content_rules'> = [
         'offer', 'privacy', 'consent', 'content_rules',
       ]
@@ -645,7 +645,8 @@ export default function LandingScreen() {
         await guestApi.acceptConsent(docType, CONSENT_VERSION)
       }
       // Помечаем локально, чтобы при повторных заходах не показывать снова.
-      try { localStorage.setItem('im_consent_v2_accepted', '1') } catch {}
+      // Ключ содержит версию — при bump docVersion старая метка не сработает.
+      try { localStorage.setItem('im_consent_v2_2_accepted', '1') } catch {}
       await handleJoin()
     } catch (e) {
       console.error('accept_consents_failed', e)
@@ -657,7 +658,7 @@ export default function LandingScreen() {
   const goAfterName = () => {
     // Если гость уже принял актуальную версию согласий — пропускаем экран.
     let alreadyAccepted = false
-    try { alreadyAccepted = localStorage.getItem('im_consent_v2_accepted') === '1' } catch {}
+    try { alreadyAccepted = localStorage.getItem('im_consent_v2_2_accepted') === '1' } catch {}
     if (alreadyAccepted) return handleJoin()
     setStep('consent')
   }

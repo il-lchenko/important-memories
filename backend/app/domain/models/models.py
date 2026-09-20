@@ -208,8 +208,8 @@ class Frame(Base):
     event_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False
     )
-    guest_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("guests.id", ondelete="CASCADE"), nullable=False
+    guest_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("guests.id", ondelete="SET NULL"), nullable=True
     )
     s3_key: Mapped[str] = mapped_column(String(512), nullable=False)
     thumbnail_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -231,7 +231,7 @@ class Frame(Base):
     rotation: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
 
     event: Mapped[Event] = relationship(back_populates="frames")
-    guest: Mapped[Guest] = relationship(back_populates="frames")
+    guest: Mapped[Guest | None] = relationship(back_populates="frames")
 
 
 class Payment(Base):

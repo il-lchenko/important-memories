@@ -5,7 +5,7 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 
 export interface Frame {
   id: string
-  guest_id: string
+  guest_id: string | null
   guest_name: string
   guest_avatar_url?: string | null
   captured_at: string

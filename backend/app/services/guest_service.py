@@ -59,15 +59,14 @@ _SUSPICIOUS_COOLDOWN_SEC = 3600
 
 async def auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
     """Self-healing: если end_at прошёл, а статус всё ещё ACTIVE — закрываем событие.
-    Так же генерируем public_share_token, если его ещё нет.
+    public_share_token НЕ создаётся автоматически — это отдельное явное действие
+    Хоста через POST /events/{id}/public-share/enable.
     Идемпотентно, никаких side-эффектов если event уже COMPLETED/CANCELLED."""
     if event.status != EventStatus.ACTIVE:
         return
     if event.end_at is None or event.end_at > datetime.now(timezone.utc):
         return
     event.status = EventStatus.COMPLETED
-    if event.public_share_token is None:
-        event.public_share_token = token_urlsafe(24)
     await session.commit()
     logger.info("event_auto_completed", event_id=str(event.id), reason="end_at_passed")
 
@@ -542,3 +541,77 @@ async def update_guest_profile(
     await session.commit()
     frames_used = await frame_repo.count_uploaded_for_guest(session, guest.id)
     return _build_session_out(guest, frames_used)
+
+
+async def anonymize_guest(session: AsyncSession, guest_id: UUID) -> dict:
+    """Обезличивание Гостя по запросу через поддержку (privacy v2.2 §11).
+
+    Что делает:
+    - удаляет caption и voice-файлы у всех фреймов этого Гостя (это его ПД);
+    - удаляет аватар в S3;
+    - обезличивает записи ConsentRecord этого Гостя (fingerprint_hash → NULL);
+    - удаляет Guest → Frame.guest_id становится NULL (SET NULL каскад).
+
+    Само фото остаётся в альбоме — на основании законных интересов Хоста
+    и других участников События (privacy v2.2 §10 п.4 обоснование).
+    """
+    from sqlalchemy import select, update
+    from app.domain.models import Frame
+    from app.domain.models.models import ConsentRecord, JoinAttempt
+
+    guest = await guest_repo.get_by_id(session, guest_id)
+    if guest is None:
+        raise NotFoundError("Guest not found")
+
+    # 1) voice + caption у фреймов Гостя
+    frames_stmt = select(Frame).where(Frame.guest_id == guest_id)
+    frames = list((await session.execute(frames_stmt)).scalars().all())
+    voice_deleted = 0
+    for f in frames:
+        if f.voice_s3_key:
+            s3_client.delete_object(f.voice_s3_key)
+            voice_deleted += 1
+            f.voice_s3_key = None
+            f.voice_duration_ms = None
+            f.voice_peaks = None
+        f.caption = None
+
+    # 2) аватар в S3
+    if guest.avatar_key:
+        s3_client.delete_object(guest.avatar_key)
+
+    # 3) ConsentRecord — обезличиваем fingerprint_hash по этому Гостю
+    #    (guest_id обнулится каскадом CASCADE при удалении Guest)
+    await session.execute(
+        update(ConsentRecord)
+        .where(ConsentRecord.guest_id == guest_id)
+        .values(fingerprint_hash=None, ip_hash=None, user_agent=None)
+    )
+
+    # 4) JoinAttempt — обезличиваем fingerprint по event Гостя (best effort)
+    await session.execute(
+        update(JoinAttempt)
+        .where(JoinAttempt.fingerprint_hash == hash_fingerprint(guest.fingerprint))
+        .values(fingerprint_hash=None)
+    )
+
+    # 5) сам Guest удаляется → Frame.guest_id становится NULL (SET NULL)
+    event_id = guest.event_id
+    guest_name = guest.name
+    await session.delete(guest)
+    await session.commit()
+
+    logger.info(
+        "guest_anonymized",
+        guest_id=str(guest_id),
+        event_id=str(event_id),
+        frames=len(frames),
+        voice_deleted=voice_deleted,
+        guest_name=guest_name[:2] + "***",
+    )
+    return {
+        "guest_id": str(guest_id),
+        "event_id": str(event_id),
+        "frames_anonymized": len(frames),
+        "voice_files_deleted": voice_deleted,
+    }

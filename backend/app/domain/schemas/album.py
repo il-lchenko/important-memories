@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class AlbumFrameOut(BaseModel):
     id: UUID
-    guest_id: UUID
+    guest_id: UUID | None
     guest_name: str
     guest_avatar_url: str | None = None
     captured_at: datetime

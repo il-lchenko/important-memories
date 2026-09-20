@@ -69,3 +69,11 @@ def upload_bytes(key: str, data: bytes, content_type: str) -> None:
         Body=data,
         ContentType=content_type,
     )
+
+
+def delete_object(key: str) -> None:
+    """Best-effort удаление объекта; отсутствующие ключи не считаются ошибкой."""
+    try:
+        get_s3_client().delete_object(Bucket=settings.S3_BUCKET, Key=key)
+    except Exception:
+        pass

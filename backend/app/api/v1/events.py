@@ -299,8 +299,31 @@ async def get_public_share(
     user_id: CurrentUserId,
     session: SessionDep,
 ) -> dict:
+    """Возвращает текущий токен открытой ссылки. NULL — Хост её не создавал."""
     token = await event_service.get_public_share(session, user_id, event_id)
     return {"public_share_token": token}
+
+
+@router.post("/{event_id}/public-share/enable")
+async def enable_public_share(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> dict:
+    """Явная активация открытой ссылки Хостом (privacy v2.2 §10)."""
+    token = await event_service.enable_public_share(session, user_id, event_id)
+    return {"public_share_token": token}
+
+
+@router.delete("/{event_id}/public-share", status_code=204)
+async def disable_public_share(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> Response:
+    """Отключение открытой ссылки — токен обнуляется, старая ссылка перестаёт работать."""
+    await event_service.disable_public_share(session, user_id, event_id)
+    return Response(status_code=204)
 
 
 @router.post("/{event_id}/public-share/regenerate")

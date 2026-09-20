@@ -35,11 +35,15 @@ def auth_headers(token: str) -> dict[str, str]:
 
 
 def future_event_payload(title: str = "Test event") -> dict:
+    """Payload для события, которое СЕЙЧАС активно: start_at в прошлом (событие
+    уже началось), end_at в будущем (ещё не закончилось). Так guest join сразу
+    работает после activate. Название историческое (было +10 дней) — оставлено
+    ради обратной совместимости с существующими тестами."""
     now = datetime.now(timezone.utc)
     return {
         "title": title,
-        "start_at": (now + timedelta(days=10)).isoformat(),
-        "end_at": (now + timedelta(days=11)).isoformat(),
+        "start_at": (now - timedelta(minutes=5)).isoformat(),
+        "end_at": (now + timedelta(days=7)).isoformat(),
         "event_type": "wedding",
     }
 

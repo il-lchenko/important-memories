@@ -7,6 +7,10 @@ from sqlalchemy.orm import selectinload
 from app.domain.models import Event, Guest
 
 
+async def get_by_id(session: AsyncSession, guest_id: UUID) -> Guest | None:
+    return await session.get(Guest, guest_id)
+
+
 async def get_by_token(session: AsyncSession, token: str) -> Guest | None:
     stmt = (
         select(Guest)

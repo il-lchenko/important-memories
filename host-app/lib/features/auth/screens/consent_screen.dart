@@ -24,7 +24,7 @@ class ConsentScreen extends ConsumerStatefulWidget {
 }
 
 class _ConsentScreenState extends ConsumerState<ConsentScreen> {
-  static const _docVersion = '2.0';
+  static const _docVersion = '2.2';
 
   bool _agreeOffer = false;
   bool _agreePrivacy = false;
@@ -46,7 +46,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     });
     try {
       final dio = ref.read(dioProvider);
-      const docTypes = ['offer', 'privacy', 'consent', 'content_rules'];
+      const docTypes = ['offer', 'privacy', 'consent', 'content_rules', 'age_confirmation'];
       for (final docType in docTypes) {
         await dio.post('consent', data: {
           'doc_type': docType,
@@ -155,9 +155,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                     _ConsentCheckbox(
                       checked: _confirmAge,
                       onChanged: (v) => setState(() => _confirmAge = v ?? false),
-                      title: 'Мне исполнилось 16 лет',
+                      title: 'Возраст и согласие',
                       subtitle:
-                          'Если 16–17 — есть согласие законного представителя на оплату тарифа',
+                          'Мне 18 лет и больше — либо мне 16–17, и мой законный представитель дал согласие на использование сервиса и оплату тарифа (ст. 26 ГК РФ)',
                     ),
                     if (_errorMsg != null) ...[
                       const SizedBox(height: 16),

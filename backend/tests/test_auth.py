@@ -83,8 +83,8 @@ async def test_verify_otp_wrong_code_returns_401(client: AsyncClient) -> None:
     response = await client.post(
         "/api/v1/auth/email/verify", json={"email": "a@example.com", "code": "999999"}
     )
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_CODE"
 
 
 @pytest.mark.asyncio

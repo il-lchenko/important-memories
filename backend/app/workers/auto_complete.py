@@ -1,15 +1,13 @@
 """Автозавершение событий по end_at.
 
 Каждую минуту сканирует ACTIVE события, у которых end_at <= now (UTC),
-переводит их в COMPLETED и генерит public_share_token, если он ещё не задан.
+и переводит их в COMPLETED.
 
-Дублирует self-healing логику из event_service/guest_service, но независимо
-от того, обращается ли кто-нибудь к событию через API. Раньше событие могло
-остаться ACTIVE навсегда, если после end_at никто не открыл его.
+Открытая ссылка (public_share_token) ЗДЕСЬ НЕ ГЕНЕРИРУЕТСЯ — это отдельное
+явное действие Хоста через POST /events/{id}/public-share/enable.
 """
 
 from datetime import datetime, timezone
-from secrets import token_urlsafe
 
 from sqlalchemy import select
 
@@ -33,8 +31,6 @@ async def auto_complete_expired_events(ctx: dict) -> None:
 
         for ev in events:
             ev.status = EventStatus.COMPLETED
-            if ev.public_share_token is None:
-                ev.public_share_token = token_urlsafe(24)
 
         await session.commit()
         logger.info(

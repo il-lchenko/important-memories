@@ -94,7 +94,7 @@ async def test_album_instant_shows_uploaded_frames(client: AsyncClient) -> None:
 async def test_album_delayed_returns_empty_until_revealed(client: AsyncClient) -> None:
     token = await authenticate(client)
     event = await _activate(client, token)
-    _, frame_id = await _join_and_register(client, event)
+    guest_token, frame_id = await _join_and_register(client, event)
     await _seed_uploaded_frame(frame_id, captured_at=datetime.now(timezone.utc))
 
     await _set_reveal_mode(
@@ -103,8 +103,10 @@ async def test_album_delayed_returns_empty_until_revealed(client: AsyncClient) -
         reveal_at=datetime.now(timezone.utc) + timedelta(days=1),
     )
 
+    # Проверяем от Гостя — Хост всегда видит альбом (admin preview).
     resp = await client.get(
-        f"/api/v1/events/{event['id']}/album", headers=auth_headers(token)
+        f"/api/v1/events/{event['id']}/album",
+        headers={"X-Guest-Token": guest_token},
     )
     data = resp.json()
     assert data["revealed"] is False
@@ -167,6 +169,9 @@ async def test_album_guest_sees_event(client: AsyncClient) -> None:
     event = await _activate(client, token)
     guest_token, frame_id = await _join_and_register(client, event)
     await _seed_uploaded_frame(frame_id, captured_at=datetime.now(timezone.utc))
+
+    # Гостю альбом виден только после reveal (COMPLETED) — иначе revealed=False, items=[].
+    await client.post(f"/api/v1/events/{event['id']}/reveal", headers=auth_headers(token))
 
     resp = await client.get(
         f"/api/v1/events/{event['id']}/album",

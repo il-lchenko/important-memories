@@ -24,7 +24,7 @@ async def test_checkout_creates_pending_payment(client: AsyncClient) -> None:
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["amount_kopecks"] == 99000
+    assert body["amount_kopecks"] == 129000  # P50 = 1290 ₽ (v3.2 pricing)
     assert body["confirmation_url"].startswith("http")
 
     async with SessionLocal() as s:
@@ -87,7 +87,7 @@ async def test_webhook_succeeded_activates_event(client: AsyncClient) -> None:
         "object": {
             "id": yk_id,
             "status": "succeeded",
-            "amount": {"value": "990.00", "currency": "RUB"},
+            "amount": {"value": "1290.00", "currency": "RUB"},
         },
     }
     body = json.dumps(payload).encode()

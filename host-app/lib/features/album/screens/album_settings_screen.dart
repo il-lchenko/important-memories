@@ -837,7 +837,7 @@ class _PublicShareBlock extends ConsumerStatefulWidget {
 class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
   String? _token;
   bool _loading = true;
-  bool _regenerating = false;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -860,22 +860,82 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
     }
   }
 
+  Future<void> _enable() async {
+    setState(() => _busy = true);
+    try {
+      final dio = ref.read(dioProvider);
+      final resp = await dio.post('events/${widget.eventId}/public-share/enable');
+      if (!mounted) return;
+      setState(() {
+        _token = resp.data['public_share_token'] as String?;
+        _busy = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось создать ссылку')),
+      );
+    }
+  }
+
+  Future<void> _disable() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Отключить открытую ссылку?'),
+        content: const Text(
+          'Ссылка сразу перестанет работать у всех, кому вы её отправляли. '
+          'Гостевой альбом (для тех, кто фоткал) продолжит работать как раньше.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 14),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Отключить', style: TextStyle(color: AppColors.shutter)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('events/${widget.eventId}/public-share');
+      if (!mounted) return;
+      setState(() {
+        _token = null;
+        _busy = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Открытая ссылка отключена')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Не удалось отключить ссылку')),
+      );
+    }
+  }
+
   Future<void> _regenerate() async {
-    setState(() => _regenerating = true);
+    setState(() => _busy = true);
     try {
       final dio = ref.read(dioProvider);
       final resp = await dio.post('events/${widget.eventId}/public-share/regenerate');
       if (!mounted) return;
       setState(() {
         _token = resp.data['public_share_token'] as String?;
-        _regenerating = false;
+        _busy = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ссылка обновлена — старая больше не работает')),
       );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _regenerating = false);
+      setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Не удалось обновить ссылку')),
       );
@@ -902,7 +962,6 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
         child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.amber))),
       );
     }
-    final url = _token != null ? '$_publicShareBase/a/$_token' : '';
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
       decoration: BoxDecoration(
@@ -922,70 +981,132 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Отправьте её любому — альбом откроется в режиме просмотра, без ввода имени.',
-            style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.paper,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Text(
-              url,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink2),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _token != null ? () => _copy(url) : null,
-                  icon: const Icon(Icons.copy_outlined, size: 15, color: AppColors.ink),
-                  label: const Text('Скопировать',
-                    style: TextStyle(color: AppColors.ink, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    side: const BorderSide(color: AppColors.line),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _regenerating ? null : _regenerate,
-                  icon: _regenerating
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.shutter))
-                      : const Icon(Icons.refresh, size: 15, color: AppColors.shutter),
-                  label: const Text('Обновить',
-                    style: TextStyle(color: AppColors.shutter, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    side: BorderSide(color: AppColors.shutter.withValues(alpha: 0.3)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'При обновлении старая ссылка перестанет работать.',
-            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontStyle: FontStyle.italic),
-          ),
+          if (_token == null)
+            _buildInactive()
+          else
+            _buildActive(),
         ],
       ),
+    );
+  }
+
+  Widget _buildInactive() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Отдельная ссылка для тех, кто не был на событии — родственников, друзей, соцсетей. '
+          'Открывает альбом на просмотр без ввода имени.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Создавая ссылку, вы подтверждаете, что имеете право распространять эти фото.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, fontStyle: FontStyle.italic, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _busy ? null : _enable,
+            icon: _busy
+                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.public, size: 16, color: Colors.white),
+            label: const Text('Создать открытую ссылку',
+              style: TextStyle(color: Colors.white, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14)),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.amber,
+              minimumSize: const Size(0, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActive() {
+    final url = '$_publicShareBase/a/$_token';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Отправьте её любому — альбом откроется в режиме просмотра, без ввода имени.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.paper,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Text(
+            url,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink2),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _copy(url),
+                icon: const Icon(Icons.copy_outlined, size: 15, color: AppColors.ink),
+                label: const Text('Скопировать',
+                  style: TextStyle(color: AppColors.ink, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  side: const BorderSide(color: AppColors.line),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _regenerate,
+                icon: _busy
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.shutter))
+                    : const Icon(Icons.refresh, size: 15, color: AppColors.shutter),
+                label: const Text('Обновить',
+                  style: TextStyle(color: AppColors.shutter, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  side: BorderSide(color: AppColors.shutter.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: _busy ? null : _disable,
+            icon: const Icon(Icons.link_off, size: 15, color: AppColors.shutter),
+            label: const Text('Отключить открытую ссылку',
+              style: TextStyle(color: AppColors.shutter, fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 13)),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 38),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        const Text(
+          'При обновлении или отключении старая ссылка перестанет работать.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontStyle: FontStyle.italic),
+        ),
+      ],
     );
   }
 }
