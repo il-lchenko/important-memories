@@ -5,8 +5,19 @@ import { useNetworkStatus } from '../../hooks/useNetworkStatus'
 import { guestApi, uploadPutBlob, UploadError } from '../../api/client'
 import { preloadFilmLUT } from '../../utils/filmLut'
 import { bumpAttempts, enqueue as idbEnqueue, listForShortCode, remove as idbRemove } from '../../utils/uploadQueueDb'
+import BatchUploadProgress from './BatchUploadProgress'
 
-interface QueueItem { id: string; blob: Blob; width: number; height: number; capturedAt: string }
+interface QueueItem {
+  id: string
+  blob: Blob
+  width: number
+  height: number
+  capturedAt: string
+  // Опционально для gallery-uploads: тип и SHA-256 хеш (дедуп).
+  source?: 'camera' | 'upload'
+  uploadHash?: string
+  mimeType?: string
+}
 
 const MAX_ATTEMPTS = 6
 const PUT_TIMEOUT_MS = 60_000
@@ -402,6 +413,13 @@ export default function CameraScreen() {
   } | null>(null)
   const uploadPromiseRef = useRef<Promise<{ ok: true; frameId: string } | { ok: false }> | null>(null)
   const previewItemRef = useRef<QueueItem | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const [batch, setBatch] = useState<{ total: number; done: number; failed: number } | null>(null)
+  // Читаем uploads_enabled из event settings (обновляется при getSession).
+  const uploadsEnabled = useMemo(() => {
+    const meta = getEventMeta() as { settings?: { uploads_enabled?: boolean } }
+    return meta?.settings?.uploads_enabled === true
+  }, [])
   const [flashOn, setFlashOn] = useState(false)
   const [screenFlashing, setScreenFlashing] = useState(false)
   const [recentShots, setRecentShots] = useState<RecentShot[]>(() => loadRecentShots(shortCode))
@@ -513,10 +531,22 @@ export default function CameraScreen() {
       if (!navigator.onLine) await waitForOnline(120_000)
 
       // Шаг 1: presign
-      let presignData: { frame_id: string; upload_url: string; expires_in: number }
+      let presignData: { frame_id: string; upload_url: string; expires_in: number; deduplicated?: boolean }
       try {
-        const { data } = await guestApi.presign(item.blob.size)
+        const { data } = await guestApi.presign(
+          item.blob.size,
+          item.mimeType ?? 'image/jpeg',
+          item.source === 'upload'
+            ? { source: 'upload', uploadHash: item.uploadHash }
+            : undefined,
+        )
         presignData = data
+        // Дедуп: сервер вернул существующий frame_id — PUT в S3 не нужен,
+        // register тоже отдаст 409/уже uploaded. Возвращаем успех сразу.
+        if (data.deduplicated) {
+          await idbRemove(item.id)
+          return { ok: true, frameId: data.frame_id }
+        }
       } catch (e: unknown) {
         lastErr = e
         const status = (e as { response?: { status?: number } })?.response?.status
@@ -550,7 +580,13 @@ export default function CameraScreen() {
 
       // Шаг 3: register
       try {
-        const { data: reg } = await guestApi.registerFrame(presignData.frame_id, item.capturedAt, item.width, item.height)
+        const { data: reg } = await guestApi.registerFrame(
+          presignData.frame_id,
+          item.capturedAt,
+          item.width,
+          item.height,
+          item.source === 'upload' ? { source: 'upload' } : undefined,
+        )
         setFramesLeft(reg.frames_remaining)
         if (reg.frames_remaining === 0) navigate(`/g/${shortCode}/done`)
         await idbRemove(item.id)
@@ -583,6 +619,66 @@ export default function CameraScreen() {
     }
     setRetrying(false)
   }
+
+  // Gallery upload: multi-select до 5 фото. Клиент шлёт RAW (без LUT),
+  // worker применяет плёночный фильтр + удаляет EXIF (см. project_upload_from_gallery.md).
+  const onGalleryPick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = '' // сбросить input, иначе повторный выбор того же файла не сработает
+    if (files.length === 0) return
+    const picked = files.slice(0, 5)
+
+    setBatch({ total: picked.length, done: 0, failed: 0 })
+
+    let done = 0
+    let failed = 0
+    for (const file of picked) {
+      // 12 MB на клиенте — server считает столько же, но лучше не грузить bandwidth зря.
+      if (file.size > 12 * 1024 * 1024) {
+        failed++
+        setBatch({ total: picked.length, done, failed })
+        continue
+      }
+      // Разрешаем image/*; HEIC на iPhone — worker его декодирует.
+      if (!file.type.startsWith('image/')) {
+        failed++
+        setBatch({ total: picked.length, done, failed })
+        continue
+      }
+
+      // SHA-256 хеш для дедупа.
+      const arrBuf = await file.arrayBuffer()
+      const hashBuf = await crypto.subtle.digest('SHA-256', arrBuf)
+      const uploadHash = Array.from(new Uint8Array(hashBuf))
+        .map((b) => b.toString(16).padStart(2, '0')).join('')
+
+      // Размер картинки — только для JPEG/PNG/WebP браузер декодирует.
+      // Для HEIC браузер не умеет → передаём 0 (worker пересчитает после декода).
+      let w = 0, h = 0
+      try {
+        const bmp = await createImageBitmap(file)
+        w = bmp.width
+        h = bmp.height
+        bmp.close?.()
+      } catch { /* HEIC не декодируется в браузере — worker разберётся */ }
+
+      const item: QueueItem = {
+        id: newId(),
+        blob: file,
+        width: w,
+        height: h,
+        capturedAt: new Date(file.lastModified || Date.now()).toISOString(),
+        source: 'upload',
+        uploadHash,
+        mimeType: file.type,
+      }
+      const res = await uploadItem(item)
+      if (res.ok) done++; else failed++
+      setBatch({ total: picked.length, done, failed })
+    }
+    // Оставляем оверлей ещё 1.2 сек чтобы пользователь увидел финальный статус.
+    setTimeout(() => setBatch(null), 1200)
+  }, [uploadItem])
 
   const handleShutter = async () => {
     if (shooting) return
@@ -1015,7 +1111,45 @@ export default function CameraScreen() {
             />
           </div>
         </div>
+
+        {/* Gallery upload — тонкая кнопка под шаттером. Видна только если хост включил uploads_enabled. */}
+        {uploadsEnabled && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+              multiple
+              hidden
+              onChange={onGalleryPick}
+            />
+            <button
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={batch != null || framesLeft === 0}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 16px', borderRadius: 999,
+                background: 'transparent',
+                border: '1px solid rgba(255,179,71,0.30)',
+                color: 'var(--dr-text)',
+                fontSize: 13, fontWeight: 500,
+                fontFamily: 'Inter, sans-serif',
+                cursor: batch != null || framesLeft === 0 ? 'not-allowed' : 'pointer',
+                opacity: batch != null || framesLeft === 0 ? 0.4 : 1,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L14 3.9a3.5 3.5 0 0 1 5 5L10.4 17.5a1.5 1.5 0 0 1-2.1-2.1L16 7.7"/>
+              </svg>
+              Загрузить из галереи
+            </button>
+          </div>
+        )}
       </div>
+
+      {batch != null && (
+        <BatchUploadProgress total={batch.total} done={batch.done} failed={batch.failed} />
+      )}
 
     </div>
   )

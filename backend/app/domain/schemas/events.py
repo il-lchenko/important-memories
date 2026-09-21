@@ -36,6 +36,7 @@ class EventSettingsOut(BaseModel):
     lut_preset: LutPreset
     sound_enabled: bool
     photo_format: PhotoFormat
+    uploads_enabled: bool = False
 
 
 class EventOut(BaseModel):
@@ -74,6 +75,8 @@ class EventCreateIn(BaseModel):
     lut_preset: LutPreset | None = None
     plan: Plan = Plan.FREE
     photo_format: PhotoFormat = PhotoFormat.PORTRAIT_34
+    # Разрешить гостям загружать фото из галереи телефона (см. project_upload_from_gallery.md).
+    uploads_enabled: bool = False
     # Optional storage extension purchased on checkout (см. STORAGE_EXTENSIONS в event_service).
     storage_extension: Literal["3m", "6m", "1y"] | None = None
 
@@ -117,6 +120,7 @@ class EventSettingsUpdateIn(BaseModel):
     lut_preset: LutPreset | None = None
     sound_enabled: bool | None = None
     photo_format: PhotoFormat | None = None
+    uploads_enabled: bool | None = None
 
     @field_validator("frames_per_guest")
     @classmethod

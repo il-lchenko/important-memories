@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from io import BytesIO
 from uuid import UUID
 
@@ -7,10 +8,25 @@ from sqlalchemy import select
 
 from app.core.db import SessionLocal
 from app.core.logging import logger
-from app.domain.models import Frame, FrameStatus
+from app.domain.models import Frame, FrameSource, FrameStatus
 from app.domain.models.enums import LutPreset, PhotoFormat
 from app.domain.models.models import EventSettings
 from app.infra import s3_client
+
+# HEIC support для gallery-uploads с iPhone. Регистрируется один раз при импорте
+# worker'а. Если pillow-heif не установлен — падаем при попытке декодировать
+# HEIC, но остальной worker (camera-фото) продолжает работать.
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+    _HEIC_SUPPORT = True
+except ImportError:
+    _HEIC_SUPPORT = False
+
+
+# Cap для gallery-uploads: 12 MP (12_000_000 пикселей). Больше — считаем абьюзом
+# (мобилки редко дают >12 MP; профессиональная камера — DSLR — не через галерею).
+_UPLOAD_MP_CAP = 12_000_000
 
 # Target thumbnail dimensions per format (w × h)
 _THUMB_SIZES: dict[PhotoFormat, tuple[int, int]] = {
@@ -188,7 +204,20 @@ def _center_crop(img: Image.Image, ratio: float) -> Image.Image:
         return img.crop((0, y, w, y + new_h))
 
 
-async def make_thumbnail(ctx: dict, frame_id: str) -> None:
+async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> None:
+    """Генерирует thumb + preview из S3-оригинала.
+
+    Для camera-фото (source=camera) фильтр уже применён клиентом до PUT в S3 —
+    worker только режет thumb/preview.
+
+    Для gallery-uploads (source=upload, force_lut=True) worker дополнительно:
+    - декодирует HEIC → jpeg (через pillow-heif)
+    - удаляет EXIF полностью (создаём новый Image без metadata)
+    - проверяет 12 MP cap
+    - применяет плёночный фильтр (LUT) на full-res
+    - перезаписывает s3_key: filtered JPEG вместо raw (raw не храним)
+    - если ключ был .heic — переименовывает в .jpg
+    """
     frame_uuid = UUID(frame_id)
     async with SessionLocal() as session:
         frame = (
@@ -209,11 +238,63 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
         target_w, target_h = _THUMB_SIZES[photo_format]
         crop_ratio = _THUMB_RATIOS[photo_format]
 
+        # Для gallery-uploads принудительно применяем LUT на сервере — клиент
+        # шлёт raw. Флаг также передаётся из register_frame по source=upload.
+        is_upload = frame.source == FrameSource.UPLOAD or force_lut
+
         try:
             original = s3_client.download_bytes(frame.s3_key)
             with Image.open(BytesIO(original)) as raw:
                 raw = ImageOps.exif_transpose(raw)
-                raw = raw.convert("RGB")
+
+                if is_upload:
+                    # 12 MP cap — защита от абьюза (профессиональные фото 24MP+).
+                    w0, h0 = raw.size
+                    if w0 * h0 > _UPLOAD_MP_CAP:
+                        logger.warning(
+                            "upload_mp_cap_exceeded",
+                            frame_id=frame_id, width=w0, height=h0,
+                        )
+                        frame.status = FrameStatus.DELETED
+                        frame.deleted_at = datetime.now(timezone.utc)
+                        try:
+                            s3_client.delete_object(frame.s3_key)
+                        except Exception:
+                            pass
+                        await session.commit()
+                        return
+                    # Полностью убираем EXIF: создаём новую картинку и paste'им пиксели.
+                    # ImageOps.exif_transpose уже применил ориентацию — теперь исходные
+                    # метаданные больше не нужны и потенциально приватны (GPS).
+                    clean = Image.new("RGB", raw.size)
+                    clean.paste(raw)
+                    raw = clean
+                else:
+                    raw = raw.convert("RGB")
+
+                # Для uploads: применяем LUT на full-res, потом перезаписываем s3_key
+                # фильтрованной версией. Так zip_builder и public share получают
+                # уже обработанный кадр (raw не сохраняется).
+                if is_upload:
+                    filtered = apply_film_filter(raw, lut_preset.value)
+                    fbuf = BytesIO()
+                    filtered.save(fbuf, format="JPEG", quality=_PREVIEW_QUALITY, optimize=True)
+                    filtered_bytes = fbuf.getvalue()
+                    # Если ключ .heic — переименовываем в .jpg (клиент/архив ожидает jpeg).
+                    new_key = frame.s3_key
+                    if new_key.rsplit(".", 1)[-1].lower() in ("heic", "heif", "png", "webp"):
+                        old_key = new_key
+                        new_key = new_key.rsplit(".", 1)[0] + ".jpg"
+                        s3_client.upload_bytes(new_key, filtered_bytes, "image/jpeg")
+                        try:
+                            s3_client.delete_object(old_key)
+                        except Exception:
+                            pass
+                        frame.s3_key = new_key
+                    else:
+                        s3_client.upload_bytes(new_key, filtered_bytes, "image/jpeg")
+                    # Работаем дальше с filtered для thumb/preview.
+                    raw = filtered
 
                 # Плёночный фильтр применяет КЛИЕНТ (Flutter guest-camera / PWA useCamera)
                 # ДО загрузки на S3. Повторно применять здесь нельзя — это удваивает
@@ -254,6 +335,7 @@ async def make_thumbnail(ctx: dict, frame_id: str) -> None:
                 frame_id=frame_id,
                 fmt=photo_format,
                 lut=lut_preset,
+                source=frame.source.value,
                 thumb_size=len(thumb_bytes),
                 preview_size=len(preview_bytes),
             )

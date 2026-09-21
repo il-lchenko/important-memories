@@ -17,6 +17,33 @@ export interface Frame {
   is_mine: boolean
   rotation?: number
   caption?: string | null
+  // camera vs upload — используется для метки-скрепки на карточке.
+  source?: 'camera' | 'upload'
+}
+
+/**
+ * Метка-скрепка top-left на карточке, если source === 'upload'.
+ * SVG (не эмодзи) — единообразный рендер на iOS/Android/Windows.
+ */
+export function UploadBadge({ position = 'card' }: { position?: 'card' | 'fullscreen' }) {
+  const size = position === 'card' ? 22 : 28
+  const icon = position === 'card' ? 12 : 14
+  return (
+    <div style={{
+      position: 'absolute', top: 8, left: 10,
+      width: size, height: size, borderRadius: size / 2,
+      background: 'rgba(0,0,0,0.42)',
+      display: 'grid', placeItems: 'center',
+      backdropFilter: 'blur(2px)',
+      WebkitBackdropFilter: 'blur(2px)',
+      color: '#FFD2AA',
+      pointerEvents: 'none',
+    }}>
+      <svg width={icon} height={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 11.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L14 3.9a3.5 3.5 0 0 1 5 5L10.4 17.5a1.5 1.5 0 0 1-2.1-2.1L16 7.7"/>
+      </svg>
+    </div>
+  )
 }
 
 export interface AlbumOut {
@@ -290,6 +317,7 @@ export function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: 
           }}
         >
           <FrameImage frame={frame} fallbackIndex={i} />
+          {frame.source === 'upload' && <UploadBadge />}
           {isLarge && (
             <>
               <div style={{
@@ -473,8 +501,9 @@ function RetroCard({ w, h, deg, index, frame, tape, hw, onTap }: {
         boxShadow: '0 4px 10px rgba(26,23,20,.18), 0 1px 2px rgba(26,23,20,.08)',
       }}
     >
-      <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
         <FrameImage frame={frame} fallbackIndex={index} />
+        {frame.source === 'upload' && <UploadBadge />}
       </div>
       {hw && (
         <div style={{
@@ -575,8 +604,9 @@ export function PolaroidFeed({ frames, onOpenFrame }: {
               }}
             >
               <div style={{ padding: '14px 14px 0' }}>
-                <div style={{ aspectRatio: '1 / 1', overflow: 'hidden', borderRadius: 2 }}>
+                <div style={{ aspectRatio: '1 / 1', overflow: 'hidden', borderRadius: 2, position: 'relative' }}>
                   <FrameImage frame={frame} fallbackIndex={i} />
+                  {frame.source === 'upload' && <UploadBadge />}
                 </div>
               </div>
               <PolaroidCaption caption={frame.caption} guestName={frame.guest_name} capturedAt={frame.captured_at} />

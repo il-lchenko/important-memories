@@ -124,6 +124,7 @@ export interface GuestEventSettings {
   plan: string
   lut_preset: string
   sound_enabled: boolean
+  uploads_enabled?: boolean
 }
 
 export interface GuestSessionResponse {
@@ -148,6 +149,7 @@ export interface PresignResponse {
   frame_id: string
   upload_url: string
   expires_in: number
+  deduplicated?: boolean
 }
 
 export interface RegisterFrameResponse {
@@ -240,18 +242,31 @@ export const guestApi = {
       size_bytes: sizeBytes,
     })
   },
-  presign(sizeBytes: number, mimeType = 'image/jpeg') {
+  presign(
+    sizeBytes: number,
+    mimeType = 'image/jpeg',
+    opts?: { source?: 'camera' | 'upload'; uploadHash?: string },
+  ) {
     return api.post<PresignResponse>('/guest/frames/presign', {
       content_type: mimeType,
       size_bytes: sizeBytes,
+      ...(opts?.source ? { source: opts.source } : {}),
+      ...(opts?.uploadHash ? { upload_hash: opts.uploadHash } : {}),
     })
   },
-  registerFrame(frameId: string, capturedAt: string, width: number, height: number) {
+  registerFrame(
+    frameId: string,
+    capturedAt: string,
+    width: number,
+    height: number,
+    opts?: { source?: 'camera' | 'upload' },
+  ) {
     return api.post<RegisterFrameResponse>('/guest/frames/', {
       frame_id: frameId,
       captured_at: capturedAt,
       width,
       height,
+      ...(opts?.source ? { source: opts.source } : {}),
     })
   },
   voicePresign(frameId: string, sizeBytes: number, contentType = 'audio/webm') {

@@ -88,6 +88,7 @@ def _to_frame_out(frame: Frame, guest_name: str | None, is_mine: bool, guest_ava
         voice_duration_ms=frame.voice_duration_ms,
         voice_peaks=frame.voice_peaks,
         rotation=frame.rotation,
+        source=frame.source.value,
     )
 
 

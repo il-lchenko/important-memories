@@ -29,6 +29,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   // Шаг 5
   String _film = 'portra400';
+  // Разрешить гостям загружать фото из галереи телефона (см. project_upload_from_gallery.md).
+  // Default false — Хост осознанно включает.
+  bool _uploadsEnabled = false;
 
   static const _totalSteps = 5;
 
@@ -65,6 +68,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       if (_revealAt != null) 'reveal_at': _revealAt!.toUtc().toIso8601String(),
       if (_startAt != null)  'start_at':  _startAt!.toUtc().toIso8601String(),
       'film': _film,
+      'uploads_enabled': _uploadsEnabled,
     });
   }
 
@@ -171,6 +175,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           films: _films,
           selected: _film,
           onChanged: (v) => setState(() => _film = v),
+          uploadsEnabled: _uploadsEnabled,
+          onUploadsChanged: (v) => setState(() => _uploadsEnabled = v),
         ),
       _ => const SizedBox(),
     };
@@ -1081,7 +1087,15 @@ class _Step5 extends StatelessWidget {
   final List<Map<String, String>> films;
   final String selected;
   final ValueChanged<String> onChanged;
-  const _Step5({required this.films, required this.selected, required this.onChanged});
+  final bool uploadsEnabled;
+  final ValueChanged<bool> onUploadsChanged;
+  const _Step5({
+    required this.films,
+    required this.selected,
+    required this.onChanged,
+    required this.uploadsEnabled,
+    required this.onUploadsChanged,
+  });
 
   static String _photoUrl(String id) => switch (id) {
     'original'  => 'https://picsum.photos/seed/celebration99/300/300',
@@ -1213,6 +1227,24 @@ class _Step5 extends StatelessWidget {
             ),
           );
         }),
+        const SizedBox(height: 24),
+        // ─── Секция «Дополнительно» ─────────────────────────────────
+        Container(height: 1, color: AppColors.line),
+        const SizedBox(height: 20),
+        const Text(
+          'ДОПОЛНИТЕЛЬНО',
+          style: TextStyle(
+            fontFamily: 'Inter', fontSize: 11,
+            letterSpacing: 1.6,
+            color: AppColors.ink3,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _UploadsToggleRow(
+          value: uploadsEnabled,
+          onChanged: onUploadsChanged,
+        ),
         const SizedBox(height: AppSpacing.s4),
       ],
     );
@@ -1226,6 +1258,96 @@ class _Step5 extends StatelessWidget {
     'ilford'    => const [Color(0xFFB0A8A0), Color(0xFF505050), Color(0xFF101010)],
     _           => [AppColors.paper3, AppColors.ink4],
   };
+}
+
+// ─── Toggle: uploads_enabled ─────────────────────────────────────────────
+
+class _UploadsToggleRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _UploadsToggleRow({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        decoration: BoxDecoration(
+          color: value ? AppColors.amber.withValues(alpha: 0.08) : AppColors.paper2,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: value ? AppColors.amber : AppColors.line,
+            width: value ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: value ? AppColors.amber : AppColors.paper,
+                borderRadius: BorderRadius.circular(12),
+                border: value ? null : Border.all(color: AppColors.line),
+              ),
+              child: Icon(
+                Icons.attach_file,
+                size: 20,
+                color: value ? Colors.white : AppColors.ink2,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Загрузка из галереи',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Гости смогут добавить фото из телефона. Плёночный фильтр применяется автоматически.',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.5,
+                        color: AppColors.ink3,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: SizedBox(
+                width: 44, height: 26,
+                child: Switch(
+                  value: value,
+                  onChanged: onChanged,
+                  activeColor: Colors.white,
+                  activeTrackColor: AppColors.amber,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: AppColors.paper3,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ─── Bottom CTA ───────────────────────────────────────────────────────────

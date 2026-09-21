@@ -71,13 +71,13 @@ class AlbumSettingsScreen extends ConsumerWidget {
   }
 }
 
-class _Content extends StatelessWidget {
+class _Content extends ConsumerWidget {
   final String eventId;
   final Map<String, dynamic> event;
   const _Content({required this.eventId, required this.event});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final settings = (event['settings'] as Map<String, dynamic>?) ?? {};
     final title = (event['title'] as String?) ?? 'Событие';
     final status = event['status'] as String? ?? 'draft';
@@ -87,6 +87,7 @@ class _Content extends StatelessWidget {
     final framesCount = event['frames_count'] as int? ?? 0;
     final expiresAt = event['expires_at'] as String?;
     final shortCode = event['short_code'] as String? ?? '';
+    final uploadsEnabled = settings['uploads_enabled'] as bool? ?? false;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -141,6 +142,13 @@ class _Content extends StatelessWidget {
             meta: expiresAt != null ? 'Сейчас до ${_formatDate(expiresAt)}' : '+3 мес / +6 мес / +1 год',
             price: 'от 490 ₽',
             onTap: () => context.push('/extend/$eventId'),
+          ),
+          const SizedBox(height: 24),
+          _Kicker('ГОСТЕВЫЕ ПРАВА'),
+          const SizedBox(height: 12),
+          _UploadsToggleRow(
+            value: uploadsEnabled,
+            onToggle: (v) => _toggleUploads(context, ref, eventId, v),
           ),
           const SizedBox(height: 28),
           Container(
@@ -242,6 +250,80 @@ class _Content extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Оплата 45 кадров — скоро')),
     );
+  }
+
+  /// Переключение uploads_enabled. При включении первый раз — модалка warning
+  /// с 3 пунктами: фильтр применяется, общий лимит, ответственность за контент.
+  /// При выключении сразу PATCH — быстро остановить абьюз.
+  static Future<void> _toggleUploads(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+    bool newValue,
+  ) async {
+    if (newValue) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.paper,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Разрешить загрузку из галереи?',
+            style: GoogleFonts.playfairDisplay(
+              fontFeatures: [const FontFeature.liningFigures()],
+              fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink,
+            ),
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Гости смогут добавлять в альбом фото из своей галереи — не только снимать через приложение.',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: AppColors.ink2, height: 1.5),
+              ),
+              SizedBox(height: 12),
+              _BulletPoint(text: 'Плёночный фильтр применится к каждому фото автоматически'),
+              SizedBox(height: 6),
+              _BulletPoint(text: 'Загруженные фото считаются в общий лимит кадров'),
+              SizedBox(height: 6),
+              _BulletPoint(text: 'Вы отвечаете за содержание — сможете удалить лишнее'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Отмена', style: TextStyle(fontFamily: 'Inter', color: AppColors.ink3)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.amber,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Разрешить', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.patch(
+        'events/$eventId/settings',
+        data: {'uploads_enabled': newValue},
+      );
+      ref.invalidate(eventDetailProvider(eventId));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(extractUserMessage(e), style: const TextStyle(fontFamily: 'Inter')),
+        backgroundColor: AppColors.shutter,
+      ));
+    }
   }
 
   static void _confirmDelete(BuildContext context, String eventId) {
@@ -494,6 +576,117 @@ class _UpgradeRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _UploadsToggleRow extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onToggle;
+  const _UploadsToggleRow({required this.value, required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onToggle(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+        decoration: BoxDecoration(
+          color: value ? AppColors.amber.withValues(alpha: 0.08) : AppColors.paper2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: value ? AppColors.amber : AppColors.line,
+            width: value ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: value ? AppColors.amber : AppColors.paper,
+                borderRadius: BorderRadius.circular(12),
+                border: value ? null : Border.all(color: AppColors.line),
+              ),
+              child: Icon(
+                Icons.attach_file,
+                color: value ? Colors.white : AppColors.ink2,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Загрузка из галереи',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink,
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Гости смогут добавить фото из телефона',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12.5,
+                        color: AppColors.ink3,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Switch(
+                value: value,
+                onChanged: onToggle,
+                activeColor: Colors.white,
+                activeTrackColor: AppColors.amber,
+                inactiveThumbColor: Colors.white,
+                inactiveTrackColor: AppColors.paper3,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BulletPoint extends StatelessWidget {
+  final String text;
+  const _BulletPoint({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 6, right: 8),
+          child: Icon(Icons.circle, size: 4, color: AppColors.amber),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: AppColors.ink2, height: 1.45),
+          ),
+        ),
+      ],
     );
   }
 }

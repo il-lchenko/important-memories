@@ -21,6 +21,8 @@ class AlbumFrameOut(BaseModel):
     voice_duration_ms: int | None = None
     voice_peaks: list[float] | None = None
     rotation: int = 0
+    # camera vs upload — используется клиентом для метки-скрепки на карточке.
+    source: str = "camera"
 
 
 class AlbumOut(BaseModel):

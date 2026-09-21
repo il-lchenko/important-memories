@@ -24,7 +24,12 @@ async def presign_frame(
     session: SessionDep,
 ) -> FramePresignOut:
     return await media_service.presign_upload(
-        session, guest, payload.content_type, payload.size_bytes
+        session,
+        guest,
+        payload.content_type,
+        payload.size_bytes,
+        source=payload.source,
+        upload_hash=payload.upload_hash,
     )
 
 
@@ -41,6 +46,7 @@ async def register_frame(
         captured_at=payload.captured_at,
         width=payload.width,
         height=payload.height,
+        source=payload.source,
     )
 
 

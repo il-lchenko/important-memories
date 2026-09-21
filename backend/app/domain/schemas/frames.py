@@ -1,8 +1,9 @@
 import html as html_mod
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def _sanitize_caption(v: str | None) -> str | None:
@@ -17,14 +18,40 @@ def _sanitize_caption(v: str | None) -> str | None:
 
 
 class FramePresignIn(BaseModel):
-    content_type: str = Field(pattern=r"^image/(jpeg|png|webp)$")
+    # Для camera-фото: jpeg/png/webp. Для gallery-uploads добавляется heic/heif —
+    # worker сконвертирует в jpeg при обработке.
+    content_type: str = Field(pattern=r"^image/(jpeg|png|webp|heic|heif)$")
     size_bytes: int = Field(gt=0, le=20 * 1024 * 1024)
+    source: Literal["camera", "upload"] = "camera"
+    # SHA-256 файла — только для source=upload (дедуп).
+    upload_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+
+    @model_validator(mode="after")
+    def _check_source_rules(self) -> "FramePresignIn":
+        if self.source == "upload":
+            # Uploads должны иметь hash — иначе не сработает дедуп
+            if self.upload_hash is None:
+                raise ValueError("upload_hash is required for source=upload")
+            # Uploads имеют более жёсткий лимит размера (12 MB, а не 20)
+            if self.size_bytes > 12 * 1024 * 1024:
+                raise ValueError("Uploads limited to 12 MB")
+        else:
+            # Camera-фото не должны присылать hash — упрощает БД (NULL для camera)
+            if self.upload_hash is not None:
+                raise ValueError("upload_hash is only for source=upload")
+            # Camera-фото не могут быть HEIC (браузер/камера уже дают JPEG)
+            if self.content_type in ("image/heic", "image/heif"):
+                raise ValueError("HEIC content_type is only for source=upload")
+        return self
 
 
 class FramePresignOut(BaseModel):
     frame_id: UUID
     upload_url: str
     expires_in: int
+    # True если файл уже загружен ранее (тот же upload_hash в этом событии).
+    # Клиент в этом случае может пропустить PUT — frame_id указывает на существующий кадр.
+    deduplicated: bool = False
 
 
 class FrameRegisterIn(BaseModel):
@@ -32,6 +59,7 @@ class FrameRegisterIn(BaseModel):
     captured_at: datetime
     width: int = Field(gt=0, le=20000)
     height: int = Field(gt=0, le=20000)
+    source: Literal["camera", "upload"] = "camera"
 
 
 class FrameRegisterOut(BaseModel):

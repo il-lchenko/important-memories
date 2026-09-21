@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.logging import logger
-from app.domain.models import Frame, FrameStatus, Guest
+from app.domain.models import Frame, FrameSource, FrameStatus, Guest
 from app.infra import s3_client
 
 
@@ -46,7 +46,9 @@ async def build_zip(ctx: dict, event_id: str, job_id: str) -> dict:
             ext = frame.s3_key.rsplit(".", 1)[-1].lower() if "." in frame.s3_key else "jpg"
             stem = _safe_name(guest_name)
             seen[stem] = seen.get(stem, 0) + 1
-            name = f"{stem}_{seen[stem]:03d}.{ext}"
+            # Разделяем camera и uploaded фото в подпапки — Хост видит источник контента.
+            prefix = "uploaded/" if frame.source == FrameSource.UPLOAD else "camera/"
+            name = f"{prefix}{stem}_{seen[stem]:03d}.{ext}"
             zf.writestr(name, body)
 
     zip_key = f"events/{event_id}/archives/{job_id}.zip"

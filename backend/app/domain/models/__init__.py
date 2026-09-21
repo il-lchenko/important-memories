@@ -1,6 +1,7 @@
 from app.domain.models.enums import (
     EventStatus,
     EventType,
+    FrameSource,
     FrameStatus,
     JoinAttemptOutcome,
     LutPreset,
@@ -36,6 +37,7 @@ __all__ = [
     "EventStatus",
     "EventType",
     "Frame",
+    "FrameSource",
     "FrameStatus",
     "Guest",
     "InviteToken",

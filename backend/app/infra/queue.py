@@ -36,8 +36,11 @@ async def close_pool() -> None:
         _pool = None
 
 
-async def make_thumbnail(frame_id: UUID) -> None:
-    await enqueue("make_thumbnail", str(frame_id))
+async def make_thumbnail(frame_id: UUID, *, force_lut: bool = False) -> None:
+    # force_lut=True для gallery-uploads: worker обязан применить плёночный
+    # фильтр серверно (клиент не может, обход невозможен). Camera-фото уже
+    # обработаны isolate'ом / Web Worker'ом до PUT в S3.
+    await enqueue("make_thumbnail", str(frame_id), force_lut=force_lut)
 
 
 async def schedule_reveal(event_id: UUID, when: datetime) -> None:

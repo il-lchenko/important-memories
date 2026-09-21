@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -114,6 +116,16 @@ bool _quarterIsLandscape(int q) => q == 1 || q == 3;
 
 enum _AspectMode { ratio34, full }
 
+// Состояние батч-загрузки из галереи (см. _pickFromGallery).
+class _BatchState {
+  final int total;
+  final int done;
+  final int failed;
+  const _BatchState({required this.total, this.done = 0, this.failed = 0});
+  int get processed => done + failed;
+  bool get finished => processed >= total;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main camera screen
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,6 +151,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   String _lutPreset = 'original';
   List<_RecentShot> _recentShots = [];
   _PreviewData? _preview;
+  // Батч-загрузка из галереи (см. _pickFromGallery).
+  _BatchState? _batchState;
+  // Хост разрешил загрузку из галереи? Читаем при _loadPrefs из session.
+  bool _uploadsEnabled = false;
 
   // Hardware zoom — реальный zoom через камеру (не CSS-скейл).
   // Первые уровни на Android — оптика/hardware digital (лучше качество),
@@ -195,6 +211,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('current_guest_event_id', widget.eventId);
     final total = prefs.getInt('gs_frames_total_${widget.eventId}') ?? frames;
+    // Кешированный флаг uploads_enabled (обновляется при getSession).
+    var uploadsEnabled = prefs.getBool('gs_uploads_enabled_${widget.eventId}') ?? false;
 
     // Если кадры не закешированы (0) но токен есть — запрашиваем с backend.
     if (frames == 0) {
@@ -210,6 +228,11 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
             frames = remaining;
             await GuestPrefs.setFramesRemainingFor(widget.eventId, frames);
           }
+          final settings = resp.data['event']?['settings'];
+          if (settings is Map) {
+            uploadsEnabled = settings['uploads_enabled'] == true;
+            await prefs.setBool('gs_uploads_enabled_${widget.eventId}', uploadsEnabled);
+          }
         } catch (_) {}
       }
     }
@@ -220,6 +243,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       _framesTotal = total > 0 ? total : frames;
       _lutPreset = lut;
       _recentShots = recent;
+      _uploadsEnabled = uploadsEnabled;
     });
   }
 
@@ -593,22 +617,38 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     }
   }
 
-  Future<String> _upload(Uint8List bytes, int width, int height) async {
+  Future<String> _upload(
+    Uint8List bytes,
+    int width,
+    int height, {
+    String source = 'camera',
+    String? uploadHash,
+    String mimeType = 'image/jpeg',
+  }) async {
     final guestToken = await GuestPrefs.tokenFor(widget.eventId);
     final guestOpts = Options(headers: {'X-Guest-Token': guestToken});
     final dio = ref.read(dioProvider);
 
     final presignResp = await dio.post(
       'guest/frames/presign',
-      data: {'content_type': 'image/jpeg', 'size_bytes': bytes.length},
+      data: {
+        'content_type': mimeType,
+        'size_bytes': bytes.length,
+        if (source == 'upload') 'source': 'upload',
+        if (source == 'upload' && uploadHash != null) 'upload_hash': uploadHash,
+      },
       options: guestOpts,
     );
     final pdata = presignResp.data;
     final frameId = (pdata is Map ? pdata['frame_id'] : null) as String?;
     final uploadUrl = (pdata is Map ? pdata['upload_url'] : null) as String?;
+    final deduplicated = (pdata is Map ? pdata['deduplicated'] : null) == true;
     if (frameId == null || uploadUrl == null) {
       throw StateError('Некорректный ответ сервера (presign).');
     }
+
+    // Дедуп: сервер вернул существующий frame_id — PUT не нужен.
+    if (deduplicated) return frameId;
 
     final s3Dio = Dio();
     await s3Dio.put(
@@ -616,7 +656,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       data: Stream.fromIterable([bytes]),
       options: Options(
         headers: {
-          'Content-Type': 'image/jpeg',
+          'Content-Type': mimeType,
           'Content-Length': bytes.length.toString(),
         },
         validateStatus: (s) => s != null && s < 300,
@@ -630,11 +670,73 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         'captured_at': DateTime.now().toUtc().toIso8601String(),
         'width': width,
         'height': height,
+        if (source == 'upload') 'source': 'upload',
       },
       options: guestOpts,
     );
 
     return frameId;
+  }
+
+  // Gallery upload: multi-select до 5 фото. Отправляем RAW (без LUT-обработки
+  // на клиенте) — worker применит фильтр серверно + удалит EXIF.
+  Future<void> _pickFromGallery() async {
+    if (_batchState != null) return;
+    final picker = ImagePicker();
+    final List<XFile> files;
+    try {
+      files = await picker.pickMultiImage(imageQuality: 100, limit: 5);
+    } catch (e) {
+      return;
+    }
+    if (files.isEmpty) return;
+    final picked = files.take(5).toList();
+
+    setState(() => _batchState = _BatchState(total: picked.length));
+
+    int done = 0;
+    int failed = 0;
+    for (final f in picked) {
+      final bytes = await f.readAsBytes();
+      // Клиентский guard: 12 MB. Server повторит проверку.
+      if (bytes.lengthInBytes > 12 * 1024 * 1024) {
+        failed++;
+        if (mounted) setState(() => _batchState = _BatchState(total: picked.length, done: done, failed: failed));
+        continue;
+      }
+      final hash = sha256.convert(bytes).toString();
+      // Быстрый декод только для ширины/высоты — не грузим full pipeline.
+      int w = 0, h = 0;
+      try {
+        final decoded = img.decodeImage(bytes);
+        if (decoded != null) { w = decoded.width; h = decoded.height; }
+      } catch (_) {}
+      // MIME по расширению файла. iOS может вернуть HEIC — сервер разрулит.
+      final name = f.name.toLowerCase();
+      final mime = name.endsWith('.png') ? 'image/png'
+          : name.endsWith('.heic') || name.endsWith('.heif') ? 'image/heic'
+          : name.endsWith('.webp') ? 'image/webp'
+          : 'image/jpeg';
+      try {
+        await _upload(bytes, w, h, source: 'upload', uploadHash: hash, mimeType: mime);
+        done++;
+      } catch (e) {
+        failed++;
+      }
+      if (!mounted) return;
+      setState(() => _batchState = _BatchState(total: picked.length, done: done, failed: failed));
+    }
+    if (!mounted) return;
+    // Оставляем финальный статус ~1.2 сек, чтобы пользователь увидел итог.
+    await Future.delayed(const Duration(milliseconds: 1200));
+    if (!mounted) return;
+    setState(() => _batchState = null);
+    // Обновляем счётчик кадров: считаем сколько успешно загружено.
+    if (done > 0) {
+      final newRemaining = (_framesRemaining - done).clamp(0, 999);
+      setState(() => _framesRemaining = newRemaining);
+      await GuestPrefs.setFramesRemainingFor(widget.eventId, newRemaining);
+    }
   }
 
   void _showNoFrames() {
@@ -742,6 +844,39 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
               });
             },
           ),
+
+          // Кнопка «Из галереи» — тонкая, поверх низа камеры, только если Хост разрешил.
+          // Позиционируется чуть выше safe-area, не мешает шаттеру.
+          if (_uploadsEnabled && _preview == null && _batchState == null)
+            Positioned(
+              left: 0, right: 0,
+              bottom: MediaQuery.of(context).padding.bottom + 4,
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: _framesRemaining <= 0 ? null : _pickFromGallery,
+                    icon: const Icon(Icons.attach_file, size: 14),
+                    label: const Text('Из галереи'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.drText,
+                      textStyle: const TextStyle(
+                        fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500,
+                      ),
+                      backgroundColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                        side: BorderSide(color: AppColors.drAmber.withValues(alpha: 0.3)),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          if (_batchState != null)
+            _BatchProgressOverlay(state: _batchState!),
 
           if (_preview != null)
             _FramePreview(
@@ -1933,6 +2068,118 @@ class _CaptureOverlay extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Batch upload progress overlay (gallery upload).
+// Показывается поверх камеры. Финальный статус держится ~1.2 сек в родителе.
+// ─────────────────────────────────────────────────────────────────────────────
+class _BatchProgressOverlay extends StatelessWidget {
+  final _BatchState state;
+  const _BatchProgressOverlay({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = state.total > 0 ? state.processed / state.total : 0.0;
+    final finished = state.finished;
+    return Container(
+      color: Colors.black.withValues(alpha: 0.55),
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1F1712),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.drAmber.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: finished
+                      ? const Color(0xFF6A9269)
+                      : AppColors.drAmber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  finished ? Icons.check : Icons.file_upload_outlined,
+                  color: finished ? Colors.white : AppColors.drAmber,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                finished
+                    ? 'Загружено ${state.done} из ${state.total}'
+                    : 'Отправляем фото',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20, fontWeight: FontWeight.w600,
+                  color: AppColors.drAmber, letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                finished
+                    ? 'Плёночный фильтр применится в течение нескольких секунд'
+                    : 'Плёночный фильтр применится на сервере',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter', fontSize: 13,
+                  color: AppColors.drAmber.withValues(alpha: 0.55),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: percent,
+                  minHeight: 6,
+                  backgroundColor: AppColors.drAmber.withValues(alpha: 0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    finished ? const Color(0xFF6A9269) : AppColors.drAmber,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${state.processed} / ${state.total}',
+                style: TextStyle(
+                  fontFamily: 'Inter', fontSize: 12,
+                  color: AppColors.drAmber.withValues(alpha: 0.65),
+                  letterSpacing: 0.5,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              if (state.failed > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${state.failed} не удалось отправить',
+                  style: const TextStyle(
+                    fontFamily: 'Inter', fontSize: 11,
+                    color: AppColors.shutter,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              // Подтверждение прав вместо модалки (см. project_upload_from_gallery.md).
+              Text(
+                'Отправляя, вы подтверждаете, что имеете право использовать эти фото.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter', fontSize: 11,
+                  color: AppColors.drAmber.withValues(alpha: 0.45),
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
         ),
       ),

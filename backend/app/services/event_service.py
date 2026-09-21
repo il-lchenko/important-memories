@@ -181,6 +181,7 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
             lut_preset=s.lut_preset,
             sound_enabled=s.sound_enabled,
             photo_format=s.photo_format,
+            uploads_enabled=s.uploads_enabled,
         ),
         guests_count=guests_count,
         frames_count=frames_count,
@@ -221,6 +222,7 @@ async def create_event(
         lut_preset=payload.lut_preset or LutPreset.PORTRA400,
         plan=payload.plan,
         photo_format=payload.photo_format,
+        uploads_enabled=payload.uploads_enabled,
     )
     await event_repo.create(session, event)
     await session.commit()
@@ -326,6 +328,10 @@ async def update_settings(
         s.sound_enabled = payload.sound_enabled
     if payload.photo_format is not None:
         s.photo_format = payload.photo_format
+    # uploads_enabled НЕ в locked-fields списке выше: Хост должен иметь возможность
+    # быстро отключить фичу при абьюзе, даже после присоединения гостей.
+    if payload.uploads_enabled is not None:
+        s.uploads_enabled = payload.uploads_enabled
 
     if s.reveal_mode == RevealMode.DELAYED:
         if s.reveal_at is None:

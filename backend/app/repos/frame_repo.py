@@ -32,3 +32,16 @@ async def count_pending_for_guest(session: AsyncSession, guest_id: UUID) -> int:
         Frame.status == FrameStatus.PENDING,
     )
     return int((await session.execute(stmt)).scalar_one())
+
+
+async def find_by_upload_hash(
+    session: AsyncSession, event_id: UUID, upload_hash: str
+) -> Frame | None:
+    """Ищет неудалённый кадр с таким же SHA-256 в рамках события — для дедупа
+    gallery-uploads. Возвращает первый найденный (partial unique index гарантирует ≤1)."""
+    stmt = select(Frame).where(
+        Frame.event_id == event_id,
+        Frame.upload_hash == upload_hash,
+        Frame.status != FrameStatus.DELETED,
+    ).limit(1)
+    return (await session.execute(stmt)).scalar_one_or_none()

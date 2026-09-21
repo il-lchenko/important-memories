@@ -57,6 +57,13 @@ class FrameStatus(StrEnum):
     DELETED = "deleted"
 
 
+class FrameSource(StrEnum):
+    """Как кадр попал в альбом. camera — снят через приложение (LUT применён на клиенте).
+    upload — загружен из галереи телефона (LUT применяется в worker, обход невозможен)."""
+    CAMERA = "camera"
+    UPLOAD = "upload"
+
+
 class PaymentStatus(StrEnum):
     PENDING = "pending"
     SUCCEEDED = "succeeded"

@@ -20,6 +20,7 @@ interface Frame {
   voice_duration_ms?: number | null
   voice_peaks?: number[] | null
   rotation?: number
+  source?: 'camera' | 'upload'
 }
 
 function formatTime(iso: string): string {
@@ -310,6 +311,25 @@ export default function FrameFullscreen() {
             peaks={frame.voice_peaks ?? null}
             durationMs={frame.voice_duration_ms ?? 0}
           />
+        </div>
+      )}
+
+      {/* Метка «Загружено из галереи» — тонкий pill под captionом/голосом. */}
+      {frame.source === 'upload' && (
+        <div style={{ flexShrink: 0, padding: '4px 20px 6px', display: 'flex', justifyContent: 'center' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '5px 12px', borderRadius: 999,
+            background: 'rgba(0,0,0,0.42)',
+            color: 'rgba(255,210,170,.9)',
+            fontFamily: 'Inter, sans-serif', fontSize: 11,
+            letterSpacing: 0.2,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFD2AA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L14 3.9a3.5 3.5 0 0 1 5 5L10.4 17.5a1.5 1.5 0 0 1-2.1-2.1L16 7.7"/>
+            </svg>
+            Загружено из галереи
+          </span>
         </div>
       )}
 

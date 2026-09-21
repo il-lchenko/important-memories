@@ -33,6 +33,7 @@ from app.core.db import Base
 from app.domain.models.enums import (
     EventStatus,
     EventType,
+    FrameSource,
     FrameStatus,
     JoinAttemptOutcome,
     LutPreset,
@@ -162,6 +163,12 @@ class EventSettings(Base):
     photo_format: Mapped[PhotoFormat] = mapped_column(
         _enum_col(PhotoFormat, "photo_format"), default=PhotoFormat.PORTRAIT_34, nullable=False
     )
+    # Разрешает гостям загружать фото из галереи телефона (вместо съёмки в приложении).
+    # Хост включает осознанно, default False. Плёночный фильтр применяется в worker
+    # (обход невозможен). См. project_upload_from_gallery.md.
+    uploads_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
     event: Mapped[Event] = relationship(back_populates="settings")
 
@@ -220,6 +227,16 @@ class Frame(Base):
     status: Mapped[FrameStatus] = mapped_column(
         _enum_col(FrameStatus, "frame_status"), default=FrameStatus.PENDING, nullable=False
     )
+    # Источник кадра: camera (LUT применён клиентом) vs upload (LUT в worker).
+    source: Mapped[FrameSource] = mapped_column(
+        _enum_col(FrameSource, "frame_source"),
+        default=FrameSource.CAMERA,
+        server_default="camera",
+        nullable=False,
+    )
+    # SHA-256 файла — для дедупа gallery-uploads (уникален в рамках события через
+    # partial unique index в миграции). Для source=camera всегда NULL.
+    upload_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     captured_at: Mapped[datetime] = _ts()
     uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

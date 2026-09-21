@@ -50,6 +50,9 @@ dependencies:
   camera: ^0.11.1
   image: ^4.3.0
 
+  # SHA-256 для дедупа gallery-uploads.
+  crypto: ^3.0.5
+
   # Voice recording (native — works on Huawei/Yandex browser Android!)
   record: ^5.2.0
 

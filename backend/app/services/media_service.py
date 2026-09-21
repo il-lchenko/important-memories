@@ -1,19 +1,20 @@
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
-from app.domain.models import EventStatus, Frame, FrameStatus, Guest
+from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, RateLimitError
+from app.domain.models import EventStatus, Frame, FrameSource, FrameStatus, Guest
 from app.domain.schemas.frames import (
     FramePresignOut,
     FrameRegisterOut,
     FrameUpdateIn,
     FrameVoicePresignOut,
 )
-from app.infra import fcm_client, queue, s3_client
+from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, frame_repo
 
 
@@ -23,6 +24,9 @@ def _make_s3_key(event_id: UUID, frame_id: UUID, content_type: str) -> str:
         ext = "png"
     elif content_type == "image/webp":
         ext = "webp"
+    elif content_type in ("image/heic", "image/heif"):
+        # HEIC от iPhone — worker сконвертирует в jpg и переименует ключ.
+        ext = "heic"
     return f"events/{event_id}/frames/{frame_id}.{ext}"
 
 
@@ -44,15 +48,34 @@ async def presign_upload(
     guest: Guest,
     content_type: str,
     size_bytes: int,
+    source: Literal["camera", "upload"] = "camera",
+    upload_hash: str | None = None,
 ) -> FramePresignOut:
-    if size_bytes > 20 * 1024 * 1024:
-        raise ConflictError("File too large", details={"max_bytes": 20 * 1024 * 1024})
+    is_upload = source == "upload"
+    max_bytes = 12 * 1024 * 1024 if is_upload else 20 * 1024 * 1024
+    if size_bytes > max_bytes:
+        raise ConflictError("File too large", details={"max_bytes": max_bytes})
 
-    if guest.event.status not in (EventStatus.DRAFT, EventStatus.ACTIVE):
-        raise ConflictError(
-            "Съёмка завершена — альбом уже закрыт",
-            details={"status": guest.event.status.value},
-        )
+    if is_upload:
+        # Gallery uploads разрешены только пока событие ACTIVE (без DRAFT-эксперимента
+        # хоста — иначе Host сможет заливать «свои» до старта). См. project_upload_from_gallery.md.
+        if guest.event.status != EventStatus.ACTIVE:
+            raise ConflictError(
+                "Загрузка доступна только во время события",
+                details={"status": guest.event.status.value},
+            )
+        if not guest.event.settings.uploads_enabled:
+            raise ConflictError(
+                "Хост не разрешил загрузку из галереи для этого события",
+                details={"uploads_enabled": False},
+            )
+        # HEIC разрешён только для upload — camera-фото шлются как jpeg/png/webp.
+    else:
+        if guest.event.status not in (EventStatus.DRAFT, EventStatus.ACTIVE):
+            raise ConflictError(
+                "Съёмка завершена — альбом уже закрыт",
+                details={"status": guest.event.status.value},
+            )
 
     now = datetime.now(timezone.utc)
     is_owner = guest.user_id is not None and guest.user_id == guest.event.user_id
@@ -68,6 +91,33 @@ async def presign_upload(
             "Съёмка ещё не открыта",
             details={"start_at": guest.event.start_at.isoformat()},
         )
+
+    # Rate-limit для gallery-uploads: 1 файл / 10 сек на гостя. Защита от массового
+    # заливания (5×3 фото за 3 секунды забило бы квоту и storage).
+    if is_upload:
+        blocked = await rate_limiter.too_soon(
+            f"rl:upload:{guest.id}", cooldown_sec=10
+        )
+        if blocked:
+            raise RateLimitError(
+                "Слишком часто. Подождите 10 секунд.",
+                details={"cooldown_sec": 10},
+            )
+
+    # Дедуп gallery-uploads по SHA-256: если файл уже загружен — возвращаем
+    # существующий frame_id и не создаём новый. Клиент отобразит успех молча.
+    if is_upload and upload_hash:
+        existing = await frame_repo.find_by_upload_hash(
+            session, guest.event_id, upload_hash
+        )
+        if existing is not None:
+            upload_url = s3_client.presign_put(existing.s3_key, content_type)
+            return FramePresignOut(
+                frame_id=existing.id,
+                upload_url=upload_url,
+                expires_in=settings.S3_PRESIGN_TTL_SEC,
+                deduplicated=True,
+            )
 
     # Блокируем Guest row чтобы конкурентные presign от того же гостя
     # (двойной клик, две вкладки, дубликаты FCM) не пробили квоту кадров.
@@ -93,6 +143,8 @@ async def presign_upload(
         s3_key=s3_key,
         size_bytes=size_bytes,
         status=FrameStatus.PENDING,
+        source=FrameSource.UPLOAD if is_upload else FrameSource.CAMERA,
+        upload_hash=upload_hash if is_upload else None,
     )
     await frame_repo.create(session, frame)
     await session.commit()
@@ -102,6 +154,7 @@ async def presign_upload(
         frame_id=frame_id,
         upload_url=upload_url,
         expires_in=settings.S3_PRESIGN_TTL_SEC,
+        deduplicated=False,
     )
 
 
@@ -112,6 +165,7 @@ async def register_frame(
     captured_at: datetime,
     width: int,
     height: int,
+    source: Literal["camera", "upload"] = "camera",
 ) -> FrameRegisterOut:
     frame = await frame_repo.get_by_id(session, frame_id)
     if frame is None:
@@ -119,6 +173,16 @@ async def register_frame(
     if frame.guest_id != guest.id:
         raise PermissionDeniedError("Not your frame")
     if frame.status != FrameStatus.PENDING:
+        # Дедуп: если presign вернул существующий frame_id (уже UPLOADED),
+        # клиент всё равно позвонит register — отвечаем идемпотентно.
+        if frame.status == FrameStatus.UPLOADED and frame.source == FrameSource.UPLOAD:
+            limit = guest.event.settings.frames_per_guest
+            used = await frame_repo.count_uploaded_for_guest(session, guest.id)
+            return FrameRegisterOut(
+                id=frame.id,
+                status=frame.status.value,
+                frames_remaining=max(0, limit - used),
+            )
         raise ConflictError(
             "Frame already registered",
             details={"status": frame.status.value},
@@ -129,6 +193,10 @@ async def register_frame(
     frame.uploaded_at = datetime.now(captured_at.tzinfo)
     frame.width = width
     frame.height = height
+    # source в presign уже сохранён — но register клиент может прислать явно
+    # (защита от рассинхрона presign/register при retry).
+    if source == "upload" and frame.source != FrameSource.UPLOAD:
+        frame.source = FrameSource.UPLOAD
     # Явный flush перед подсчётом — иначе SELECT не увидит только что uploaded frame
     # и вернёт заниженный used → лишний кадр в frames_remaining.
     await session.flush()
@@ -136,7 +204,10 @@ async def register_frame(
     guest.frames_used = used
     await session.commit()
 
-    await queue.make_thumbnail(frame.id)
+    # Для gallery-uploads worker обязан применить LUT + snapping EXIF (безопасность).
+    # Для camera-фото фильтр уже применён клиентом — worker только делает thumb/preview.
+    force_lut = frame.source == FrameSource.UPLOAD
+    await queue.make_thumbnail(frame.id, force_lut=force_lut)
 
     # Пуш хосту. Чтобы не спамить — только на первый кадр от гостя.
     # И не отправляем если хост сам себе снимает (guest.user_id == event.user_id).

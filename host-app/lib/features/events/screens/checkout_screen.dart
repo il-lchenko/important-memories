@@ -66,6 +66,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         if (widget.draft['start_at'] != null)  'start_at':  widget.draft['start_at'],
         'film': widget.draft['film'],
         'plan': _planId,
+        // Прокидываем uploads_enabled из шага 5 (см. create_event_screen).
+        if (widget.draft['uploads_enabled'] == true) 'uploads_enabled': true,
       }).future);
 
       final eventId = created['id'] as String;
