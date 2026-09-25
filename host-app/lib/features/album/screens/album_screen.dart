@@ -467,9 +467,11 @@ class _FrameImage extends StatelessWidget {
         ?? (frame?['full_url'] as String?);
     final grad = _filmGrads[fallbackIndex % _filmGrads.length];
     final quarterTurns = ((frame?['rotation'] as num?)?.toInt() ?? 0) ~/ 90;
+    final isUpload = frame?['source'] == 'upload';
 
+    Widget content;
     if (url != null) {
-      return RotatedBox(
+      content = RotatedBox(
         quarterTurns: quarterTurns,
         child: CachedNetworkImage(
           imageUrl: url,
@@ -481,8 +483,40 @@ class _FrameImage extends StatelessWidget {
           errorWidget: (_, __, ___) => _GradientFill(grad: grad, index: fallbackIndex),
         ),
       );
+    } else {
+      content = _GradientFill(grad: grad, index: fallbackIndex);
     }
-    return _GradientFill(grad: grad, index: fallbackIndex);
+
+    if (!isUpload) return content;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        content,
+        const Positioned(top: 6, left: 8, child: _UploadBadge()),
+      ],
+    );
+  }
+}
+
+class _UploadBadge extends StatelessWidget {
+  const _UploadBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.42),
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.attach_file,
+        size: 12,
+        color: Color(0xFFFFD2AA),
+      ),
+    );
   }
 }
 

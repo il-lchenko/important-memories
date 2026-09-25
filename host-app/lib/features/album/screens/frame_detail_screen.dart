@@ -293,6 +293,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
         final effectiveRotation = (serverRotation + _localRotation) % 360;
         final caption = (frame['caption'] as String?)?.trim();
         final voiceUrl = frame['voice_url'] as String?;
+        final isUpload = frame['source'] == 'upload';
         final voicePeaks = (frame['voice_peaks'] as List?)?.cast<num>().map((n) => n.toDouble()).toList();
         final voiceDurationMs = (frame['voice_duration_ms'] as num?)?.toInt();
 
@@ -422,6 +423,36 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                       url: voiceUrl,
                       peaks: voicePeaks,
                       durationMs: voiceDurationMs ?? 0,
+                    ),
+                  ),
+                if (isUpload)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0x141A1714),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x1F1A1714)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.attach_file, size: 12, color: AppColors.ink3),
+                            SizedBox(width: 6),
+                            Text(
+                              'Загружено из галереи',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 10,
+                                letterSpacing: 1.0,
+                                color: AppColors.ink3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 // Meta bar — author left, time + date right (with icons)

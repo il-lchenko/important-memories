@@ -24,7 +24,7 @@ class ConsentScreen extends ConsumerStatefulWidget {
 }
 
 class _ConsentScreenState extends ConsumerState<ConsentScreen> {
-  static const _docVersion = '2.2';
+  static const _docVersion = '2.3';
 
   bool _agreeOffer = false;
   bool _agreePrivacy = false;

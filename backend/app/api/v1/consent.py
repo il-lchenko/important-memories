@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 # Актуальная версия юр. документов. Меняется при существенных правках.
-CURRENT_DOC_VERSION = "2.2"
+CURRENT_DOC_VERSION = "2.3"
 # age_confirmation — отдельная запись для Хостов 16–17 лет по ст. 26 ГК РФ.
 ALL_DOC_TYPES = ("offer", "privacy", "consent", "content_rules", "age_confirmation")
 

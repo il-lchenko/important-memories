@@ -317,7 +317,7 @@ export function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: 
           }}
         >
           <FrameImage frame={frame} fallbackIndex={i} />
-          {frame.source === 'upload' && <UploadBadge />}
+          {frame?.source === 'upload' && <UploadBadge />}
           {isLarge && (
             <>
               <div style={{
@@ -503,7 +503,7 @@ function RetroCard({ w, h, deg, index, frame, tape, hw, onTap }: {
     >
       <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
         <FrameImage frame={frame} fallbackIndex={index} />
-        {frame.source === 'upload' && <UploadBadge />}
+        {frame?.source === 'upload' && <UploadBadge />}
       </div>
       {hw && (
         <div style={{
@@ -606,7 +606,7 @@ export function PolaroidFeed({ frames, onOpenFrame }: {
               <div style={{ padding: '14px 14px 0' }}>
                 <div style={{ aspectRatio: '1 / 1', overflow: 'hidden', borderRadius: 2, position: 'relative' }}>
                   <FrameImage frame={frame} fallbackIndex={i} />
-                  {frame.source === 'upload' && <UploadBadge />}
+                  {frame?.source === 'upload' && <UploadBadge />}
                 </div>
               </div>
               <PolaroidCaption caption={frame.caption} guestName={frame.guest_name} capturedAt={frame.captured_at} />
