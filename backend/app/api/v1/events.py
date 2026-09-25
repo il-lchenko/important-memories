@@ -14,6 +14,8 @@ from app.domain.schemas.events import (
     EventRenameIn,
     EventSettingsUpdateIn,
     EventUpdateIn,
+    UploadsWindowIn,
+    UploadsWindowOut,
 )
 from app.domain.schemas.frames import FrameRotationIn
 from app.domain.schemas.guests import (
@@ -334,6 +336,32 @@ async def regenerate_public_share(
 ) -> dict:
     token = await event_service.regenerate_public_share(session, user_id, event_id)
     return {"public_share_token": token}
+
+
+@router.post("/{event_id}/uploads-window", response_model=UploadsWindowOut)
+async def open_uploads_window(
+    event_id: UUID,
+    payload: UploadsWindowIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> UploadsWindowOut:
+    """Хост открывает пост-event окно загрузки из галереи (2ч / 24ч / 7д).
+    Работает только на COMPLETED событиях."""
+    ends_at = await event_service.set_uploads_window(
+        session, user_id, event_id, payload.duration
+    )
+    return UploadsWindowOut(uploads_window_ends_at=ends_at)
+
+
+@router.delete("/{event_id}/uploads-window", status_code=204)
+async def close_uploads_window(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> Response:
+    """Хост досрочно закрывает пост-event окно загрузки."""
+    await event_service.clear_uploads_window(session, user_id, event_id)
+    return Response(status_code=204)
 
 
 @router.get("/{event_id}/album", response_model=AlbumOut)

@@ -125,6 +125,9 @@ export interface GuestEventSettings {
   lut_preset: string
   sound_enabled: boolean
   uploads_enabled?: boolean
+  // Пост-event окно загрузки из галереи. Если > now — можно грузить даже
+  // на COMPLETED событии. См. backend: EventSettings.uploads_window_ends_at.
+  uploads_window_ends_at?: string | null
 }
 
 export interface GuestSessionResponse {

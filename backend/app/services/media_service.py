@@ -56,19 +56,30 @@ async def presign_upload(
     if size_bytes > max_bytes:
         raise ConflictError("File too large", details={"max_bytes": max_bytes})
 
+    now = datetime.now(timezone.utc)
+    is_owner = guest.user_id is not None and guest.user_id == guest.event.user_id
+    window_ends_at = guest.event.settings.uploads_window_ends_at
+    is_post_event_window_open = (
+        is_upload
+        and guest.event.status == EventStatus.COMPLETED
+        and window_ends_at is not None
+        and window_ends_at > now
+    )
+
     if is_upload:
-        # Gallery uploads разрешены только пока событие ACTIVE (без DRAFT-эксперимента
-        # хоста — иначе Host сможет заливать «свои» до старта). См. project_upload_from_gallery.md.
-        if guest.event.status != EventStatus.ACTIVE:
-            raise ConflictError(
-                "Загрузка доступна только во время события",
-                details={"status": guest.event.status.value},
-            )
-        if not guest.event.settings.uploads_enabled:
-            raise ConflictError(
-                "Хост не разрешил загрузку из галереи для этого события",
-                details={"uploads_enabled": False},
-            )
+        # Пост-event окно от хоста: событие COMPLETED, но window > now — разрешаем.
+        # Иначе — стандартные проверки (ACTIVE + uploads_enabled).
+        if not is_post_event_window_open:
+            if guest.event.status != EventStatus.ACTIVE:
+                raise ConflictError(
+                    "Загрузка доступна только во время события",
+                    details={"status": guest.event.status.value},
+                )
+            if not guest.event.settings.uploads_enabled:
+                raise ConflictError(
+                    "Хост не разрешил загрузку из галереи для этого события",
+                    details={"uploads_enabled": False},
+                )
         # HEIC разрешён только для upload — camera-фото шлются как jpeg/png/webp.
     else:
         if guest.event.status not in (EventStatus.DRAFT, EventStatus.ACTIVE):
@@ -77,10 +88,8 @@ async def presign_upload(
                 details={"status": guest.event.status.value},
             )
 
-    now = datetime.now(timezone.utc)
-    is_owner = guest.user_id is not None and guest.user_id == guest.event.user_id
-
-    if guest.event.end_at is not None and guest.event.end_at <= now:
+    # end_at гейт: камере блокируем всегда, upload в пост-event окне пропускаем.
+    if not is_post_event_window_open and guest.event.end_at is not None and guest.event.end_at <= now:
         raise ConflictError(
             "Съёмка завершена — время истекло",
             details={"end_at": guest.event.end_at.isoformat()},

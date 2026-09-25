@@ -182,6 +182,7 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
             sound_enabled=s.sound_enabled,
             photo_format=s.photo_format,
             uploads_enabled=s.uploads_enabled,
+            uploads_window_ends_at=s.uploads_window_ends_at,
         ),
         guests_count=guests_count,
         frames_count=frames_count,
@@ -528,6 +529,47 @@ async def generate_qr(
     # автосабмит (см. main.dart deep-link handler + PWA URLSearchParams).
     pin = event.entry_pin if event.pin_enabled else None
     return build_qr_png(event.short_code, pin=pin)
+
+
+# Длительность пост-event окна для gallery-uploads. Три пресета (см. UploadsWindowIn).
+_UPLOADS_WINDOW_DURATIONS: dict[str, timedelta] = {
+    "2h":  timedelta(hours=2),
+    "24h": timedelta(hours=24),
+    "7d":  timedelta(days=7),
+}
+
+
+async def set_uploads_window(
+    session: AsyncSession, user_id: UUID, event_id: UUID, duration: str
+) -> datetime:
+    """Хост открывает загрузку из галереи на завершённом событии.
+    Возвращает новый uploads_window_ends_at."""
+    event = await _load_owned(session, event_id, user_id)
+    if event.status != EventStatus.COMPLETED:
+        raise ConflictError(
+            "Окно загрузки открывается только на завершённых событиях",
+            details={"status": event.status.value},
+        )
+    delta = _UPLOADS_WINDOW_DURATIONS.get(duration)
+    if delta is None:
+        raise ConflictError(
+            "Unsupported duration preset",
+            details={"allowed": list(_UPLOADS_WINDOW_DURATIONS.keys())},
+        )
+    ends_at = datetime.now(timezone.utc) + delta
+    event.settings.uploads_window_ends_at = ends_at
+    await session.commit()
+    return ends_at
+
+
+async def clear_uploads_window(
+    session: AsyncSession, user_id: UUID, event_id: UUID
+) -> None:
+    """Хост досрочно закрывает окно загрузки."""
+    event = await _load_owned(session, event_id, user_id)
+    if event.settings.uploads_window_ends_at is not None:
+        event.settings.uploads_window_ends_at = None
+        await session.commit()
 
 
 async def upload_cover(

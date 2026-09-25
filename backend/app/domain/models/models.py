@@ -169,6 +169,12 @@ class EventSettings(Base):
     uploads_enabled: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", nullable=False
     )
+    # Пост-event окно: после завершения события хост может открыть загрузку
+    # из галереи на 2ч / 24ч / 7 дней (Flutter presets). Если > now — гости
+    # снова могут заливать. Камера остаётся недоступной. NULL = окно закрыто.
+    uploads_window_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     event: Mapped[Event] = relationship(back_populates="settings")
 

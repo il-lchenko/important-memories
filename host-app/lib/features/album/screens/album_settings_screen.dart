@@ -88,6 +88,9 @@ class _Content extends ConsumerWidget {
     final expiresAt = event['expires_at'] as String?;
     final shortCode = event['short_code'] as String? ?? '';
     final uploadsEnabled = settings['uploads_enabled'] as bool? ?? false;
+    final windowEndsAtStr = settings['uploads_window_ends_at'] as String?;
+    final windowEndsAt = windowEndsAtStr != null ? DateTime.tryParse(windowEndsAtStr)?.toUtc() : null;
+    final isWindowActive = windowEndsAt != null && windowEndsAt.isAfter(DateTime.now().toUtc());
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -146,10 +149,16 @@ class _Content extends ConsumerWidget {
           const SizedBox(height: 24),
           _Kicker('ГОСТЕВЫЕ ПРАВА'),
           const SizedBox(height: 12),
-          _UploadsToggleRow(
-            value: uploadsEnabled,
-            onToggle: (v) => _toggleUploads(context, ref, eventId, v),
-          ),
+          if (status != 'completed' && status != 'cancelled')
+            _UploadsToggleRow(
+              value: uploadsEnabled,
+              onToggle: (v) => _toggleUploads(context, ref, eventId, v),
+            ),
+          if (status == 'completed')
+            _PostEventWindowBlock(
+              eventId: eventId,
+              windowEndsAt: isWindowActive ? windowEndsAt : null,
+            ),
           const SizedBox(height: 28),
           Container(
             padding: const EdgeInsets.only(top: 20),
@@ -1300,6 +1309,257 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
           style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontStyle: FontStyle.italic),
         ),
       ],
+    );
+  }
+}
+
+/// Пост-event окно: хост открывает загрузку из галереи на 2ч/24ч/7д для гостей
+/// после завершения события. Отображается только для status == 'completed'.
+class _PostEventWindowBlock extends ConsumerWidget {
+  final String eventId;
+  final DateTime? windowEndsAt;
+  const _PostEventWindowBlock({required this.eventId, required this.windowEndsAt});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOpen = windowEndsAt != null;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isOpen ? AppColors.amber.withValues(alpha: 0.08) : AppColors.paper2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isOpen ? AppColors.amber : AppColors.line,
+          width: isOpen ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: isOpen ? AppColors.amber : AppColors.paper,
+                  borderRadius: BorderRadius.circular(10),
+                  border: isOpen ? null : Border.all(color: AppColors.line),
+                ),
+                child: Icon(
+                  Icons.file_upload_outlined,
+                  color: isOpen ? Colors.white : AppColors.ink2,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Загрузка из галереи',
+                  style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 15,
+                    fontWeight: FontWeight.w600, color: AppColors.ink, height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (isOpen) ...[
+            _WindowCountdown(endsAt: windowEndsAt!),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _extend(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.line),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Продлить',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _close(context, ref),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: AppColors.shutter.withValues(alpha: 0.4)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Закрыть окно',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.shutter),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const Text(
+              'Событие завершено. Открыть загрузку из галереи для гостей на ограниченное время?',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink2, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _WindowPresetButton(label: '2 часа', duration: '2h', onTap: () => _open(context, ref, '2h'))),
+                const SizedBox(width: 8),
+                Expanded(child: _WindowPresetButton(label: '24 часа', duration: '24h', onTap: () => _open(context, ref, '24h'))),
+                const SizedBox(width: 8),
+                Expanded(child: _WindowPresetButton(label: '7 дней', duration: '7d', onTap: () => _open(context, ref, '7d'))),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _open(BuildContext context, WidgetRef ref, String duration) async {
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.post('events/$eventId/uploads-window', data: {'duration': duration});
+      ref.invalidate(eventDetailProvider(eventId));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(extractUserMessage(e), style: const TextStyle(fontFamily: 'Inter')),
+        backgroundColor: AppColors.shutter,
+      ));
+    }
+  }
+
+  Future<void> _extend(BuildContext context, WidgetRef ref) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Продлить окно на',
+                  style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()],
+                    fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.ink)),
+              const SizedBox(height: 16),
+              _WindowPresetButton(label: '2 часа', duration: '2h', onTap: () => Navigator.pop(ctx, '2h'), full: true),
+              const SizedBox(height: 8),
+              _WindowPresetButton(label: '24 часа', duration: '24h', onTap: () => Navigator.pop(ctx, '24h'), full: true),
+              const SizedBox(height: 8),
+              _WindowPresetButton(label: '7 дней', duration: '7d', onTap: () => Navigator.pop(ctx, '7d'), full: true),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice != null) await _open(context, ref, choice);
+  }
+
+  Future<void> _close(BuildContext context, WidgetRef ref) async {
+    try {
+      final dio = ref.read(dioProvider);
+      await dio.delete('events/$eventId/uploads-window');
+      ref.invalidate(eventDetailProvider(eventId));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(extractUserMessage(e), style: const TextStyle(fontFamily: 'Inter')),
+        backgroundColor: AppColors.shutter,
+      ));
+    }
+  }
+}
+
+class _WindowPresetButton extends StatelessWidget {
+  final String label;
+  final String duration;
+  final VoidCallback onTap;
+  final bool full;
+  const _WindowPresetButton({
+    required this.label, required this.duration, required this.onTap, this.full = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: full ? double.infinity : null,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.paper,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WindowCountdown extends StatefulWidget {
+  final DateTime endsAt;
+  const _WindowCountdown({required this.endsAt});
+
+  @override
+  State<_WindowCountdown> createState() => _WindowCountdownState();
+}
+
+class _WindowCountdownState extends State<_WindowCountdown> {
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _recompute();
+    Future.doWhile(() async {
+      await Future<void>.delayed(const Duration(seconds: 30));
+      if (!mounted) return false;
+      _recompute();
+      return true;
+    });
+  }
+
+  void _recompute() {
+    if (!mounted) return;
+    setState(() {
+      final now = DateTime.now().toUtc();
+      _remaining = widget.endsAt.isAfter(now) ? widget.endsAt.difference(now) : Duration.zero;
+    });
+  }
+
+  String _format(Duration d) {
+    if (d <= Duration.zero) return 'Окно закрывается';
+    if (d.inDays >= 1) return 'Осталось ${d.inDays} дн ${d.inHours % 24} ч';
+    if (d.inHours >= 1) return 'Осталось ${d.inHours} ч ${d.inMinutes % 60} мин';
+    if (d.inMinutes >= 1) return 'Осталось ${d.inMinutes} мин';
+    return 'Меньше минуты';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _format(_remaining),
+      style: TextStyle(
+        fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600,
+        color: AppColors.amber, letterSpacing: -0.2,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
     );
   }
 }

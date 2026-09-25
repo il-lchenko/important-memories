@@ -59,6 +59,18 @@ function getEventMeta() {
   try { return JSON.parse(sessionStorage.getItem('event') ?? '{}') } catch { return {} }
 }
 
+function formatWindowRemaining(ms: number): string {
+  if (ms <= 0) return 'Окно закрывается'
+  const sec = Math.floor(ms / 1000)
+  const days = Math.floor(sec / 86400)
+  const hours = Math.floor((sec % 86400) / 3600)
+  const minutes = Math.floor((sec % 3600) / 60)
+  if (days >= 1) return `Загрузка закрывается через ${days} дн ${hours} ч`
+  if (hours >= 1) return `Загрузка закрывается через ${hours} ч ${minutes} мин`
+  if (minutes >= 1) return `Загрузка закрывается через ${minutes} мин`
+  return 'Меньше минуты до закрытия'
+}
+
 function revealKicker(revealAt: string | null): string {
   if (!revealAt) return 'REVEALED'
   const d = new Date(revealAt)
@@ -638,6 +650,17 @@ export default function AlbumScreen() {
   const eventId: string = event.id ?? ''
   const eventName: string = event.title ?? 'Альбом'
   const kicker = revealKicker(event.settings?.reveal_at ?? null)
+  // Пост-event окно загрузки из галереи. Свежее значение приходит через getSession
+  // при инициальной загрузке (см. useEffect ниже).
+  const [postEventWindowEnds, setPostEventWindowEnds] = useState<string | null>(
+    () => event.settings?.uploads_window_ends_at ?? null,
+  )
+  const [postEventStatus, setPostEventStatus] = useState<string>(
+    () => event.status ?? 'active',
+  )
+  const [uploadTicker, setUploadTicker] = useState(0) // форсит перерасчёт «Осталось X ч»
+  const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const [uploading, setUploading] = useState<{ total: number; done: number; failed: number } | null>(null)
 
   const authorCount = useMemo(
     () => new Set(frames.map((f) => f.guest_id)).size,
@@ -645,12 +668,17 @@ export default function AlbumScreen() {
   )
 
   const getEventId = async (): Promise<string | null> => {
-    if (event.id) return event.id
+    // Всегда обновляем event в sessionStorage чтобы поймать свежий uploads_window_ends_at
+    // (хост мог открыть окно уже после того как гость залогинился).
     try {
       const { data } = await guestApi.getSession()
       sessionStorage.setItem('event', JSON.stringify(data.event))
+      setPostEventWindowEnds(data.event.settings?.uploads_window_ends_at ?? null)
+      setPostEventStatus(data.event.status)
       return data.event.id
-    } catch { return null }
+    } catch {
+      return event.id ?? null
+    }
   }
 
   const fetchPage = async (cursor: string | null = null, eid?: string): Promise<boolean> => {
@@ -683,6 +711,74 @@ export default function AlbumScreen() {
         .finally(() => setLoading(false))
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Тикер countdown окна загрузки — раз в 30с перерисовываем баннер.
+  useEffect(() => {
+    if (!postEventWindowEnds) return
+    const timer = setInterval(() => setUploadTicker((n) => n + 1), 30_000)
+    return () => clearInterval(timer)
+  }, [postEventWindowEnds])
+
+  const now = Date.now() + uploadTicker * 0 // uploadTicker чтобы триггерить перерасчёт
+  const windowEndsMs = postEventWindowEnds ? new Date(postEventWindowEnds).getTime() : 0
+  const canUploadPostEvent =
+    (postEventStatus === 'completed') && windowEndsMs > now
+  const windowRemainingLabel = canUploadPostEvent
+    ? formatWindowRemaining(windowEndsMs - now)
+    : null
+
+  const uploadFromGallery = async (files: File[]) => {
+    const picked = files.slice(0, 5)
+    if (picked.length === 0) return
+    setUploading({ total: picked.length, done: 0, failed: 0 })
+    let done = 0
+    let failed = 0
+    for (const file of picked) {
+      if (file.size > 12 * 1024 * 1024) { failed++; setUploading({ total: picked.length, done, failed }); continue }
+      if (!file.type.startsWith('image/')) { failed++; setUploading({ total: picked.length, done, failed }); continue }
+      try {
+        const arrBuf = await file.arrayBuffer()
+        const hashBuf = await crypto.subtle.digest('SHA-256', arrBuf)
+        const uploadHash = Array.from(new Uint8Array(hashBuf))
+          .map((b) => b.toString(16).padStart(2, '0')).join('')
+        let w = 0, h = 0
+        try {
+          const bmp = await createImageBitmap(file)
+          w = bmp.width; h = bmp.height; bmp.close?.()
+        } catch { /* HEIC — worker разберётся */ }
+        const { data: presign } = await guestApi.presign(file.size, file.type, {
+          source: 'upload', uploadHash,
+        })
+        if (!presign.deduplicated) {
+          const putResp = await fetch(presign.upload_url, {
+            method: 'PUT', body: file, headers: { 'Content-Type': file.type },
+          })
+          if (!putResp.ok) throw new Error(`s3 put ${putResp.status}`)
+        }
+        await guestApi.registerFrame(
+          presign.frame_id,
+          new Date(file.lastModified || Date.now()).toISOString(),
+          w, h, { source: 'upload' },
+        )
+        done++
+      } catch (e) {
+        console.error('gallery_upload_failed', e)
+        failed++
+      }
+      setUploading({ total: picked.length, done, failed })
+    }
+    setTimeout(() => setUploading(null), 1200)
+    // Перезагрузить альбом чтобы показать новые фото.
+    setFrames([])
+    setNextCursor(null)
+    fetchPage(null).catch((e) => console.error('reload_after_upload_failed', e))
+  }
+
+  const onGalleryPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    await uploadFromGallery(files)
+  }
 
   // Infinite scroll
   useEffect(() => {
@@ -725,6 +821,22 @@ export default function AlbumScreen() {
             <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
           </svg>
           Нет подключения — показаны кэшированные фото
+        </div>
+      )}
+
+      {/* Post-event uploads window banner */}
+      {canUploadPostEvent && (
+        <div style={{
+          padding: '10px 16px',
+          background: 'rgba(201, 136, 30, 0.10)',
+          borderBottom: '1px solid rgba(201, 136, 30, 0.25)',
+          display: 'flex', alignItems: 'center', gap: 10,
+          fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'var(--ink-2)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9881E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" />
+          </svg>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{windowRemainingLabel}</span>
         </div>
       )}
 
@@ -854,6 +966,58 @@ export default function AlbumScreen() {
           onSelect={setColumns}
           onClose={() => setShowGridDialog(false)}
         />
+      )}
+
+      {/* Post-event gallery upload FAB */}
+      {canUploadPostEvent && (
+        <>
+          <input
+            ref={galleryInputRef}
+            type="file" accept="image/*" multiple
+            style={{ display: 'none' }}
+            onChange={onGalleryPick}
+          />
+          <button
+            onClick={() => galleryInputRef.current?.click()}
+            disabled={uploading !== null}
+            aria-label="Добавить фото из галереи"
+            style={{
+              position: 'fixed', right: 20, bottom: 24,
+              width: 56, height: 56, borderRadius: 28,
+              background: '#C9881E', color: 'white', border: 'none',
+              boxShadow: '0 6px 18px rgba(201,136,30,0.35)',
+              cursor: uploading ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              opacity: uploading ? 0.65 : 1,
+            }}
+          >
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="9" cy="9" r="2" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Upload progress overlay */}
+      {uploading && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+        }}>
+          <div style={{
+            background: 'var(--paper)', borderRadius: 16, padding: '24px 28px',
+            minWidth: 240, textAlign: 'center', fontFamily: 'Inter, sans-serif',
+          }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--ink)', marginBottom: 6 }}>
+              Загрузка {uploading.done + uploading.failed} / {uploading.total}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+              {uploading.failed > 0 ? `Ошибок: ${uploading.failed}` : 'Загружаем фото…'}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

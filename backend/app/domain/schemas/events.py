@@ -37,6 +37,9 @@ class EventSettingsOut(BaseModel):
     sound_enabled: bool
     photo_format: PhotoFormat
     uploads_enabled: bool = False
+    # Пост-event окно загрузки из галереи. Если > now — гости могут заливать
+    # даже на завершённом событии. См. POST /events/{id}/uploads-window.
+    uploads_window_ends_at: datetime | None = None
 
 
 class EventOut(BaseModel):
@@ -151,6 +154,15 @@ class EventUpdateIn(BaseModel):
     @classmethod
     def _sanitize(cls, v: str | None) -> str | None:
         return _sanitize_title(v)
+
+
+class UploadsWindowIn(BaseModel):
+    """Пресеты длительности пост-event окна загрузки из галереи."""
+    duration: Literal["2h", "24h", "7d"]
+
+
+class UploadsWindowOut(BaseModel):
+    uploads_window_ends_at: datetime | None
 
 
 class QRCodeOut(BaseModel):
