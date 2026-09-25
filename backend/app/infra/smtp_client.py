@@ -49,23 +49,26 @@ async def _send_via_smtpbz(
     text: str,
     html: str | None,
 ) -> None:
-    # SMTP.bz HTTP API: multipart/form-data, заголовок Authorization: <api-key>.
-    data = {
+    # SMTP.bz HTTP API: application/json, заголовок Authorization: <api-key>.
+    # SMTP.bz требует непустой html — используем text как fallback.
+    payload: dict = {
         "name": settings.SMTPBZ_FROM_NAME,
         "from": settings.SMTPBZ_FROM_EMAIL,
         "subject": subject,
         "to": to,
         "text": text,
+        "html": html or f"<pre>{text}</pre>",
         "reply": settings.SMTPBZ_REPLY_TO,
     }
-    if html:
-        data["html"] = html
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
                 _SMTPBZ_URL,
-                data=data,
-                headers={"Authorization": api_key},
+                json=payload,
+                headers={
+                    "Authorization": api_key,
+                    "Content-Type": "application/json",
+                },
             )
             resp.raise_for_status()
         domain = to.split("@", 1)[1] if "@" in to else "unknown"
