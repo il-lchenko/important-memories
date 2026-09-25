@@ -1,10 +1,11 @@
 """Клиент отправки транзакционных писем.
 
 Приоритет провайдеров:
-1. Unisender (РФ-резидент, https://godocs.unisender.ru/transactional-api) —
-   если задан UNISENDER_API_KEY. Основной путь на продакшене.
-2. Local SMTP (для dev-окружения через MailHog / Mailtrap) — если задан
-   SMTP_HOST и не задан UNISENDER_API_KEY.
+1. SMTP.bz (РФ, https://smtp.bz/, 15K/мес бесплатно, любые домены получателей) —
+   если задан SMTPBZ_API_KEY. Основной путь на продакшене.
+2. Unisender Go (deprecated fallback, free tier не разрешает внешние домены получателей) —
+   если задан UNISENDER_API_KEY.
+3. Local SMTP (dev-окружение через MailHog / smtplib) — иначе.
 
 Трансграничная передача персональных данных не осуществляется.
 """
@@ -18,6 +19,7 @@ from app.core.config import settings
 from app.core.logging import logger
 
 
+_SMTPBZ_URL = "https://api.smtp.bz/v1/smtp/send"
 _UNISENDER_URL = "https://go1.unisender.ru/ru/transactional/api/v1/email/send.json"
 
 
@@ -27,13 +29,57 @@ async def send_email(
     text: str,
     html: str | None = None,
 ) -> None:
-    api_key = settings.UNISENDER_API_KEY.get_secret_value().strip()
-    if api_key:
-        await _send_via_unisender(api_key, to, subject, text, html)
+    smtpbz_key = settings.SMTPBZ_API_KEY.get_secret_value().strip()
+    if smtpbz_key:
+        await _send_via_smtpbz(smtpbz_key, to, subject, text, html)
         return
 
-    # Legacy / dev fallback — локальный SMTP.
+    unisender_key = settings.UNISENDER_API_KEY.get_secret_value().strip()
+    if unisender_key:
+        await _send_via_unisender(unisender_key, to, subject, text, html)
+        return
+
     await _send_via_smtp(to, subject, text, html)
+
+
+async def _send_via_smtpbz(
+    api_key: str,
+    to: str,
+    subject: str,
+    text: str,
+    html: str | None,
+) -> None:
+    # SMTP.bz HTTP API: multipart/form-data, заголовок Authorization: <api-key>.
+    data = {
+        "name": settings.SMTPBZ_FROM_NAME,
+        "from": settings.SMTPBZ_FROM_EMAIL,
+        "subject": subject,
+        "to": to,
+        "text": text,
+        "reply": settings.SMTPBZ_REPLY_TO,
+    }
+    if html:
+        data["html"] = html
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                _SMTPBZ_URL,
+                data=data,
+                headers={"Authorization": api_key},
+            )
+            resp.raise_for_status()
+        domain = to.split("@", 1)[1] if "@" in to else "unknown"
+        logger.info("email_sent", provider="smtpbz", to_domain=domain, subject=subject)
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "email_send_failed",
+            provider="smtpbz",
+            status=exc.response.status_code,
+        )
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.error("email_send_failed", provider="smtpbz", error_type=type(exc).__name__)
+        raise
 
 
 async def _send_via_unisender(
@@ -67,12 +113,9 @@ async def _send_via_unisender(
                 },
             )
             resp.raise_for_status()
-        # Не логируем email как PII — берём только домен.
         domain = to.split("@", 1)[1] if "@" in to else "unknown"
         logger.info("email_sent", provider="unisender", to_domain=domain, subject=subject)
     except httpx.HTTPStatusError as exc:
-        # Unisender возвращает подробности ошибки в теле — но там может быть email адрес,
-        # который мы не хотим логировать. Логируем только статус.
         logger.error(
             "email_send_failed",
             provider="unisender",

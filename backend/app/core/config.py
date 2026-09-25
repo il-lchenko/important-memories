@@ -33,9 +33,15 @@ class Settings(BaseSettings):
     OTP_RATE_LIMIT_PER_EMAIL_SEC: int = 60
     OTP_RATE_LIMIT_PER_IP_HOUR: int = 10
 
-    # Email через Unisender (РФ-резидент, без трансграничной передачи ПД).
-    # Если UNISENDER_API_KEY задан — используется Unisender API.
-    # Legacy SMTP_* оставлены для local-dev через MailHog / smtplib.
+    # Email через SMTP.bz (РФ-резидент, без трансграничной передачи ПД).
+    # Приоритет провайдеров: SMTPBZ_API_KEY → UNISENDER_API_KEY → local SMTP_HOST.
+    # Free tier: 15 000 писем/мес, 500/день, любые домены получателей.
+    SMTPBZ_API_KEY: SecretStr = SecretStr("")
+    SMTPBZ_FROM_EMAIL: str = "no-reply@impomento.pro"
+    SMTPBZ_FROM_NAME: str = "ImpoMento"
+    SMTPBZ_REPLY_TO: str = "support@impomento.pro"
+
+    # Deprecated fallback: Unisender Go free tier не разрешает внешние домены получателей.
     UNISENDER_API_KEY: SecretStr = SecretStr("")
     UNISENDER_FROM_EMAIL: str = "no-reply@impomento.pro"
     UNISENDER_FROM_NAME: str = "ImpoMento"
