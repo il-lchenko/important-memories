@@ -17,7 +17,7 @@ export default defineConfig({
         name: 'Important Memories',
         short_name: 'Impomento',
         description: 'Одноразовая плёночная камера для событий',
-        start_url: '/',
+        start_url: '/join',
         scope: '/',
         display: 'standalone',
         orientation: 'any',
@@ -39,7 +39,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         // Исключаем файловые скачивания из SPA-фолбэка, иначе SW отдаёт
         // index.html вместо реального файла (баг: клик на /im.apk открывал landing).
-        navigateFallbackDenylist: [/\.apk$/, /^\/api\//, /^\/s3\//, /^\/a\//],
+        navigateFallbackDenylist: [/\.apk$/, /^\/api\//, /^\/s3\//, /^\/a\//, /\.html$/, /^\/$/],
         // Не precache-им большие LUT (~4.6 MB) — они лениво по требованию.
         globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ico}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

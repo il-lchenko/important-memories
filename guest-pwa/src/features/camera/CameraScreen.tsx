@@ -330,7 +330,9 @@ function saveRecentShots(shortCode: string | undefined, shots: RecentShot[]): vo
   } catch { /* quota exceeded — skip */ }
 }
 
-async function blobToThumbDataUrl(blob: Blob, maxSize: number = 160): Promise<string> {
+async function blobToThumbDataUrl(blob: Blob, maxSize: number = 320): Promise<string> {
+  // Recent shots (правый нижний угол камеры). Отображаются 80-100px, но с DPR 2-3
+  // нужен буфер 240-300px чтобы не было пикселизации. maxSize=320 покрывает retina.
   const img = new Image()
   const url = URL.createObjectURL(blob)
   try {
@@ -345,8 +347,10 @@ async function blobToThumbDataUrl(blob: Blob, maxSize: number = 160): Promise<st
     const canvas = document.createElement('canvas')
     canvas.width = w; canvas.height = h
     const ctx = canvas.getContext('2d')!
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(img, 0, 0, w, h)
-    return canvas.toDataURL('image/jpeg', 0.7)
+    return canvas.toDataURL('image/jpeg', 0.88)
   } finally {
     URL.revokeObjectURL(url)
   }

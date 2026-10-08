@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ImpoMento — одноразовая камера для ваших событий</title>
+<meta name="description" content="Гости фотографируют по QR-коду, снимки собираются в один плёночный альбом. Подписи, голосовые заметки, общий поток в реальном времени.">
+<meta name="theme-color" content="#16100C">
+
+<meta property="og:title" content="ImpoMento — одноразовая камера для ваших событий">
+<meta property="og:description" content="Гости фотографируют по QR-коду, снимки собираются в общий плёночный альбом.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://impomento.pro">
+<meta property="og:image" content="https://impomento.pro/wall/u-wedding-hug.jpg">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+
+<script>
+  if (location.pathname === '/about.html') history.replaceState(null, '', '/' + location.hash);
+  (function(){
+    var s = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+         || (window.navigator && window.navigator.standalone === true);
+    if (s) window.location.replace('/join');
+  })();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister() }) });
+    if ('caches' in window) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k) }) });
+  }
+</script>
+
+<style>
+  :root{
+    --paper:#F6F2E8; --paper-2:#FCFAF5; --paper-3:#EFE9DA; --paper-4:#E5DDC9;
+    --ink:#1A1714; --ink-2:#45403A; --ink-3:#756E64;
+    --line:rgba(26,23,20,0.12); --line-2:rgba(26,23,20,0.06);
+    --amber:#C9881E; --amber-2:#B0741A; --amber-3:#A6701A;
+    --amber-warm:#FFB347; --amber-bright:#D89A31;
+    --amber-soft:rgba(201,136,30,0.10); --amber-soft-2:rgba(201,136,30,0.20);
+    --darkroom:#16100C; --darkroom-2:#221812;
+    --r:14px; --r-lg:20px;
+    --sh:0 4px 14px rgba(26,23,20,0.10);
+    --sh-lg:0 18px 44px rgba(26,23,20,0.15);
+    --sh-xl:0 30px 70px rgba(0,0,0,0.4);
+
+    --f-body: 17px;
+    --f-lead: clamp(18px, 1.4vw, 22px);
+    --f-h3: clamp(22px, 2vw, 28px);
+    --f-h2: clamp(32px, 3.6vw, 46px);
+    --f-h2-big: clamp(40px, 5.4vw, 68px);
+    --f-h1: clamp(26px, 2.6vw, 38px);
+  }
+
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth; -webkit-text-size-adjust:100%}
+  @media (prefers-reduced-motion:reduce){ *{animation-duration:0.01ms!important; transition-duration:0.01ms!important} }
+
+  body{margin:0; min-height:100dvh; background:var(--paper); color:var(--ink); font-family:'Inter',system-ui,sans-serif; font-size:var(--f-body); line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+  a{color:inherit; text-decoration:none}
+  img{display:block; max-width:100%; height:auto}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:500; letter-spacing:-0.015em; margin:0; hyphens:manual}
+  h1{font-variation-settings:"opsz" 144}
+  h2{font-variation-settings:"opsz" 72}
+  em.italic{font-style:italic; color:var(--amber); font-weight:500}
+  .section.dark em.italic{color:var(--amber-warm)}
+  :focus-visible{outline:2px solid var(--amber-2); outline-offset:3px; border-radius:4px}
+
+  .container{width:100%; max-width:1280px; margin:0 auto; padding:0 clamp(20px,4vw,40px)}
+  .container-narrow{width:100%; max-width:900px; margin:0 auto; padding:0 clamp(20px,4vw,40px)}
+
+  .label{font-size:14px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-3); line-height:1.4}
+  .label b{color:var(--amber-3); font-weight:600}
+
+  /* BRAND */
+  .brand{display:inline-flex; align-items:center; gap:12px; color:inherit}
+  .brand-mark{width:38px; height:38px; flex:0 0 38px}
+  .brand-word{font-family:'Fraunces',serif; font-weight:600; font-size:23px; letter-spacing:-0.015em; line-height:1; color:inherit}
+  .brand-word em{font-style:normal; color:var(--amber-2)}
+  .brand:hover .brand-word em{color:var(--amber-3)}
+
+  /* NAV */
+  nav.top{position:fixed; top:0; left:0; right:0; z-index:60; background:rgba(22,16,12,0.55); backdrop-filter:saturate(160%) blur(14px); -webkit-backdrop-filter:saturate(160%) blur(14px); transition:background .3s}
+  nav.top .brand-word{color:var(--paper)}
+  nav.top .brand-word em{color:var(--amber-warm)}
+  nav.top.paper{background:rgba(246,242,232,0.92); border-bottom:1px solid var(--line-2)}
+  nav.top.paper .brand-word{color:var(--ink)}
+  nav.top.paper .brand-word em{color:var(--amber)}
+  nav.top .row{display:flex; align-items:center; justify-content:space-between; gap:16px; height:72px}
+  nav.top .cta{display:inline-flex; align-items:center; gap:8px; padding:11px 20px; background:var(--paper); color:var(--darkroom); border-radius:999px; font-size:14.5px; font-weight:600; transition:background .2s, transform .15s}
+  nav.top.paper .cta{background:var(--ink); color:var(--paper)}
+  nav.top .cta:hover{background:var(--amber-warm); transform:translateY(-1px)}
+  nav.top.paper .cta:hover{background:var(--amber-2); color:var(--paper)}
+  nav.top .cta svg{width:14px; height:14px}
+  @media (max-width:420px){ .brand-word{font-size:20px} nav.top .row{height:64px} nav.top .cta{padding:9px 16px; font-size:13.5px} nav.top .cta span{display:none} }
+
+  .scroll-progress{position:fixed; top:0; left:0; height:2px; width:0; background:linear-gradient(90deg,var(--amber),var(--amber-warm)); z-index:70; transition:width 80ms linear; box-shadow:0 0 8px rgba(255,184,74,0.5)}
+
+  /* ═══════ HERO — полароиды по углам, центр чист ═══════ */
+  .hero{position:relative; min-height:100vh; min-height:100dvh; padding:120px 0 80px; overflow:hidden; background:var(--darkroom); display:flex; align-items:center; justify-content:center; isolation:isolate}
+
+  .wall{position:absolute; inset:0; z-index:0}
+  .wall .p{
+    position:absolute; background:var(--paper-2); padding:12px 12px 40px;
+    box-shadow:0 24px 56px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.32);
+    border:1px solid rgba(255,255,255,0.06);
+    transition:transform .45s cubic-bezier(.2,.9,.3,1.2), z-index 0s .45s;
+    width:190px;
+  }
+  .wall .p img{display:block; width:100%; aspect-ratio:1/1; object-fit:cover; filter:sepia(0.16) saturate(0.9) contrast(1.06) brightness(0.96)}
+  .wall .p .cap{margin-top:10px; text-align:center; font-family:'Caveat',cursive; color:var(--ink); font-size:17px; line-height:1.15; font-weight:600}
+  /* Голосовое сообщение как в приложении: play + waveform + duration */
+  .wall .p.has-voice .cap{display:none}
+  .wall .p .voice-bar{
+    display:flex; align-items:center; gap:8px;
+    margin-top:10px; padding:6px 10px;
+    background:var(--paper-3); border-radius:99px;
+  }
+  .wall .p .voice-bar .play{
+    width:22px; height:22px; border-radius:50%; background:var(--amber-2);
+    display:grid; place-items:center; color:var(--paper); flex:0 0 22px;
+  }
+  .wall .p .voice-bar .play svg{width:9px; height:9px}
+  .wall .p .voice-bar .wave{flex:1; display:flex; align-items:center; gap:2px; height:16px}
+  .wall .p .voice-bar .wave span{flex:1; background:var(--amber-2); border-radius:99px; opacity:.7}
+  .wall .p .voice-bar .dur{font-family:'Inter',sans-serif; font-size:10px; color:var(--ink-3); font-weight:600; font-variant-numeric:tabular-nums; flex:0 0 auto}
+  .wall .p:hover{transform:translateY(-6px) rotate(0)!important; z-index:20; transition-delay:0s}
+
+  /* 10 polaroids ONLY in corners+sides — center completely empty for text */
+  /* Top-left corner (2 полароида) */
+  .wall .p:nth-child(1){ top:4%;  left:-2%;  transform:rotate(-9deg) }
+  .wall .p:nth-child(2){ top:18%; left:8%;   transform:rotate(5deg)  }
+  /* Top-right corner (2) */
+  .wall .p:nth-child(3){ top:4%;  right:-2%; transform:rotate(7deg)  }
+  .wall .p:nth-child(4){ top:18%; right:8%;  transform:rotate(-5deg) }
+  /* Middle sides (2) */
+  .wall .p:nth-child(5){ top:44%; left:-3%;  transform:rotate(-6deg) }
+  .wall .p:nth-child(6){ top:44%; right:-3%; transform:rotate(6deg)  }
+  /* Bottom-left corner (2) */
+  .wall .p:nth-child(7){ bottom:4%;  left:-2%;  transform:rotate(6deg)  }
+  .wall .p:nth-child(8){ bottom:20%; left:8%;   transform:rotate(-5deg) }
+  /* Bottom-right corner (2) */
+  .wall .p:nth-child(9){ bottom:4%;  right:-2%; transform:rotate(-7deg) }
+  .wall .p:nth-child(10){ bottom:20%; right:8%; transform:rotate(5deg)  }
+
+  /* Hero content — центрально, с сильным backdrop для читаемости */
+  .hero-overlay{position:absolute; inset:0; z-index:1; background:radial-gradient(ellipse 42% 55% at center, rgba(22,16,12,0.72) 0%, rgba(22,16,12,0.35) 55%, rgba(22,16,12,0.10) 90%, rgba(22,16,12,0.02) 100%)}
+
+  .hero-content{position:relative; z-index:2; text-align:center; color:var(--paper); padding:0 clamp(20px,4vw,32px); max-width:820px}
+
+  /* Лого-блок вверху */
+  .hero-brand{display:flex; flex-direction:column; align-items:center; gap:18px; margin-bottom:36px}
+  .hero-cta{margin-bottom:44px; position:relative; padding-bottom:36px}
+  .hero-cta::after{
+    content:""; position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+    width:60px; height:1px; background:linear-gradient(90deg, transparent, rgba(255,184,74,0.5), transparent);
+  }
+  .hero-text-block{max-width:640px; margin:0 auto}
+  .hero-brand::before{
+    content:""; position:absolute; top:-20%; left:50%; transform:translateX(-50%);
+    width:140%; height:140%;
+    background:radial-gradient(ellipse at center, rgba(255,184,74,0.28) 0%, rgba(255,184,74,0.08) 40%, transparent 70%);
+    pointer-events:none; z-index:-1;
+  }
+  .hero-brand-mark{width:clamp(120px, 12vw, 180px); height:clamp(120px, 12vw, 180px); display:block; overflow:visible}
+  /* === Оригинальная анимация лого (logo-anim-F) === */
+  .hero-brand-mark .draw{stroke-dasharray:100; stroke-dashoffset:100; animation:mDraw 1.3s cubic-bezier(.45,0,.25,1) forwards}
+  .hero-brand-mark .draw.d2{animation-delay:.28s; stroke:rgba(255,179,71,.28)}
+  @keyframes mDraw{to{stroke-dashoffset:0}}
+  .hero-brand-mark .flash{opacity:0; transform:scale(.04); transform-origin:256px 256px; animation:mFlash 1.7s 1.45s}
+  @keyframes mFlash{0%{opacity:0;transform:scale(.04);animation-timing-function:cubic-bezier(.25,.5,.4,1)} 22%{opacity:1;transform:scale(1.28);animation-timing-function:cubic-bezier(.3,0,.15,1)} 100%{opacity:0;transform:scale(2.4)}}
+  .hero-brand-mark .spark{opacity:0; animation:mSparkIn .28s ease-out 1.45s forwards}
+  @keyframes mSparkIn{to{opacity:1}}
+  .hero-brand-mark .sparkPop{transform:scale(.03); transform-origin:256px 256px; animation:mSparkPop 1.9s linear 1.45s forwards}
+  @keyframes mSparkPop{0%{transform:scale(.03)} 6%{transform:scale(.12)} 12%{transform:scale(.3)} 18%{transform:scale(.56)} 24%{transform:scale(.82)} 29%{transform:scale(1)} 32%{transform:scale(1.12)} 37%{transform:scale(1.095)} 43%{transform:scale(1.068)} 52%{transform:scale(1.04)} 64%{transform:scale(1.02)} 80%{transform:scale(1.007)} 100%{transform:scale(1)}}
+  .hero-brand-mark .sparkTw{transform-origin:256px 256px; animation:mTwinkle 4s ease-in-out 3.4s infinite alternate}
+  @keyframes mTwinkle{from{transform:scale(1)} to{transform:scale(1.05)}}
+  .hero-brand-mark .glow{opacity:0; transform-origin:256px 256px; animation:mGlowin 1.9s 1.45s forwards, mBreathe 4.8s ease-in-out 3.55s infinite}
+  @keyframes mGlowin{0%{opacity:0;animation-timing-function:cubic-bezier(.35,.2,.5,1)} 32%{opacity:1;animation-timing-function:cubic-bezier(.3,0,.2,1)} 100%{opacity:.72}}
+  @keyframes mBreathe{0%,100%{opacity:.72} 50%{opacity:.48}}
+  .hero-brand-mark .pt{opacity:0; transform-origin:256px 256px; animation:mFly 1.2s cubic-bezier(.2,.7,.3,1) 1.92s forwards}
+  @keyframes mFly{0%{opacity:0;transform:translate(0,0) scale(.5)} 24%{opacity:.8} 100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.25)}}
+  /* Wordmark появление синхронно после лого */
+  .hero-brand-word{font-family:'Fraunces',serif; font-weight:600; font-size:clamp(44px, 5.4vw, 72px); letter-spacing:-0.015em; line-height:1; color:var(--paper); opacity:0; transform:translateY(12px); animation:mWmIn 1.6s cubic-bezier(.33,.1,.24,1) 2.25s forwards}
+  @keyframes mWmIn{to{opacity:1; transform:none}}
+  .hero-brand-tag{font-family:'Inter',sans-serif; font-size:12px; color:var(--amber-warm); letter-spacing:0.4em; text-transform:uppercase; margin-top:10px; opacity:0; transform:translateY(6px); animation:mTagIn 1.35s cubic-bezier(.33,.1,.24,1) 2.75s forwards; text-align:center}
+  @keyframes mTagIn{to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion:reduce){
+    .hero-brand-mark *{animation:none!important}
+    .hero-brand-mark .glow{opacity:.72}
+    .hero-brand-mark .spark{opacity:1}
+    .hero-brand-mark .draw{stroke-dashoffset:0}
+    .hero-brand-word,.hero-brand-tag{opacity:1; transform:none; animation:none}
+  }
+  .hero-brand-word em{font-style:normal; color:var(--amber-warm)}
+
+  .hero-content .label{color:rgba(246,242,232,0.85); margin-bottom:24px; display:inline-block; font-size:14px; letter-spacing:0.2em}
+  .hero-content .label b{color:var(--amber-warm); font-weight:700}
+  h1.hero-title{font-size:var(--f-h1); line-height:1.15; font-weight:400; margin:0 auto 20px; color:var(--paper); letter-spacing:-0.005em; word-spacing:0.05em; max-width:720px; text-shadow:0 2px 20px rgba(0,0,0,0.5)}
+  h1.hero-title em{font-style:italic; color:var(--amber-warm); font-weight:500}
+  .hero-lead{font-size:clamp(14px, 1vw, 17px); color:rgba(246,242,232,0.75); line-height:1.5; margin:0 auto; max-width:520px; text-shadow:0 1px 12px rgba(0,0,0,0.4)}
+  .hero-cta{display:flex; gap:14px; flex-wrap:wrap; justify-content:center}
+
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:10px 20px; min-height:42px; border-radius:999px; font-family:'Inter',sans-serif; font-size:14px; font-weight:500; letter-spacing:0.01em; cursor:pointer; transition:transform .18s ease, box-shadow .25s, background .25s, color .2s, border-color .2s; border:1px solid transparent; white-space:nowrap}
+  .btn svg{width:14px; height:14px; flex:0 0 14px}
+  .btn-primary{background:var(--paper); color:var(--darkroom); box-shadow:var(--sh-lg)}
+  .btn-primary:hover{background:var(--amber-warm); transform:translateY(-2px)}
+  .btn-secondary{background:transparent; color:var(--paper); border-color:rgba(246,242,232,0.35)}
+  .btn-secondary:hover{background:rgba(246,242,232,0.08); border-color:var(--paper); transform:translateY(-2px)}
+
+  /* Адаптивность hero — на средних экранах полароиды меньше и дальше от центра */
+  @media (max-width:1100px){
+    .wall .p{width:160px}
+    .hero-content{max-width:640px}
+    .wall .p:nth-child(5){top:44%; left:-6%}
+    .wall .p:nth-child(6){top:44%; right:-6%}
+  }
+  @media (max-width:900px){
+    .wall .p{width:140px; padding:9px 9px 32px}
+    .wall .p .cap{font-size:15px}
+    /* Убираем средне-боковые (5,6) на средних экранах */
+    .wall .p:nth-child(5),.wall .p:nth-child(6){display:none}
+    /* Inner top/bottom — прижимаем к краям */
+    .wall .p:nth-child(2){top:16%; left:-4%; transform:rotate(4deg)}
+    .wall .p:nth-child(4){top:16%; right:-4%; transform:rotate(-4deg)}
+    .wall .p:nth-child(8){bottom:18%; left:-4%; transform:rotate(-4deg)}
+    .wall .p:nth-child(10){bottom:18%; right:-4%; transform:rotate(4deg)}
+    .hero-content{max-width:560px}
+  }
+  @media (max-width:640px){
+    .wall .p{width:118px; padding:8px 8px 28px}
+    .wall .p .cap{font-size:13px}
+    /* Оставляем только 4 угла */
+    .wall .p:nth-child(2),.wall .p:nth-child(4),.wall .p:nth-child(8),.wall .p:nth-child(10){display:none}
+    .wall .p:nth-child(1){top:2%; left:-6%}
+    .wall .p:nth-child(3){top:2%; right:-6%}
+    .wall .p:nth-child(7){bottom:2%; left:-6%}
+    .wall .p:nth-child(9){bottom:2%; right:-6%}
+    .hero-content{max-width:100%; padding:0 24px}
+    .wall .p .voice-bar{padding:4px 8px; gap:6px}
+    .wall .p .voice-bar .play{width:18px; height:18px; flex-basis:18px}
+    .wall .p .voice-bar .play svg{width:7px; height:7px}
+    .wall .p .voice-bar .dur{font-size:9px}
+  }
+  @media (max-width:440px){
+    .wall .p{width:96px; padding:6px 6px 22px}
+    .wall .p .cap{font-size:11px; margin-top:6px}
+    .wall .p .voice-bar{display:none}
+    .wall .p.has-voice .cap{display:block; font-size:11px}
+    .hero-cta{flex-direction:column; align-items:stretch; width:100%}
+    .btn{justify-content:center; width:100%}
+  }
+
+  /* FILM MARQUEE */
+  .marquee{padding:48px 0; overflow:hidden; background:var(--darkroom-2); position:relative}
+  .marquee::before,.marquee::after{content:""; position:absolute; top:0; bottom:0; width:100px; z-index:3; pointer-events:none}
+  .marquee::before{left:0; background:linear-gradient(90deg, var(--darkroom-2), transparent)}
+  .marquee::after{right:0; background:linear-gradient(-90deg, var(--darkroom-2), transparent)}
+  .strip{display:flex; gap:6px; width:max-content; animation:strip 70s linear infinite}
+  .strip:hover{animation-play-state:paused}
+  @keyframes strip{to{transform:translateX(-50%)}}
+  .frame{width:280px; height:200px; flex:0 0 280px; position:relative; background:#0A0604; padding:16px 0}
+  .frame img{width:100%; height:100%; object-fit:cover; filter:sepia(0.14) saturate(0.9) contrast(1.05) brightness(0.97)}
+  .frame::before,.frame::after{content:""; position:absolute; left:0; right:0; height:16px; background:#0A0604;
+    -webkit-mask-image:linear-gradient(to right, transparent 0 6px, #000 6px 24px, transparent 24px 30px);
+    mask-image:linear-gradient(to right, transparent 0 6px, #000 6px 24px, transparent 24px 30px);
+    -webkit-mask-size:30px 100%; mask-size:30px 100%;
+    -webkit-mask-repeat:repeat-x; mask-repeat:repeat-x}
+  .frame::before{top:0} .frame::after{bottom:0}
+  @media (max-width:640px){ .frame{width:220px; flex-basis:220px; height:160px} }
+
+  /* SECTIONS */
+  .section{padding:clamp(48px,6vw,84px) 0; position:relative}
+  .section.alt{background:var(--paper-2); border-top:1px solid var(--line-2); border-bottom:1px solid var(--line-2)}
+  .section.dark{background:var(--darkroom); color:rgba(246,242,232,0.85)}
+  .section.dark h2{color:var(--paper)}
+  .section-head{max-width:760px; margin:0 auto clamp(32px,4vw,52px); text-align:center}
+  .section-head .label{margin-bottom:16px; display:inline-block}
+  .section.dark .section-head .label{color:rgba(246,242,232,0.6)}
+  .section.dark .section-head .label b{color:var(--amber-warm)}
+  h2.section-title{font-size:var(--f-h2-big); line-height:1.05; font-weight:500; margin:0 0 14px}
+  .section-sub{font-size:16px; color:var(--ink-2); line-height:1.5; max-width:560px; margin:0 auto}
+  .section.dark .section-sub{color:rgba(246,242,232,0.72)}
+
+  /* ═══ STEPS — все 4 в одну линию, скрины крупные, без внутреннего текста ═══ */
+  .steps{display:grid; grid-template-columns:repeat(4,minmax(0,280px)); gap:clamp(24px,2.6vw,40px); align-items:start; justify-content:center}
+  .step{text-align:center; display:flex; flex-direction:column; align-items:center; width:100%}
+  .step-shot{position:relative; width:100%; margin:0 auto clamp(20px,2.2vw,28px); aspect-ratio:3/4; overflow:hidden; border-radius:22px; background:var(--paper-3); filter:drop-shadow(0 24px 48px rgba(0,0,0,0.16)) drop-shadow(0 8px 16px rgba(0,0,0,0.08)); transition:transform .4s cubic-bezier(.2,.9,.3,1); flex:0 0 auto}
+  .step-shot img{width:100%; height:100%; object-fit:cover; object-position:center center; display:block}
+  .step:hover .step-shot{transform:translateY(-8px)}
+  .step h3{font-size:clamp(20px,1.8vw,24px); line-height:1.25; font-weight:500; margin:0 0 10px}
+  .step p{font-size:15.5px; color:var(--ink-2); line-height:1.55; margin:0 auto; max-width:280px}
+  @media (max-width:1000px){ .steps{grid-template-columns:repeat(2,minmax(0,300px)); gap:36px} }
+  @media (max-width:520px){ .steps{grid-template-columns:minmax(0,280px); gap:44px} }
+
+  /* Visual I: календарь + QR */
+  .v-create{width:100%; height:100%; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:center}
+  .v-create .cal{background:var(--paper); border-radius:10px; padding:10px; text-align:center; box-shadow:0 8px 20px rgba(0,0,0,0.3)}
+  .v-create .cal-mon{font-family:'Inter',sans-serif; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--amber-3); font-weight:700; margin-bottom:2px}
+  .v-create .cal-day{font-family:'Fraunces',serif; font-size:36px; font-weight:500; color:var(--ink); line-height:1}
+  .v-create .cal-wk{font-size:10px; color:var(--ink-3); margin-top:4px}
+  .v-create .qr-mini{background:var(--paper); border-radius:10px; padding:10px; box-shadow:0 8px 20px rgba(0,0,0,0.3); display:grid; place-items:center}
+  .v-create .qr-mini svg{width:100%; height:auto}
+
+  /* Visual II: большой QR */
+  .v-qr{background:var(--paper); border-radius:16px; padding:14px; box-shadow:0 12px 32px rgba(0,0,0,0.4); width:80%; aspect-ratio:1/1; display:grid; place-items:center}
+  .v-qr svg{width:100%; height:100%}
+
+  /* Visual III: UI камеры */
+  .v-camera{display:flex; flex-direction:column; gap:10px; align-items:stretch; justify-content:space-between; height:100%; width:100%}
+  .v-camera .film-chips{display:flex; gap:6px; justify-content:center; flex-wrap:wrap}
+  .v-camera .chip{padding:5px 10px; background:rgba(246,242,232,0.10); color:var(--paper); border-radius:99px; font-size:10px; font-weight:600; letter-spacing:0.04em; border:1px solid rgba(255,184,74,0.15)}
+  .v-camera .chip.active{background:var(--amber-warm); color:var(--darkroom); border-color:var(--amber-warm)}
+  .v-camera .viewfinder{flex:1; background:linear-gradient(135deg, #4a3225, #1a1108); border-radius:8px; position:relative; overflow:hidden; margin:6px 0; min-height:60px}
+  .v-camera .viewfinder::after{content:""; position:absolute; inset:8px; border:1.5px solid rgba(255,184,74,0.4); border-radius:4px}
+  .v-camera .controls{display:flex; justify-content:space-between; align-items:center; padding:0 8px}
+  .v-camera .counter{font-family:'Inter',sans-serif; color:rgba(246,242,232,0.75); font-size:11px; font-weight:600; font-variant-numeric:tabular-nums}
+  .v-camera .shutter{width:44px; height:44px; border-radius:50%; background:var(--paper); border:3px solid rgba(246,242,232,0.4); box-shadow:0 0 0 2px var(--darkroom) inset}
+  .v-camera .lens{width:28px; height:28px; border-radius:50%; background:rgba(246,242,232,0.15); display:grid; place-items:center; color:rgba(246,242,232,0.7)}
+  .v-camera .lens svg{width:14px; height:14px}
+
+  /* Visual IV: album grid */
+  .v-album{display:grid; grid-template-columns:repeat(3,1fr); gap:5px; width:100%; aspect-ratio:1/1}
+  .v-album .cell{background:var(--paper-3); border-radius:4px; overflow:hidden; box-shadow:0 4px 8px rgba(0,0,0,0.25)}
+  .v-album .cell img{width:100%; height:100%; object-fit:cover; filter:sepia(0.15) saturate(0.9) contrast(1.05)}
+
+  .step .idx-label{position:absolute; top:12px; left:14px; z-index:5; font-family:'Fraunces',serif; font-style:italic; font-size:14px; color:var(--amber-warm); font-weight:500; background:rgba(22,16,12,0.7); padding:4px 10px; border-radius:99px; border:1px solid rgba(255,184,74,0.3); backdrop-filter:blur(6px)}
+
+  /* ═══ APP PREVIEW — sphere coverflow ═══ */
+  .preview-slider{position:relative; margin-top:8px; user-select:none; width:100vw; margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw)}
+  .slider-viewport{overflow:hidden; padding:24px 0 68px; perspective:2000px; perspective-origin:center center; display:flex; align-items:center; justify-content:center}
+  .slider-stage{position:relative; width:clamp(280px, 28vw, 380px); aspect-ratio:9/16}
+  .slider-slide{
+    position:absolute; inset:0;
+    transition:transform .55s cubic-bezier(.3,.85,.35,1), opacity .45s;
+    backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    border-radius:22px; overflow:hidden;
+    box-shadow:0 30px 60px rgba(0,0,0,0.55);
+    transform-origin:center center;
+  }
+  /* Фиксированные позиции — независимо от viewport и количества слайдов геометрия та же */
+  .slider-slide.pos-active{ transform:translateX(0) scale(1) rotateY(0deg); opacity:1; z-index:3; pointer-events:auto; visibility:visible }
+  .slider-slide.pos-prev  { transform:translateX(-98%) scale(0.72) rotateY(28deg);  opacity:0.55; z-index:2; pointer-events:auto; visibility:visible }
+  .slider-slide.pos-next  { transform:translateX(98%)  scale(0.72) rotateY(-28deg); opacity:0.55; z-index:2; pointer-events:auto; visibility:visible }
+  .slider-slide.pos-hidden{ transform:scale(0.5); opacity:0; z-index:0; pointer-events:none; visibility:hidden }
+  .slider-slide img{width:100%; height:100%; object-fit:cover; display:block; image-rendering:auto}
+  .slider-slide .cap{position:absolute; left:50%; bottom:-52px; transform:translateX(-50%); text-align:center; font-family:'Fraunces',serif; font-size:16px; color:rgba(246,242,232,0.6); font-weight:500; transition:color .3s, opacity .3s; opacity:0; width:280px; white-space:nowrap}
+  .slider-slide.active .cap{color:var(--paper); font-size:19px; opacity:1}
+  .slider-slide .cap em{font-style:italic; color:var(--amber-warm)}
+
+  .slider-arrows{display:flex; justify-content:space-between; position:absolute; top:calc(50% - 40px); left:0; right:0; z-index:3; pointer-events:none; padding:0 12px}
+  .slider-arrows button{
+    pointer-events:auto; width:52px; height:52px; border-radius:50%;
+    background:rgba(246,242,232,0.14); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(246,242,232,0.25); color:var(--paper);
+    cursor:pointer; transition:background .2s, transform .15s, border-color .2s;
+    display:grid; place-items:center;
+  }
+  .slider-arrows button:hover{background:var(--amber-warm); color:var(--darkroom); border-color:var(--amber-warm); transform:scale(1.05)}
+  .slider-arrows button:disabled{opacity:0.3; cursor:default}
+  .slider-arrows button:disabled:hover{background:rgba(246,242,232,0.14); color:var(--paper); border-color:rgba(246,242,232,0.25); transform:none}
+  .slider-arrows button svg{width:22px; height:22px}
+
+  .slider-dots{display:flex; justify-content:center; gap:10px; margin-top:8px}
+  .slider-dots button{width:8px; height:8px; border-radius:50%; background:rgba(246,242,232,0.25); border:none; padding:0; cursor:pointer; transition:width .3s, background .3s}
+  .slider-dots button.active{width:32px; background:var(--amber-warm); border-radius:99px}
+  @media (max-width:640px){ .slider-arrows{display:none} }
+
+  /* ═══ FEATURES row ═══ */
+  .features{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:28px; margin-top:clamp(56px,7vw,80px)}
+  .feature{text-align:center}
+  .feature .fico{width:56px; height:56px; margin:0 auto 18px; border-radius:14px; background:rgba(255,184,74,0.12); color:var(--amber-warm); display:grid; place-items:center; border:1px solid rgba(255,184,74,0.25)}
+  .feature .fico svg{width:28px; height:28px}
+  .feature h3{font-family:'Fraunces',serif; font-size:20px; font-weight:500; color:var(--paper); margin:0 0 10px}
+  .feature p{font-size:15px; color:rgba(246,242,232,0.72); line-height:1.55; margin:0; max-width:300px; margin-left:auto; margin-right:auto}
+  @media (max-width:820px){ .features{grid-template-columns:1fr; gap:32px} }
+
+  /* ═══ ДЕКОР: 3 разных визуала для последних секций ═══ */
+  /* 1. Вертикальная плёночная лента (why-cards): толще, ярче */
+  .decor-film{position:absolute; top:0; bottom:0; width:64px; overflow:hidden; opacity:0.65; pointer-events:none; z-index:0; display:none}
+  .decor-film.left{left:24px} .decor-film.right{right:24px}
+  .decor-film-strip{display:flex; flex-direction:column; gap:3px; animation:filmScroll 40s linear infinite; padding-top:0}
+  .decor-film.right .decor-film-strip{animation-duration:55s; animation-direction:reverse}
+  .decor-film-frame{width:64px; height:80px; position:relative; background:#0F0805; padding:8px 0; flex-shrink:0}
+  .decor-film-frame .cell{height:100%; background-size:cover; background-position:center; filter:sepia(0.2) saturate(0.85) contrast(1.05) brightness(0.9)}
+  .decor-film-frame::before,.decor-film-frame::after{content:""; position:absolute; left:0; right:0; height:6px; background:#0F0805;
+    -webkit-mask-image:linear-gradient(to right, transparent 0 4px, #000 4px 12px, transparent 12px 16px);
+    mask-image:linear-gradient(to right, transparent 0 4px, #000 4px 12px, transparent 12px 16px);
+    -webkit-mask-size:16px 100%; mask-size:16px 100%;
+    -webkit-mask-repeat:repeat-x; mask-repeat:repeat-x}
+  .decor-film-frame::before{top:0} .decor-film-frame::after{bottom:0}
+  @keyframes filmScroll{from{transform:translateY(0)} to{transform:translateY(-50%)}}
+
+  /* 2. Полароидные снимки (pricing) — реальные фото, наклонённые, лёгкое покачивание */
+  .decor-polaroids{position:absolute; z-index:0; display:none; pointer-events:none; top:0; bottom:0; width:220px}
+  .decor-polaroids.left{left:-40px}
+  .decor-polaroids.right{right:-40px}
+  .decor-polaroids .pol{
+    position:absolute; width:150px; background:var(--paper-2); padding:9px 9px 32px;
+    box-shadow:0 18px 40px rgba(26,23,20,0.22), 0 6px 12px rgba(26,23,20,0.12);
+    border:1px solid rgba(26,23,20,0.06);
+    animation:polSway 8s ease-in-out infinite;
+  }
+  .decor-polaroids .pol img{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; filter:sepia(0.12) saturate(0.92) contrast(1.05)}
+  .decor-polaroids .pol .capt{margin-top:8px; text-align:center; font-family:'Caveat',cursive; color:var(--ink); font-size:14px; line-height:1.1; font-weight:600}
+  .decor-polaroids.left .pol:nth-child(1){top:8%; left:0; transform:rotate(-8deg); animation-delay:0s}
+  .decor-polaroids.left .pol:nth-child(2){top:52%; left:30px; transform:rotate(6deg); animation-delay:1.4s}
+  .decor-polaroids.right .pol:nth-child(1){top:12%; right:0; transform:rotate(9deg); animation-delay:0.7s}
+  .decor-polaroids.right .pol:nth-child(2){top:56%; right:30px; transform:rotate(-6deg); animation-delay:2.1s}
+  @keyframes polSway{0%,100%{transform:rotate(var(--r,0deg)) translateY(0)} 50%{transform:rotate(calc(var(--r,0deg) + 1deg)) translateY(-6px)}}
+  .decor-polaroids.left .pol:nth-child(1){--r:-8deg} .decor-polaroids.left .pol:nth-child(2){--r:6deg}
+  .decor-polaroids.right .pol:nth-child(1){--r:9deg} .decor-polaroids.right .pol:nth-child(2){--r:-6deg}
+
+  /* 3. Retro-камера + вспышка (CTA dark) — тематическая иллюстрация */
+  .decor-camera{position:absolute; z-index:0; display:none; pointer-events:none; opacity:0.9; filter:drop-shadow(0 20px 40px rgba(0,0,0,0.5))}
+  .decor-camera.left{left:60px; top:22%}       /* левая — выше */
+  .decor-camera.right{right:60px; bottom:22%}  /* правая — ниже */
+  .decor-camera svg{width:200px; height:auto; display:block}
+  .decor-camera .flash-burst{transform-origin:center; animation:flashPulse 4s ease-in-out infinite}
+  .decor-camera.right .flash-burst{animation-delay:2s}
+  @keyframes flashPulse{0%,88%,100%{opacity:0.35; transform:scale(1)} 92%{opacity:1; transform:scale(1.35)} 96%{opacity:0.6; transform:scale(1.1)}}
+
+  /* Полароидные снимки со свадьбы — снаружи камер */
+  .decor-wed{position:absolute; z-index:0; display:none; pointer-events:none; width:150px; background:var(--paper-2); padding:9px 9px 30px;
+    box-shadow:0 22px 50px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.05)}
+  .decor-wed img{width:100%; aspect-ratio:1/1; object-fit:cover; display:block; filter:sepia(0.14) saturate(0.92) contrast(1.05) brightness(0.94)}
+  .decor-wed .capt{margin-top:8px; text-align:center; font-family:'Caveat',cursive; color:var(--ink); font-size:14px; line-height:1.1; font-weight:600}
+  .decor-wed.outer-left{left:-70px; top:58%; transform:rotate(-9deg)}    /* совсем слева, ниже левой камеры */
+  .decor-wed.outer-right{right:-70px; top:12%; transform:rotate(8deg)}   /* совсем справа, выше правой камеры */
+
+  @media (min-width:1240px){ .decor-film,.decor-polaroids,.decor-camera,.decor-wed{display:block} }
+  @media (prefers-reduced-motion:reduce){
+    .decor-film-strip,.decor-polaroids .pol,.decor-camera .flash-burst{animation:none}
+  }
+
+  /* ═══ WHY CARDS — photo bg + text overlay ═══ */
+  .why-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; max-width:1080px; margin:0 auto}
+  .why-card{position:relative; aspect-ratio:3/4; border-radius:20px; overflow:hidden; transition:transform .3s ease, box-shadow .3s; box-shadow:var(--sh)}
+  .why-card:hover{transform:translateY(-6px); box-shadow:var(--sh-lg)}
+  .why-card img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:sepia(0.16) saturate(0.9) contrast(1.05) brightness(0.72)}
+  .why-fade{position:absolute; inset:0; background:linear-gradient(180deg, transparent 0%, transparent 25%, rgba(22,16,12,0.55) 55%, rgba(22,16,12,0.92) 100%); z-index:1}
+  .why-content{position:relative; z-index:2; padding:clamp(20px,2.6vw,32px); color:var(--paper); height:100%; display:flex; flex-direction:column; justify-content:flex-end}
+  .why-num{font-family:'Fraunces',serif; font-size:clamp(48px,5vw,72px); font-weight:500; color:var(--amber-warm); line-height:1; margin-bottom:12px; font-variant-numeric:tabular-nums}
+  .why-title{font-family:'Fraunces',serif; font-size:clamp(20px,1.8vw,24px); font-weight:500; color:var(--paper); margin-bottom:10px; line-height:1.2}
+  .why-desc{font-size:15px; color:rgba(246,242,232,0.85); line-height:1.55}
+  @media (max-width:820px){ .why-grid{grid-template-columns:1fr; gap:16px; max-width:560px} .why-card{aspect-ratio:4/5} .why-num{font-size:44px; margin-bottom:8px} .why-desc{font-size:14px} }
+
+  /* ═══ PRICING TEASER (без конкретных цен) ═══ */
+  .pricing-teaser{max-width:1080px; margin:0 auto; text-align:center; padding:clamp(36px,5vw,64px) clamp(24px,4vw,48px); background:linear-gradient(180deg, var(--paper-2) 0%, var(--paper-3) 100%); border:1px solid var(--line); border-radius:var(--r-lg); box-shadow:var(--sh-lg); position:relative; overflow:hidden}
+  .pricing-teaser::before{content:""; position:absolute; top:-40%; left:50%; transform:translateX(-50%); width:70%; height:100%; background:radial-gradient(ellipse, var(--amber-soft) 0%, transparent 60%); pointer-events:none}
+  .pricing-teaser-inner{position:relative}
+  .pricing-teaser .label{margin-bottom:14px; display:inline-block}
+  .pricing-teaser h2{font-family:'Fraunces',serif; font-size:var(--f-h2); line-height:1.1; font-weight:500; margin:0 0 16px}
+  .pricing-teaser .lead{font-size:15px; color:var(--ink-2); line-height:1.55; margin:0 auto 24px; max-width:480px}
+  .pt-bullets{display:flex; justify-content:center; gap:clamp(20px,3vw,44px); margin-bottom:36px; flex-wrap:wrap}
+  .pt-bullets .b{display:flex; align-items:center; gap:10px; font-size:15px; color:var(--ink-2)}
+  .pt-bullets .b svg{width:18px; height:18px; color:var(--amber-3); flex:0 0 18px}
+  .pricing-teaser .btn{margin:0 auto}
+
+  /* ═══ CTA DOWNLOAD — одна ширина с container 1280px ═══ */
+  .cta-inner{background:linear-gradient(135deg,var(--darkroom-2) 0%,var(--darkroom) 100%); color:var(--paper); border-radius:24px; padding:clamp(44px,5vw,72px) clamp(36px,5vw,64px); position:relative; overflow:hidden; box-shadow:var(--sh-xl)}
+  .cta-inner::before{content:""; position:absolute; top:-30%; right:-10%; width:50%; height:160%; background:radial-gradient(ellipse, rgba(255,184,74,0.18) 0%, transparent 55%); pointer-events:none}
+  .cta-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:clamp(28px,4vw,44px); align-items:center; position:relative; z-index:1; text-align:left}
+  .cta-inner .label{color:var(--amber-warm); margin-bottom:14px; display:inline-block; font-size:14px}
+  .cta-inner h2{font-family:'Fraunces',serif; font-size:clamp(28px,3vw,38px); line-height:1.15; font-weight:500; margin:0 0 14px; color:var(--paper); text-align:left}
+  .cta-inner h2 em{font-style:italic; color:var(--amber-warm); font-weight:500}
+  .cta-inner .lead{color:rgba(246,242,232,0.8); font-size:15.5px; line-height:1.55; margin:0 0 24px; max-width:460px; text-align:left}
+  .cta-inner .hero-cta{justify-content:flex-start; text-align:left}
+  .cta-inner .meta{margin-top:18px; font-size:13px; color:rgba(246,242,232,0.55); text-align:left}
+  .cta-mark{width:100%; max-width:160px; margin:0 auto; aspect-ratio:1/1; filter:drop-shadow(0 20px 40px rgba(255,184,74,0.28))}
+  @media (max-width:820px){ .cta-grid{grid-template-columns:1fr; gap:24px} .cta-mark{max-width:110px} .cta-inner h2,.cta-inner .lead,.cta-inner .meta{text-align:center} .cta-inner .hero-cta{justify-content:center} }
+
+  /* ═══ FAQ ═══ */
+  .faq{display:flex; flex-direction:column; border-top:1px solid var(--line)}
+  .faq details{border-bottom:1px solid var(--line); padding:24px 4px; cursor:pointer; transition:padding .2s}
+  .faq details[open]{padding-bottom:28px}
+  .faq summary{font-family:'Fraunces',serif; font-size:clamp(20px, 1.6vw, 24px); font-weight:500; color:var(--ink); list-style:none; display:flex; align-items:center; justify-content:space-between; gap:16px; line-height:1.35}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary::after{content:"+"; font-size:30px; font-weight:300; color:var(--amber-2); transition:transform .3s; line-height:1; margin-left:8px}
+  .faq details[open] summary::after{transform:rotate(45deg); color:var(--amber-3)}
+  .faq details p{margin:14px 0 0; font-size:17px; color:var(--ink-2); line-height:1.65; max-width:720px}
+
+  /* ═══ COMPACT REQUISITES ═══ */
+  .req-compact{display:flex; justify-content:space-between; align-items:center; gap:24px; padding:22px 28px; background:var(--paper-2); border:1px solid var(--line); border-radius:var(--r); flex-wrap:wrap}
+  .req-c-fio{font-family:'Fraunces',serif; font-size:18px; font-weight:500; color:var(--ink)}
+  .req-c-meta{font-size:13.5px; color:var(--ink-3); margin-top:6px; font-variant-numeric:tabular-nums}
+  .req-c-right{display:flex; gap:22px; align-items:center; font-size:14.5px; flex-wrap:wrap}
+  .req-c-right a{color:var(--amber-3); text-decoration:underline; text-underline-offset:3px}
+  .req-c-right a:hover{color:var(--amber-2)}
+  @media (max-width:640px){ .req-compact{flex-direction:column; align-items:flex-start; gap:14px} }
+
+  /* FOOTER */
+  footer.foot{padding:clamp(48px,6vw,72px) 0 clamp(28px,4vw,40px); background:var(--darkroom); color:rgba(246,242,232,0.7)}
+  footer.foot .brand-word{color:var(--paper)}
+  footer.foot .brand-word em{color:var(--amber-warm)}
+  footer.foot .row{display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap}
+  footer.foot .links{display:flex; gap:22px; font-size:14.5px; flex-wrap:wrap}
+  footer.foot .links a{color:rgba(246,242,232,0.65); transition:color .2s}
+  footer.foot .links a:hover{color:var(--amber-warm)}
+  footer.foot .copy{font-size:13.5px; color:rgba(246,242,232,0.5); line-height:1.6}
+  footer.foot .row + .row{margin-top:22px; padding-top:22px; border-top:1px solid rgba(246,242,232,0.1)}
+  @media (max-width:640px){ footer.foot .row{flex-direction:column; align-items:flex-start; gap:14px} }
+
+  .reveal{opacity:0; transform:translateY(24px); transition:opacity .7s ease, transform .7s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1; transform:none}
+  @media (prefers-reduced-motion:reduce){ .reveal{opacity:1; transform:none} }
+</style>
+</head>
+<body>
+
+<div class="scroll-progress" id="progress"></div>
+
+<nav class="top" id="nav">
+  <div class="container row">
+    <a href="/about.html" class="brand" aria-label="ImpoMento">
+      <img src="/brand/im-mark-F.svg" alt="" class="brand-mark" width="38" height="38">
+      <span class="brand-word">Impo<em>Mento</em></span>
+    </a>
+    <a href="/ImpoMento.apk" class="cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      <span>Скачать</span>
+    </a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ═════ HERO — только по углам, центр чист под лого/текст ═════ -->
+<header class="hero">
+  <div class="wall" aria-hidden="true">
+    <div class="p"><img src="/wall/u-wedding-hug.jpg" alt=""><div class="cap">Свадьба Ани и Миши</div></div>
+    <div class="p"><img src="/wall/p-crowd-confetti.jpg" alt=""><div class="cap">Финальный залп</div></div>
+    <div class="p"><img src="/wall/u-birthday.jpg" alt=""><div class="cap">Мамин юбилей — 60</div></div>
+    <div class="p has-voice"><img src="/wall/u-dance-floor.jpg" alt=""><div class="cap">Танцы до утра</div><div class="voice-bar"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="wave"><span style="height:6px"></span><span style="height:12px"></span><span style="height:8px"></span><span style="height:14px"></span><span style="height:9px"></span><span style="height:11px"></span><span style="height:7px"></span></span><span class="dur">0:14</span></div></div>
+    <div class="p has-voice"><img src="/wall/t-champagne-toast.jpg" alt=""><div class="cap">Тост</div><div class="voice-bar"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="wave"><span style="height:8px"></span><span style="height:14px"></span><span style="height:10px"></span><span style="height:6px"></span><span style="height:12px"></span><span style="height:9px"></span><span style="height:11px"></span></span><span class="dur">0:22</span></div></div>
+    <div class="p"><img src="/wall/u-friends-laugh.jpg" alt=""><div class="cap">После церемонии</div></div>
+    <div class="p"><img src="/wall/w-ballroom.jpg" alt=""><div class="cap">Первый танец</div></div>
+    <div class="p has-voice"><img src="/wall/d-dinner-friends.jpg" alt=""><div class="cap">Ужин</div><div class="voice-bar"><span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span class="wave"><span style="height:10px"></span><span style="height:6px"></span><span style="height:12px"></span><span style="height:8px"></span><span style="height:14px"></span><span style="height:9px"></span><span style="height:11px"></span></span><span class="dur">0:08</span></div></div>
+    <div class="p"><img src="/wall/p-sparkler-hand.jpg" alt=""><div class="cap">Загадать желание</div></div>
+    <div class="p"><img src="/wall/w-couple-hands.jpg" alt=""><div class="cap">Первый поцелуй</div></div>
+  </div>
+  <div class="hero-overlay"></div>
+
+  <div class="hero-content">
+    <!-- Скрытые SVG defs для лого -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <linearGradient id="mRingG" x1="92" y1="60" x2="430" y2="462" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FBDC95"/><stop offset=".28" stop-color="#F0BC5C"/><stop offset=".52" stop-color="#D89A31"/><stop offset=".78" stop-color="#A96E18"/><stop offset="1" stop-color="#6E4A10"/></linearGradient>
+      <radialGradient id="mGlowG" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFD07A" stop-opacity=".92"/><stop offset=".34" stop-color="#FF9E33" stop-opacity=".40"/><stop offset=".68" stop-color="#F2851C" stop-opacity=".13"/><stop offset="1" stop-color="#F2851C" stop-opacity="0"/></radialGradient>
+      <radialGradient id="mFlashG" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFFDF6" stop-opacity="1"/><stop offset=".32" stop-color="#FFF0CE" stop-opacity=".62"/><stop offset=".64" stop-color="#FFE1A6" stop-opacity=".18"/><stop offset="1" stop-color="#FFE1A6" stop-opacity="0"/></radialGradient>
+      <linearGradient id="mSparkG" x1="256" y1="118" x2="256" y2="392" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFE7B4"/><stop offset=".42" stop-color="#FFB84A"/><stop offset="1" stop-color="#D98A22"/></linearGradient>
+    </defs></svg>
+
+    <div class="hero-brand">
+      <svg class="hero-brand-mark" viewBox="0 0 512 512" aria-hidden="true">
+        <path class="draw" fill="none" stroke="url(#mRingG)" stroke-width="7" pathLength="100" d="M256 66 L358 66 A88 88 0 0 1 446 154 L446 358 A88 88 0 0 1 358 446 L154 446 A88 88 0 0 1 66 358 L66 154 A88 88 0 0 1 154 66 Z"/>
+        <path class="draw d2" fill="none" stroke-width="1.6" pathLength="100" d="M256 88 L352 88 A72 72 0 0 1 424 160 L424 352 A72 72 0 0 1 352 424 L160 424 A72 72 0 0 1 88 352 L88 160 A72 72 0 0 1 160 88 Z"/>
+        <circle class="glow" cx="256" cy="256" r="138" fill="url(#mGlowG)"/>
+        <circle class="flash" cx="256" cy="256" r="150" fill="url(#mFlashG)"/>
+        <circle class="pt" style="--dx:70px;--dy:-58px" cx="256" cy="256" r="3.4" fill="#FFC975"/>
+        <circle class="pt" style="--dx:-58px;--dy:-68px;animation-delay:1.98s" cx="256" cy="256" r="2.6" fill="#FFC975"/>
+        <circle class="pt" style="--dx:66px;--dy:56px;animation-delay:2.04s" cx="256" cy="256" r="2.2" fill="#FFDCA4"/>
+        <circle class="pt" style="--dx:-62px;--dy:54px;animation-delay:2.1s" cx="256" cy="256" r="3" fill="#FFDCA4"/>
+        <g class="spark"><g class="sparkPop"><g class="sparkTw">
+          <path d="M256 118 C264.5 214,298 247.5,394 256 C298 264.5,264.5 298,256 394 C247.5 298,214 264.5,118 256 C214 247.5,247.5 214,256 118 Z" fill="url(#mSparkG)"/>
+        </g></g></g>
+      </svg>
+      <span class="hero-brand-word">Impo<em>Mento</em></span>
+      <div class="hero-brand-tag">Одноразовая камера для мероприятий</div>
+    </div>
+    <div class="hero-cta">
+      <a href="/ImpoMento.apk" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        Скачать
+      </a>
+      <a href="/join" class="btn btn-secondary">Ввести код</a>
+    </div>
+    <div class="hero-text-block">
+      <h1 class="hero-title">Ваш праздник <em>с разных сторон</em> в одном альбоме</h1>
+      <p class="hero-lead">Гости сканируют QR-код и открывают камеру прямо в браузере. Все снимки собираются в один альбом с плёночной обработкой.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ═════ FILM MARQUEE ═════ -->
+<section class="marquee" aria-hidden="true">
+  <div class="strip">
+    <div class="frame"><img src="/wall/u-wedding-hug.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/t-champagne-toast.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/w-ballroom.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-friends-laugh.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/p-sparkler-hand.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-dance-floor.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/d-dinner-friends.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/p-crowd-confetti.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-birthday.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/w-couple-hands.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-wedding-hug.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/t-champagne-toast.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/w-ballroom.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-friends-laugh.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/p-sparkler-hand.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-dance-floor.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/d-dinner-friends.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/p-crowd-confetti.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/u-birthday.jpg" alt=""></div>
+    <div class="frame"><img src="/wall/w-couple-hands.jpg" alt=""></div>
+  </div>
+</section>
+
+<!-- ═════ STEPS — с реальными скринами ═════ -->
+<section class="section" id="how">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="label">Как это работает</div>
+      <h2 class="section-title">От создания события <em class="italic">до общего альбома</em></h2>
+      <p class="section-sub">Четыре простых шага. Организатор запускает событие в приложении, гости присоединяются по QR-коду.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-shot"><img src="/preview/c-dashboard.png" alt="Дашборд событий"></div>
+        <h3>Создать событие</h3>
+        <p>Выберите дату, число гостей и тариф. Приложение выдаст QR-код.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-shot"><img src="/preview/c-qr.png" alt="QR-код события"></div>
+        <h3>Раздать QR гостям</h3>
+        <p>Распечатайте у входа или отправьте в чат. Гости сканируют камерой.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-shot"><img src="/preview/c-camera.png" alt="Камера с плёночным фильтром"></div>
+        <h3>Гости фотографируют</h3>
+        <p>Ограниченные кадры с плёночным фильтром. Подпись или голос.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-shot"><img src="/preview/c-album.png" alt="Общий альбом"></div>
+        <h3>Общий альбом</h3>
+        <p>Все кадры собираются в один альбом после проявки. Публичная ссылка.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════ APP PREVIEW — карусель ═════ -->
+<section class="section dark" id="preview">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="label">Приложение хоста</div>
+      <h2 class="section-title">Каждый снимок <em class="italic">часть истории</em></h2>
+      <p class="section-sub">Свайпайте, чтобы посмотреть основные экраны приложения. От создания события до готового альбома.</p>
+    </div>
+
+    <div class="preview-slider reveal" id="slider">
+      <div class="slider-viewport">
+        <div class="slider-stage" id="sliderTrack">
+          <div class="slider-slide"><picture><source srcset="/preview/s-dashboard.webp" type="image/webp"><img src="/preview/s-dashboard.png" alt="Мои альбомы" loading="eager" decoding="async"></picture><div class="cap">Список ваших <em>событий</em></div></div>
+          <div class="slider-slide"><picture><source srcset="/preview/s-camera.webp" type="image/webp"><img src="/preview/s-camera.png" alt="Камера с плёночным фильтром" loading="eager" decoding="async"></picture><div class="cap">Камера с <em>плёнкой</em></div></div>
+          <div class="slider-slide"><picture><source srcset="/preview/s-film.webp" type="image/webp"><img src="/preview/s-film.png" alt="Выбор плёночного фильтра" loading="lazy" decoding="async"></picture><div class="cap">Четыре <em>плёнки</em></div></div>
+          <div class="slider-slide"><picture><source srcset="/preview/s-voice.webp" type="image/webp"><img src="/preview/s-voice.png" alt="Подпись и голосовая заметка" loading="lazy" decoding="async"></picture><div class="cap">Подпись <em>и голос</em></div></div>
+          <div class="slider-slide"><picture><source srcset="/preview/s-album.webp" type="image/webp"><img src="/preview/s-album.png" alt="Общий альбом с проявкой" loading="lazy" decoding="async"></picture><div class="cap">Альбом <em>после проявки</em></div></div>
+          <div class="slider-slide"><picture><source srcset="/preview/s-frames.webp" type="image/webp"><img src="/preview/s-frames.png" alt="Один кадр" loading="lazy" decoding="async"></picture><div class="cap">Один <em>кадр</em></div></div>
+        </div>
+      </div>
+      <div class="slider-arrows">
+        <button id="prevBtn" aria-label="Предыдущий"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button id="nextBtn" aria-label="Следующий"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+      <div class="slider-dots" id="sliderDots"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═════ NEW SECTION: Почему одноразовая ═════ -->
+<section class="section alt" style="position:relative">
+  <div class="decor-film left" aria-hidden="true">
+    <div class="decor-film-strip">
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-wedding-hug.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/t-champagne-toast.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/w-ballroom.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/p-sparkler-hand.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-friends-laugh.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/d-dinner-friends.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-wedding-hug.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/t-champagne-toast.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/w-ballroom.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/p-sparkler-hand.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-friends-laugh.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/d-dinner-friends.jpg')"></div></div>
+    </div>
+  </div>
+  <div class="decor-film right" aria-hidden="true">
+    <div class="decor-film-strip">
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/p-crowd-confetti.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-birthday.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/w-couple-hands.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-dance-floor.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-embrace.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-toast-group.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/p-crowd-confetti.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-birthday.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/w-couple-hands.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-dance-floor.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-embrace.jpg')"></div></div>
+      <div class="decor-film-frame"><div class="cell" style="background-image:url('/wall/u-toast-group.jpg')"></div></div>
+    </div>
+  </div>
+<div class="container">
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <img src="/wall/p-sparkler-hand.jpg" alt="">
+        <div class="why-fade"></div>
+        <div class="why-content">
+          <div class="why-num">30</div>
+          <div class="why-title">Кадров на гостя</div>
+          <div class="why-desc">У каждого гостя ограниченный набор снимков — как в настоящей плёночной камере. Можно расширить до 45.</div>
+        </div>
+      </div>
+      <div class="why-card reveal">
+        <img src="/wall/p-concert-sunset.jpg" alt="">
+        <div class="why-fade"></div>
+        <div class="why-content">
+          <div class="why-num" style="font-style:italic">потом</div>
+          <div class="why-title">Проявка после события</div>
+          <div class="why-desc">Гости не видят общий альбом во время события — только свои кадры. Все снимки открываются одновременно.</div>
+        </div>
+      </div>
+      <div class="why-card reveal">
+        <img src="/wall/p-crowd-confetti.jpg" alt="">
+        <div class="why-fade"></div>
+        <div class="why-content">
+          <div class="why-num" style="font-style:italic">один</div>
+          <div class="why-title">Общий альбом</div>
+          <div class="why-desc">После события — открытая ссылка на альбом. И для гостей, и для тех, кто не был на месте.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    @media (max-width:820px){
+      .section.alt [style*="grid-template-columns:repeat(3"]{grid-template-columns:1fr!important}
+    }
+  </style>
+</section>
+
+<!-- ═════ PRICING TEASER — без цен, только концепция ═════ -->
+<section class="section" id="pricing" style="position:relative">
+  <div class="decor-polaroids left" aria-hidden="true">
+    <div class="pol"><img src="/wall/u-friends-laugh.jpg" alt=""><div class="capt">С друзьями</div></div>
+    <div class="pol"><img src="/wall/t-champagne-toast.jpg" alt=""><div class="capt">Тост</div></div>
+  </div>
+  <div class="decor-polaroids right" aria-hidden="true">
+    <div class="pol"><img src="/wall/p-sparkler-hand.jpg" alt=""><div class="capt">Загадать</div></div>
+    <div class="pol"><img src="/wall/u-birthday.jpg" alt=""><div class="capt">Юбилей</div></div>
+  </div>
+<div class="container">
+    <div class="pricing-teaser reveal">
+      <div class="pricing-teaser-inner">
+        <div class="label">Тарифы без подписки</div>
+        <h2>Один платёж — <em class="italic">одно событие</em></h2>
+        <p class="lead">Пробный тариф — бесплатно, до 5 гостей. Полные тарифы — под события от небольшой встречи до фестиваля. Никаких ежемесячных списаний.</p>
+        <div class="pt-bullets">
+          <div class="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Пробный бесплатно</div>
+          <div class="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Без подписок</div>
+          <div class="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>Оплата — карта или СБП</div>
+        </div>
+        <a href="/pricing.html" class="btn btn-primary">
+          Посмотреть тарифы
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════ CTA ═════ -->
+<section class="section" style="position:relative">
+  <!-- SVG defs для retro-камеры (общий градиент) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="camBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B2A1E"/><stop offset="1" stop-color="#1A1108"/></linearGradient>
+    <linearGradient id="camLens" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A0604"/><stop offset=".6" stop-color="#1F1811"/><stop offset="1" stop-color="#0A0604"/></linearGradient>
+    <radialGradient id="camFlash" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF7DA" stop-opacity="1"/><stop offset=".4" stop-color="#FFB84A" stop-opacity=".7"/><stop offset="1" stop-color="#FFB84A" stop-opacity="0"/></radialGradient>
+  </defs></svg>
+  <!-- Свадебные полароиды снаружи камер -->
+  <div class="decor-wed outer-left" aria-hidden="true">
+    <img src="/wall/u-wedding-hug.jpg" alt="">
+    <div class="capt">Аня и Миша</div>
+  </div>
+  <div class="decor-wed outer-right" aria-hidden="true">
+    <img src="/wall/w-couple-hands.jpg" alt="">
+    <div class="capt">Кольца</div>
+  </div>
+  <div class="decor-camera left" aria-hidden="true">
+    <svg viewBox="0 0 220 160" fill="none">
+      <!-- Тело камеры -->
+      <rect x="20" y="40" width="180" height="105" rx="10" fill="url(#camBody)" stroke="#C9881E" stroke-width="1.2" stroke-opacity=".4"/>
+      <!-- Выступ вьюфайндера -->
+      <rect x="70" y="24" width="80" height="20" rx="4" fill="url(#camBody)" stroke="#C9881E" stroke-width="1" stroke-opacity=".35"/>
+      <!-- Основной объектив -->
+      <circle cx="110" cy="95" r="42" fill="url(#camLens)" stroke="#C9881E" stroke-width="1.5" stroke-opacity=".55"/>
+      <circle cx="110" cy="95" r="32" fill="none" stroke="#FFB84A" stroke-width=".8" stroke-opacity=".45"/>
+      <circle cx="110" cy="95" r="22" fill="none" stroke="#FFB84A" stroke-width=".6" stroke-opacity=".35"/>
+      <circle cx="110" cy="95" r="10" fill="#0A0604" stroke="#FFB84A" stroke-width=".8" stroke-opacity=".7"/>
+      <circle cx="102" cy="87" r="3" fill="#FFB84A" opacity=".5"/>
+      <!-- Вспышка (мигающая) -->
+      <circle class="flash-burst" cx="180" cy="55" r="14" fill="url(#camFlash)"/>
+      <rect x="172" y="47" width="16" height="16" rx="3" fill="#EFE9DA" stroke="#C9881E" stroke-width="1" stroke-opacity=".5"/>
+      <!-- Кнопка спуска -->
+      <circle cx="45" cy="50" r="6" fill="#C9881E" opacity=".7"/>
+    </svg>
+  </div>
+  <div class="decor-camera right" aria-hidden="true">
+    <svg viewBox="0 0 220 160" fill="none">
+      <rect x="20" y="40" width="180" height="105" rx="10" fill="url(#camBody)" stroke="#C9881E" stroke-width="1.2" stroke-opacity=".4"/>
+      <rect x="70" y="24" width="80" height="20" rx="4" fill="url(#camBody)" stroke="#C9881E" stroke-width="1" stroke-opacity=".35"/>
+      <circle cx="110" cy="95" r="42" fill="url(#camLens)" stroke="#C9881E" stroke-width="1.5" stroke-opacity=".55"/>
+      <circle cx="110" cy="95" r="32" fill="none" stroke="#FFB84A" stroke-width=".8" stroke-opacity=".45"/>
+      <circle cx="110" cy="95" r="22" fill="none" stroke="#FFB84A" stroke-width=".6" stroke-opacity=".35"/>
+      <circle cx="110" cy="95" r="10" fill="#0A0604" stroke="#FFB84A" stroke-width=".8" stroke-opacity=".7"/>
+      <circle cx="102" cy="87" r="3" fill="#FFB84A" opacity=".5"/>
+      <circle class="flash-burst" cx="180" cy="55" r="14" fill="url(#camFlash)"/>
+      <rect x="172" y="47" width="16" height="16" rx="3" fill="#EFE9DA" stroke="#C9881E" stroke-width="1" stroke-opacity=".5"/>
+      <circle cx="45" cy="50" r="6" fill="#C9881E" opacity=".7"/>
+    </svg>
+  </div>
+<div class="container">
+    <div class="cta-inner reveal">
+      <div class="cta-grid">
+        <div>
+          <div class="label">Для Android</div>
+          <h2>Приложение <em>для организатора</em></h2>
+          <p class="lead">Гости фотографируют в браузере через QR-код. Приложение нужно только хосту — устанавливается на любой Android 6.0+, работает без Google Play.</p>
+          <div class="hero-cta">
+            <a href="/ImpoMento.apk" class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+              Скачать APK
+            </a>
+            <a href="/get-app" class="btn btn-secondary">Инструкция</a>
+          </div>
+          <div class="meta">Готовим публикацию в RuStore. iOS-версия — в разработке.</div>
+        </div>
+        <div style="text-align:center">
+          <img class="cta-mark" src="/brand/im-mark-F.svg" alt="">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════ FAQ ═════ -->
+<section class="section alt" id="faq">
+  <div class="container-narrow">
+    <div class="section-head reveal">
+      <div class="label">Часто спрашивают</div>
+      <h2 class="section-title">Вопросы <em class="italic">и ответы</em></h2>
+    </div>
+    <div class="faq">
+      <details class="reveal"><summary>Нужно ли гостям что-то устанавливать?</summary><p>Нет. Гости сканируют QR-код камерой телефона — открывается веб-приложение прямо в браузере. Работает на Android и iOS без установки.</p></details>
+      <details class="reveal"><summary>Можно ли попробовать бесплатно?</summary><p>Да. Тариф «Пробный» — до 5 гостей и 14 дней хранения. Оплата не требуется, банковская карта не запрашивается.</p></details>
+      <details class="reveal"><summary>Сколько кадров у каждого гостя?</summary><p>По умолчанию 30 кадров на гостя. Можно расширить до 45 за +5&nbsp;₽ на гостя. Общее число кадров = число гостей × кадров на гостя.</p></details>
+      <details class="reveal"><summary>Что происходит с фото после события?</summary><p>Альбом открывается для всех гостей в момент завершения события. Оригиналы можно скачивать в течение срока хранения тарифа. Хранение можно продлить отдельным платежом.</p></details>
+      <details class="reveal"><summary>Как принимаются платежи?</summary><p>Через ЮKassa — банковские карты (Visa, MasterCard, МИР) или СБП. Валюта — рубль. Возврат — по оферте и Закону о защите прав потребителей.</p></details>
+      <details class="reveal"><summary>Где хранятся снимки?</summary><p>На серверах в России. Автоматическое удаление в конце срока тарифа.</p></details>
+      <details class="reveal"><summary>Можно ли удалить чужое фото из альбома?</summary><p>Организатор может скрыть любой снимок из общего альбома. Гость управляет только своими кадрами.</p></details>
+      <details class="reveal"><summary>Работает ли без интернета?</summary><p>Гостям нужен интернет во время съёмки. При потере связи снимки сохраняются локально и догружаются, когда сеть вернётся.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═════ COMPACT REQUISITES ═════ -->
+<section class="section" id="contact" style="padding:clamp(40px,5vw,64px) 0">
+  <div class="container-narrow">
+    <div class="req-compact reveal">
+      <div>
+        <div class="label" style="margin-bottom:8px">Реквизиты</div>
+        <div class="req-c-fio">Ильченко Илья Дмитриевич</div>
+        <div class="req-c-meta">Самозанятый (НПД), ИНН 400707183208, г. Москва</div>
+      </div>
+      <div class="req-c-right">
+        <a href="/offer.html">Оферта</a>
+        <a href="/privacy.html">Политика</a>
+        <a href="/consent.html">Согласие ПД</a>
+        <a href="/pricing.html">Тарифы</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="container">
+    <div class="row">
+      <a href="/about.html" class="brand">
+        <img src="/brand/im-mark-F.svg" alt="" class="brand-mark" width="38" height="38">
+        <span class="brand-word">Impo<em>Mento</em></span>
+      </a>
+      <div class="links">
+        <a href="/pricing.html">Тарифы</a>
+        <a href="/offer.html">Оферта</a>
+        <a href="/privacy.html">Политика</a>
+        <a href="/consent.html">Согласие ПД</a>
+        <a href="/content-rules.html">Правила</a>
+      </div>
+    </div>
+    <div class="row">
+      <div class="copy">© 2026, Ильченко&nbsp;И.&nbsp;Д., ИНН&nbsp;400707183208, НПД</div>
+      <div class="copy">Оплата — <a href="https://yookassa.ru" target="_blank" rel="noopener" style="color:var(--amber-warm); text-decoration:underline">ЮKassa</a></div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var nav=document.getElementById('nav');
+    var bar=document.getElementById('progress');
+    if(!nav) return;
+    var hero=document.querySelector('.hero');
+    function update(){
+      var h=document.documentElement;
+      var scrolled=h.scrollTop;
+      var max=h.scrollHeight-h.clientHeight;
+      if(bar) bar.style.width=max>0?(scrolled/max*100)+'%':'0';
+      var heroBottom=hero?hero.offsetHeight-100:500;
+      if(scrolled>heroBottom) nav.classList.add('paper'); else nav.classList.remove('paper');
+    }
+    document.addEventListener('scroll',update,{passive:true});
+    update();
+  })();
+
+  (function(){
+    if(!('IntersectionObserver' in window)){
+      document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in') });
+      return;
+    }
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    },{threshold:0.12,rootMargin:'0px 0px -60px 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el) });
+  })();
+
+  // Sphere coverflow — каждый слайд на дуге сферы; угол пересчитывается по ширине слайда
+  (function(){
+    var slider = document.getElementById('slider');
+    var stage = document.getElementById('sliderTrack');
+    var prev = document.getElementById('prevBtn');
+    var next = document.getElementById('nextBtn');
+    var dotsWrap = document.getElementById('sliderDots');
+    if (!slider || !stage) return;
+    var slides = Array.from(stage.querySelectorAll('.slider-slide'));
+    var N = slides.length;
+    var idx = 0;
+
+    slides.forEach(function(_, i){
+      var d = document.createElement('button');
+      d.setAttribute('aria-label', 'Слайд ' + (i+1));
+      d.addEventListener('click', function(){ goTo(i, true) });
+      dotsWrap.appendChild(d);
+    });
+    var dots = dotsWrap.querySelectorAll('button');
+
+    function apply(){
+      var realIdx = ((idx % N) + N) % N;
+      slides.forEach(function(s, i){
+        var d = i - realIdx;
+        if (d > N/2) d -= N;
+        if (d < -N/2) d += N;
+        // Только фиксированные CSS-классы — никакой JS-математики
+        s.classList.remove('pos-active','pos-prev','pos-next','pos-hidden');
+        if (d === 0) s.classList.add('pos-active');
+        else if (d === -1) s.classList.add('pos-prev');
+        else if (d === 1) s.classList.add('pos-next');
+        else s.classList.add('pos-hidden');
+        s.classList.toggle('active', d === 0);
+      });
+      dots.forEach(function(d, i){ d.classList.toggle('active', i === realIdx) });
+    }
+
+    function goTo(n, direct){
+      if (direct){
+        var current = ((idx % N) + N) % N;
+        var diff = n - current;
+        if (diff > N/2) diff -= N;
+        if (diff < -N/2) diff += N;
+        idx += diff;
+      } else { idx = n; }
+      apply();
+    }
+
+    prev && prev.addEventListener('click', function(){ goTo(idx - 1) });
+    next && next.addEventListener('click', function(){ goTo(idx + 1) });
+    window.addEventListener('resize', apply);
+    setTimeout(apply, 50);
+
+    // Click по слайду — переход к нему
+    slides.forEach(function(s, i){
+      s.style.cursor = 'pointer';
+      s.addEventListener('click', function(){ goTo(i, true) });
+    });
+
+    // Swipe (touch + mouse drag)
+    var startX = null, dragging = false, dragDist = 0;
+    function onStart(x){ startX = x; dragging = true; dragDist = 0; }
+    function onMove(x){ if(!dragging) return; dragDist = x - startX; }
+    function onEnd(){
+      if(!dragging) return;
+      dragging = false;
+      var threshold = 40;
+      if (dragDist > threshold) goTo(idx - 1);
+      else if (dragDist < -threshold) goTo(idx + 1);
+      startX = null; dragDist = 0;
+    }
+    slider.addEventListener('touchstart', function(e){ onStart(e.touches[0].clientX) }, {passive:true});
+    slider.addEventListener('touchmove', function(e){ onMove(e.touches[0].clientX) }, {passive:true});
+    slider.addEventListener('touchend', onEnd);
+    slider.addEventListener('mousedown', function(e){ e.preventDefault(); onStart(e.clientX) });
+    window.addEventListener('mousemove', function(e){ onMove(e.clientX) });
+    window.addEventListener('mouseup', onEnd);
+    // Keyboard навигация
+    slider.setAttribute('tabindex', '0');
+    slider.addEventListener('keydown', function(e){
+      if (e.key === 'ArrowLeft') goTo(idx - 1);
+      else if (e.key === 'ArrowRight') goTo(idx + 1);
+    });
+  })();
+
+  // Parallax полароидов hero
+  (function(){
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+    var polaroids = document.querySelectorAll('.wall .p');
+    if (!polaroids.length) return;
+    var hero = document.querySelector('.hero');
+    var ticking = false;
+    function onScroll(){
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function(){
+        var y = window.pageYOffset;
+        var heroH = hero ? hero.offsetHeight : window.innerHeight;
+        if (y > heroH) { ticking = false; return; }
+        polaroids.forEach(function(p, i){
+          var depth = (i % 3 - 1) * 0.12;
+          p.style.translate = '0 ' + (y * depth) + 'px';
+        });
+        ticking = false;
+      });
+    }
+    document.addEventListener('scroll', onScroll, {passive:true});
+  })();
+</script>
+
+</body>
+</html>

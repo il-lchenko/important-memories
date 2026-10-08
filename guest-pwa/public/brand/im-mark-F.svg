@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ringG" x1="92" y1="60" x2="430" y2="462" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBDC95"/><stop offset=".28" stop-color="#F0BC5C"/>
+      <stop offset=".52" stop-color="#D89A31"/><stop offset=".78" stop-color="#A96E18"/><stop offset="1" stop-color="#6E4A10"/>
+    </linearGradient>
+    <radialGradient id="glowG" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#FFD07A" stop-opacity=".65"/>
+      <stop offset=".34" stop-color="#FF9E33" stop-opacity=".28"/>
+      <stop offset=".68" stop-color="#F2851C" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#F2851C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sparkG" x1="256" y1="118" x2="256" y2="392" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE7B4"/><stop offset=".42" stop-color="#FFB84A"/><stop offset="1" stop-color="#D98A22"/>
+    </linearGradient>
+  </defs>
+  <rect x="66" y="66" width="380" height="380" rx="88" fill="none" stroke="url(#ringG)" stroke-width="10"/>
+  <circle cx="256" cy="256" r="138" fill="url(#glowG)"/>
+  <path d="M256 118 C264.5 214,298 247.5,394 256 C298 264.5,264.5 298,256 394 C247.5 298,214 264.5,118 256 C214 247.5,247.5 214,256 118 Z" fill="url(#sparkG)"/>
+</svg>

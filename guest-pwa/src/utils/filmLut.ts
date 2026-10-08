@@ -108,7 +108,12 @@ function getNoiseTile(): HTMLCanvasElement {
   return c
 }
 
-export async function preloadFilmLUT(_preset: string): Promise<void> { /* curves are sync */ }
+export async function preloadFilmLUT(_preset: string): Promise<void> {
+  // Прогрев Web Worker'а — cold start Worker + импорт модуля стоит ~500-1500ms
+  // на первом снимке. Вызываем getWorker() заранее (при монтаже камеры), чтобы
+  // первый capture был так же быстр как последующие.
+  getWorker()
+}
 
 // ─── Web Worker offload (main pixel loop) ────────────────────────────────────
 // LUT-фаза раньше блокировала main thread на 2–4с для кадра 2560px. Теперь

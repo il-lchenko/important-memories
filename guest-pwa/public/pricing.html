@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Тарифы — ImpoMento</title>
+<meta name="description" content="Оплата один раз за событие. От бесплатного тарифа до 250 гостей.">
+<meta name="theme-color" content="#F6F2E8">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister() }) });
+    if ('caches' in window) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k) }) });
+  }
+</script>
+
+<style>
+  :root{
+    --paper:#F6F2E8; --paper-2:#FCFAF5; --paper-3:#EFE9DA;
+    --ink:#1A1714; --ink-2:#45403A; --ink-3:#756E64;
+    --line:rgba(26,23,20,0.10); --line-2:rgba(26,23,20,0.05);
+    --amber:#C9881E; --amber-2:#B0741A; --amber-3:#9A6412;
+    --amber-warm:#FFB84A;
+    --amber-soft:rgba(201,136,30,0.08);
+    --darkroom:#16100C;
+    --r:10px;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',system-ui,sans-serif; font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased}
+  a{color:inherit; text-decoration:none}
+  img{display:block; max-width:100%; height:auto}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:500; letter-spacing:-0.01em; margin:0}
+  em.italic{font-style:italic; color:var(--amber-3); font-weight:500}
+  :focus-visible{outline:2px solid var(--amber-2); outline-offset:3px; border-radius:4px}
+  .container{width:100%; max-width:960px; margin:0 auto; padding:0 clamp(20px,4vw,32px)}
+
+  /* NAV */
+  nav.top{position:sticky; top:0; z-index:60; background:rgba(246,242,232,0.92); backdrop-filter:saturate(160%) blur(14px); -webkit-backdrop-filter:saturate(160%) blur(14px); border-bottom:1px solid var(--line-2)}
+  nav.top .row{display:flex; align-items:center; justify-content:space-between; gap:16px; height:60px}
+  .brand{display:inline-flex; align-items:center; gap:10px; color:inherit}
+  .brand-mark{width:32px; height:32px; flex:0 0 32px}
+  .brand-word{font-family:'Fraunces',serif; font-weight:600; font-size:19px; letter-spacing:-0.015em; line-height:1}
+  .brand-word em{font-style:normal; color:var(--amber)}
+  nav.top .cta{display:inline-flex; align-items:center; gap:6px; padding:8px 16px; background:var(--ink); color:var(--paper); border-radius:999px; font-size:13px; font-weight:500; transition:background .2s, transform .15s}
+  nav.top .cta:hover{background:var(--amber-2); transform:translateY(-1px)}
+  nav.top .cta svg{width:12px; height:12px}
+
+  /* HEAD */
+  .head{padding:clamp(48px,6vw,80px) 0 clamp(32px,4vw,44px); text-align:center}
+  .head .label{font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--amber-3); margin-bottom:12px; display:inline-block}
+  .head h1{font-size:clamp(28px,3.2vw,40px); line-height:1.1; font-weight:500; margin:0 0 12px}
+  .head p{font-size:15px; color:var(--ink-2); max-width:500px; margin:0 auto; line-height:1.5}
+
+  /* TIERS — компактная таблица */
+  .tiers{padding:0 0 clamp(48px,6vw,72px)}
+  .tiers-table{background:var(--paper-2); border:1px solid var(--line); border-radius:14px; overflow:hidden}
+  .row-t{display:grid; grid-template-columns:1.4fr 0.6fr 0.7fr 0.8fr 0.9fr; gap:16px; padding:14px 22px; align-items:center; border-bottom:1px solid var(--line-2); transition:background .15s}
+  .row-t:last-child{border-bottom:none}
+  .row-t:not(.head-row):hover{background:var(--paper-3)}
+  .head-row{background:var(--paper-3); font-size:10.5px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-2); padding:11px 22px}
+  .name{font-family:'Fraunces',serif; font-size:16px; font-weight:500; color:var(--ink)}
+  .name.free{font-style:italic; color:var(--amber-3)}
+  .num{font-size:13.5px; color:var(--ink-2); font-variant-numeric:tabular-nums}
+  .price{font-family:'Fraunces',serif; font-size:17px; font-weight:500; text-align:right; font-variant-numeric:tabular-nums; color:var(--ink)}
+  .price.free{color:var(--amber-3); font-style:italic}
+  .row-t.popular{background:linear-gradient(90deg, var(--amber-soft), transparent 65%); position:relative}
+  .row-t.popular .name::before{content:"хит"; margin-right:10px; padding:2px 8px; background:var(--amber); color:var(--paper); border-radius:99px; font-size:9.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; font-family:'Inter',sans-serif; vertical-align:2px}
+
+  @media (max-width:720px){
+    .row-t{grid-template-columns:1fr auto; gap:4px 12px; padding:14px 18px}
+    .head-row{display:none}
+    .name{grid-column:1; font-size:15px}
+    .price{grid-column:2; grid-row:1; font-size:16px}
+    .row-t .num{grid-column:1 / -1; font-size:12.5px; color:var(--ink-3)}
+    .num-hide{display:none}
+  }
+
+  .note{margin-top:20px; padding:16px 20px; background:var(--paper-2); border:1px dashed var(--line); border-radius:10px; font-size:13.5px; color:var(--ink-2); line-height:1.55}
+  .note strong{color:var(--ink); font-weight:600}
+
+  /* EXT */
+  .ext{padding:clamp(40px,5vw,64px) 0; background:var(--paper-2); border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+  .ext .head-e{text-align:center; max-width:460px; margin:0 auto 28px}
+  .ext .head-e .label{font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:var(--amber-3); margin-bottom:10px; display:inline-block}
+  .ext .head-e h2{font-size:clamp(22px,2.2vw,30px); line-height:1.15; font-weight:500; margin:0 0 8px}
+  .ext .head-e p{font-size:14px; color:var(--ink-2)}
+  .ext-list{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; max-width:640px; margin:0 auto}
+  .ext-c{background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:18px 20px; text-align:center; transition:transform .2s, border-color .2s}
+  .ext-c:hover{transform:translateY(-2px); border-color:var(--amber)}
+  .ext-c .p{font-family:'Fraunces',serif; font-size:17px; font-weight:500; color:var(--ink-2); margin-bottom:4px}
+  .ext-c .v{font-family:'Fraunces',serif; font-size:22px; font-weight:500; color:var(--amber-3); font-variant-numeric:tabular-nums}
+  @media (max-width:520px){ .ext-list{grid-template-columns:1fr} }
+
+  /* Back */
+  .back{padding:clamp(40px,5vw,60px) 0; text-align:center}
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:11px 22px; min-height:42px; border-radius:999px; font-family:'Inter',sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:transform .18s ease, background .25s; border:1px solid transparent; background:var(--ink); color:var(--paper)}
+  .btn:hover{background:var(--amber-2); transform:translateY(-1px)}
+  .btn svg{width:14px; height:14px}
+
+  /* FOOTER */
+  /* Как получить услугу */
+  .delivery{padding:clamp(28px,4vw,48px) 0; background:var(--paper-2); border-top:1px solid var(--line-2)}
+  .delivery .label{font-size:12px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-3); margin-bottom:10px}
+  .delivery h2{font-size:clamp(22px,2.4vw,30px); line-height:1.15; margin:0 0 18px}
+  .deliv-list{margin:0 0 14px; padding-left:22px; font-size:15px; color:var(--ink-2); line-height:1.6}
+  .deliv-list li{margin-bottom:6px}
+  .deliv-list li::marker{color:var(--amber-2); font-weight:600}
+  .deliv-meta{font-size:13.5px; color:var(--ink-3); margin:0}
+  .deliv-meta a{color:var(--amber-3); text-decoration:underline; text-underline-offset:3px}
+
+  footer.foot{padding:clamp(32px,4vw,48px) 0 clamp(20px,3vw,32px); background:var(--darkroom); color:rgba(246,242,232,0.7)}
+  footer.foot .brand-word{color:var(--paper)}
+  footer.foot .brand-word em{color:var(--amber-warm)}
+  footer.foot .row{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  footer.foot .links{display:flex; gap:18px; font-size:13px; flex-wrap:wrap}
+  footer.foot .links a{color:rgba(246,242,232,0.65); transition:color .2s}
+  footer.foot .links a:hover{color:var(--amber-warm)}
+  footer.foot .copy{font-size:12px; color:rgba(246,242,232,0.5); line-height:1.6}
+  footer.foot .row + .row{margin-top:18px; padding-top:18px; border-top:1px solid rgba(246,242,232,0.1)}
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="container row">
+    <a href="/about.html" class="brand" aria-label="ImpoMento">
+      <img src="/brand/im-mark-F.svg" alt="" class="brand-mark" width="32" height="32">
+      <span class="brand-word">Impo<em>Mento</em></span>
+    </a>
+    <a href="/ImpoMento.apk" class="cta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      Скачать
+    </a>
+  </div>
+</nav>
+
+<header class="head">
+  <div class="container">
+    <div class="label">Тарифы</div>
+    <h1>Один платёж — <em class="italic">одно событие</em></h1>
+    <p>Оплата один раз, за конкретное событие. Никаких подписок. Пробный тариф — бесплатно.</p>
+  </div>
+</header>
+
+<section class="tiers">
+  <div class="container">
+    <div class="tiers-table">
+      <div class="row-t head-row">
+        <span>Тариф</span>
+        <span>Гостей</span>
+        <span class="num-hide">Кадров</span>
+        <span>Хранение</span>
+        <span style="text-align:right">Цена</span>
+      </div>
+      <div class="row-t"><span class="name free">Пробный</span><span class="num">5</span><span class="num num-hide">150</span><span class="num">14 дней</span><span class="price free">0&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Мини</span><span class="num">10</span><span class="num num-hide">300</span><span class="num">30 дней</span><span class="price">249&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Малый</span><span class="num">25</span><span class="num num-hide">750</span><span class="num">60 дней</span><span class="price">449&nbsp;₽</span></div>
+      <div class="row-t popular"><span class="name">Стандарт</span><span class="num">50</span><span class="num num-hide">1&nbsp;500</span><span class="num">90 дней</span><span class="price">1&nbsp;290&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Плюс</span><span class="num">75</span><span class="num num-hide">2&nbsp;250</span><span class="num">90 дней</span><span class="price">1&nbsp;990&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Расширенный</span><span class="num">100</span><span class="num num-hide">3&nbsp;000</span><span class="num">120 дней</span><span class="price">2&nbsp;990&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Большой</span><span class="num">150</span><span class="num num-hide">4&nbsp;500</span><span class="num">150 дней</span><span class="price">4&nbsp;490&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Крупный</span><span class="num">175</span><span class="num num-hide">5&nbsp;250</span><span class="num">180 дней</span><span class="price">5&nbsp;490&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Премиум</span><span class="num">200</span><span class="num num-hide">6&nbsp;000</span><span class="num">180 дней</span><span class="price">6&nbsp;290&nbsp;₽</span></div>
+      <div class="row-t"><span class="name">Максимум</span><span class="num">250</span><span class="num num-hide">7&nbsp;500</span><span class="num">240 дней</span><span class="price">7&nbsp;690&nbsp;₽</span></div>
+    </div>
+
+    <div class="note">
+      <strong>Больше 250 гостей?</strong> Стоимость считается по формуле: 7&nbsp;690&nbsp;₽ + 30&nbsp;₽ за каждого гостя сверх 250 (до 2&nbsp;000).<br>
+      <strong>Расширение кадров:</strong> базово 30 на гостя, можно расширить до 45 за +5&nbsp;₽ на гостя.
+    </div>
+  </div>
+</section>
+
+<section class="ext">
+  <div class="container">
+    <div class="head-e">
+      <div class="label">Продление хранения</div>
+      <h2>Оставить альбом <em class="italic">подольше</em></h2>
+      <p>По окончании срока тарифа хранение продлевается отдельным платежом.</p>
+    </div>
+    <div class="ext-list">
+      <div class="ext-c"><div class="p">3 месяца</div><div class="v">490&nbsp;₽</div></div>
+      <div class="ext-c"><div class="p">6 месяцев</div><div class="v">790&nbsp;₽</div></div>
+      <div class="ext-c"><div class="p">1 год</div><div class="v">1&nbsp;290&nbsp;₽</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="delivery" id="delivery">
+  <div class="container">
+    <div class="label">Как оформить и получить услугу</div>
+    <h2>Цифровая <em class="italic">доставка</em></h2>
+    <ol class="deliv-list">
+      <li>Установите приложение ImpoMento (Android) или откройте PWA-версию на <a href="https://impomento.pro">impomento.pro</a>.</li>
+      <li>Выберите тариф из списка выше и создайте событие в приложении.</li>
+      <li>Оплатите тариф через ЮKassa — банковской картой (Visa, MasterCard, МИР) или через СБП.</li>
+      <li>Доступ к оплаченному функционалу открывается автоматически после подтверждения оплаты.</li>
+      <li>Физическая доставка не требуется. Услуга оказывается удалённо в электронном виде.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="delivery" id="payment-methods" style="background:var(--paper);border-top:1px solid var(--line-2);">
+  <div class="container">
+    <div class="label">Способы оплаты</div>
+    <h2>Все популярные <em class="italic">методы</em></h2>
+    <ul class="deliv-list" style="list-style:disc;">
+      <li><strong>Банковские карты</strong> Visa, MasterCard, МИР — через защищённую форму ЮKassa.</li>
+      <li><strong>СБП</strong> (Система быстрых платежей) — оплата по QR-коду через любой банк-участник.</li>
+    </ul>
+    <p class="deliv-meta">Все платежи проводятся через сертифицированный сервис <a href="https://yookassa.ru" target="_blank" rel="noopener">ЮKassa</a>. Данные карт не сохраняются на нашей стороне. Валюта расчётов — российский рубль.</p>
+  </div>
+</section>
+
+<section class="delivery" id="refund" style="background:var(--paper-2);border-top:1px solid var(--line-2);">
+  <div class="container">
+    <div class="label">Возврат средств</div>
+    <h2>Прозрачные <em class="italic">правила</em></h2>
+    <ul class="deliv-list" style="list-style:disc;">
+      <li><strong>До активации события</strong> (пока событие не запущено и гости не подключились): полный возврат оплаты по заявке в течение 10 рабочих дней.</li>
+      <li><strong>После активации события</strong>: возврат по заявке при технических неполадках, не позволивших воспользоваться услугой. Рассматривается индивидуально в течение 10 рабочих дней.</li>
+      <li><strong>Продление хранения</strong> возврату не подлежит после активации, так как услуга начинает предоставляться сразу.</li>
+    </ul>
+    <p class="deliv-meta">Заявку на возврат отправляйте на <a href="mailto:support@impomento.pro">support@impomento.pro</a> с указанием ID события и причины. Возврат производится на карту/счёт, с которых была произведена оплата.<br>Полные условия — в <a href="/offer.html">оферте</a> и в соответствии с Законом РФ «О защите прав потребителей».</p>
+  </div>
+</section>
+
+<section class="delivery" id="support" style="background:var(--paper);border-top:1px solid var(--line-2);">
+  <div class="container">
+    <div class="label">Поддержка и контакты</div>
+    <h2>Связаться <em class="italic">с нами</em></h2>
+    <ul class="deliv-list" style="list-style:none;padding-left:0;">
+      <li><strong>Email:</strong> <a href="mailto:support@impomento.pro">support@impomento.pro</a> — вопросы по услуге, оплате, возвратам.</li>
+      <li><strong>Время ответа:</strong> в течение 24 часов в рабочие дни (пн-пт, 10:00-19:00 МСК).</li>
+      <li><strong>Исполнитель услуги:</strong> Ильченко Илья Дмитриевич, самозанятый (НПД), ИНН 400707183208, г. Москва.</li>
+      <li><strong>Юридические документы:</strong> <a href="/offer.html">Публичная оферта</a> · <a href="/privacy.html">Политика конфиденциальности</a> · <a href="/consent.html">Согласие на обработку ПД</a> · <a href="/content-rules.html">Правила пользовательского контента</a>.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="back">
+  <div class="container">
+    <a href="/about.html" class="btn">← На главную</a>
+  </div>
+</section>
+
+<footer class="foot">
+  <div class="container">
+    <div class="row">
+      <a href="/about.html" class="brand">
+        <img src="/brand/im-mark-F.svg" alt="" class="brand-mark" width="32" height="32">
+        <span class="brand-word">Impo<em>Mento</em></span>
+      </a>
+      <div class="links">
+        <a href="/offer.html">Оферта</a>
+        <a href="/privacy.html">Политика</a>
+        <a href="/consent.html">Согласие ПД</a>
+        <a href="/content-rules.html">Правила</a>
+      </div>
+    </div>
+    <div class="row">
+      <div class="copy">© 2026, Ильченко&nbsp;И.&nbsp;Д., ИНН&nbsp;400707183208</div>
+      <div class="copy">Оплата — <a href="https://yookassa.ru" target="_blank" rel="noopener" style="color:var(--amber-warm); text-decoration:underline">ЮKassa</a></div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

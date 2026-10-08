@@ -2,7 +2,7 @@
   "name": "Important Memories",
   "short_name": "Impomento",
   "description": "Одноразовая плёночная камера для событий",
-  "start_url": "/",
+  "start_url": "/join",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

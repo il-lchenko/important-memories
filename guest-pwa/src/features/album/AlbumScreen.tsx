@@ -111,14 +111,18 @@ const FILM_GRADS: [string, string, string][] = [
 ]
 
 // ── FrameImage ──────────────────────────────────────────────────────────────
-// В сетках используем preview_url (2560px) → full_url. thumbnail_url (маленький)
-// давал заметное падение качества на полароид/журнал/ретро — отказались.
+// Сетки альбома: thumbnail_url (800px q=88, ~100 KB) → preview_url (1600px, ~300 KB) → full_url.
+// Раньше thumbnail был 400px и терял качество на полароид/журнал/ретро — теперь 800px.
+// Оригинал (full_url, ~4000px q=92) остаётся для скачивания.
 function FrameImage({ frame, fallbackIndex }: { frame: Frame | null; fallbackIndex: number }) {
+  const [thumbFailed, setThumbFailed] = useState(false)
   const [previewFailed, setPreviewFailed] = useState(false)
   const rotation = frame?.rotation ?? 0
-  const url = (previewFailed || !frame?.preview_url)
-    ? (frame?.full_url ?? null)
-    : frame.preview_url
+  const url = (!thumbFailed && frame?.thumbnail_url)
+    ? frame.thumbnail_url
+    : (!previewFailed && frame?.preview_url)
+      ? frame.preview_url
+      : (frame?.full_url ?? null)
   const grad = FILM_GRADS[fallbackIndex % FILM_GRADS.length]
   const rotStyle: React.CSSProperties = rotation
     ? { transform: `rotate(${rotation}deg)`, transformOrigin: 'center' }
@@ -130,8 +134,10 @@ function FrameImage({ frame, fallbackIndex }: { frame: Frame | null; fallbackInd
         src={url}
         alt=""
         loading="lazy"
+        decoding="async"
         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...rotStyle }}
         onError={() => {
+          if (!thumbFailed && frame?.thumbnail_url) { setThumbFailed(true); return }
           if (!previewFailed && frame?.preview_url) setPreviewFailed(true)
         }}
       />

@@ -28,15 +28,18 @@ except ImportError:
 # (мобилки редко дают >12 MP; профессиональная камера — DSLR — не через галерею).
 _UPLOAD_MP_CAP = 12_000_000
 
-# Target thumbnail dimensions per format (w × h)
+# Target thumbnail dimensions per format (w × h).
+# 800×1066 в WebP q=85 (~60-90 KB): визуально идентично JPEG q=90 при 2× меньше
+# размере — критично для mobile 3G/4G где каждые 50 KB заметны.
 _THUMB_SIZES: dict[PhotoFormat, tuple[int, int]] = {
-    PhotoFormat.PORTRAIT_34:  (400, 533),
-    PhotoFormat.LANDSCAPE_43: (533, 400),
+    PhotoFormat.PORTRAIT_34:  (800, 1066),
+    PhotoFormat.LANDSCAPE_43: (1066, 800),
 }
 _THUMB_RATIOS: dict[PhotoFormat, float] = {
     PhotoFormat.PORTRAIT_34:  3 / 4,
     PhotoFormat.LANDSCAPE_43: 4 / 3,
 }
+_THUMB_QUALITY = 85
 
 # Film presets — same parameters as filmLut.ts / film_lut.dart (color pipeline only, no grain/halation).
 # Смягчены ~40% от исходной «жёсткой» версии — фильм узнаваем, но не выкручен.
@@ -171,24 +174,25 @@ def _thumbnail_key(s3_key: str) -> str:
         base, _, name = s3_key.rpartition("/")
         base = base.replace("/frames", "/thumbs")
         stem = name.rsplit(".", 1)[0]
-        return f"{base}/{stem}.jpg"
-    return s3_key + ".thumb.jpg"
+        return f"{base}/{stem}.webp"
+    return s3_key + ".thumb.webp"
 
 
 def _preview_key(s3_key: str) -> str:
-    """Preview 1600px key for gallery — replaces /frames/ with /previews/."""
+    """Preview key for gallery — WebP формат, размер 1280px."""
     if "/frames/" in s3_key:
         base, _, name = s3_key.rpartition("/")
         base = base.replace("/frames", "/previews")
         stem = name.rsplit(".", 1)[0]
-        return f"{base}/{stem}.jpg"
-    return s3_key + ".preview.jpg"
+        return f"{base}/{stem}.webp"
+    return s3_key + ".preview.webp"
 
 
-# Preview: max side 2560px, JPEG q=92. Клиент уже шлёт файл ~2560px q=92 —
-# preview должен соответствовать, иначе полноэкран/полароид покажет сжатую версию.
-_PREVIEW_MAX_SIDE = 2560
-_PREVIEW_QUALITY = 92
+# Preview: max side 1280px (HD+), WebP q=85 (~150-250 KB). В 2-3× меньше JPEG
+# при том же visual quality — критично для мобильного 3G/4G. Оригинал 4000px q=93
+# остаётся в s3_key для скачивания в полном качестве.
+_PREVIEW_MAX_SIDE = 1280
+_PREVIEW_QUALITY = 85
 
 
 def _center_crop(img: Image.Image, ratio: float) -> Image.Image:
@@ -303,7 +307,7 @@ async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> N
                 thumb_img = _center_crop(raw, crop_ratio)
                 thumb_img = thumb_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
                 tbuf = BytesIO()
-                thumb_img.save(tbuf, format="JPEG", quality=88, optimize=True)
+                thumb_img.save(tbuf, format="WEBP", quality=_THUMB_QUALITY, method=4)
                 thumb_bytes = tbuf.getvalue()
 
                 # Preview 1600px on the longer side — used in fullscreen album view.
@@ -319,13 +323,13 @@ async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> N
                 else:
                     preview_img = raw.copy()
                 pbuf = BytesIO()
-                preview_img.save(pbuf, format="JPEG", quality=_PREVIEW_QUALITY, optimize=True)
+                preview_img.save(pbuf, format="WEBP", quality=_PREVIEW_QUALITY, method=4)
                 preview_bytes = pbuf.getvalue()
 
             thumb_key = _thumbnail_key(frame.s3_key)
             preview_key = _preview_key(frame.s3_key)
-            s3_client.upload_bytes(thumb_key, thumb_bytes, "image/jpeg")
-            s3_client.upload_bytes(preview_key, preview_bytes, "image/jpeg")
+            s3_client.upload_bytes(thumb_key, thumb_bytes, "image/webp")
+            s3_client.upload_bytes(preview_key, preview_bytes, "image/webp")
             frame.thumbnail_url = thumb_key
             frame.preview_url = preview_key
             frame.status = FrameStatus.UPLOADED

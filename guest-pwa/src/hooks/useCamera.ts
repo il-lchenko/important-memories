@@ -131,8 +131,26 @@ export function useCamera() {
     const video = videoRef.current
     if (!video) return null
 
-    const vw = video.videoWidth
-    const vh = video.videoHeight
+    // ImageCapture.takePhoto() — реальный snapshot с сенсора (не video frame).
+    // grabFrame() возвращает лишь текущий кадр video-потока (motion blur, 30fps quality) —
+    // это оказалось хуже. takePhoto() медленнее, но даёт настоящую фотографию.
+    // Поддержка: Chrome/Firefox Android. Fallback на drawImage(video) для iOS Safari.
+    let photoBitmap: ImageBitmap | null = null
+    try {
+      const track = streamRef.current?.getVideoTracks()[0]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const IC = (globalThis as any).ImageCapture
+      if (track && IC) {
+        const ic = new IC(track)
+        const photoBlob: Blob | null = await ic.takePhoto().catch(() => null)
+        if (photoBlob) {
+          photoBitmap = await createImageBitmap(photoBlob).catch(() => null)
+        }
+      }
+    } catch { /* fallback to video frame */ }
+
+    const vw = photoBitmap?.width ?? video.videoWidth
+    const vh = photoBitmap?.height ?? video.videoHeight
 
     const streamIsLandscape = vw > vh
     const targetIsLandscape = targetRatio > 1
@@ -175,6 +193,7 @@ export function useCamera() {
     canvas.height = outH
     const ctx = canvas.getContext('2d')!
     ctx.imageSmoothingEnabled = true
+    // 'high' — bicubic resample, критично для качества при downscale больших фото.
     ctx.imageSmoothingQuality = 'high'
     // scale ПЕРЕД translate/rotate: значения ниже пишутся в «оригинальных»
     // координатах (sw, sh, cropW, cropH), а браузер бесплатно ресайзит при выводе.
@@ -204,7 +223,7 @@ export function useCamera() {
           ctx.rotate(-Math.PI / 2)
         }
       }
-      ctx.drawImage(video, origSx, origSy, cropW, cropH, 0, 0, cropW, cropH)
+      ctx.drawImage(photoBitmap ?? video, origSx, origSy, cropW, cropH, 0, 0, cropW, cropH)
     } else {
       // Stream и target ориентации совпадают — простой центр-кроп.
       // Раньше здесь была ветка isSecondaryLandscape с 180° поворотом
@@ -224,7 +243,7 @@ export function useCamera() {
         ctx.translate(sw, 0)
         ctx.scale(-1, 1)
       }
-      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
+      ctx.drawImage(photoBitmap ?? video, sx, sy, sw, sh, 0, 0, sw, sh)
     }
 
     // Apply film LUT to canvas pixels before encoding.
@@ -232,10 +251,15 @@ export function useCamera() {
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     await applyFilmLUT(ctx, outW, outH, lutPreset)
 
+    // Освобождаем bitmap (иначе течёт память на серии кадров).
+    if (photoBitmap) photoBitmap.close?.()
+
     return await new Promise<{ blob: Blob; width: number; height: number } | null>((resolve) => {
+      // q=0.93: балансировка скорости и качества. Ниже 0.90 виден компрессионный
+      // блочный артефакт («квадратно»); 0.95 медленнее и лишь чуть лучше.
       canvas.toBlob((b) => {
         resolve(b ? { blob: b, width: outW, height: outH } : null)
-      }, 'image/jpeg', 0.92)
+      }, 'image/jpeg', 0.93)
     })
   }, [])
 
