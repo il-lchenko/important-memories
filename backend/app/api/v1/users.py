@@ -19,6 +19,8 @@ class UserOut(BaseModel):
     email: str
     display_name: str | None
     avatar_url: str | None = None
+    is_admin: bool = False
+    referral_code: str | None = None
 
 
 class UserUpdateIn(BaseModel):
@@ -47,6 +49,8 @@ def _user_out(user) -> UserOut:
         email=user.email,
         display_name=user.display_name,
         avatar_url=avatar_url,
+        is_admin=user.is_admin,
+        referral_code=user.referral_code,
     )
 
 

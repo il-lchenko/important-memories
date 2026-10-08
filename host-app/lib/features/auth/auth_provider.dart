@@ -39,10 +39,13 @@ class Auth extends _$Auth {
   Future<void> verifyCode(String email, String code) async {
     final dio = ref.read(dioProvider);
     final fingerprint = await getDeviceFingerprint();
+    final prefs = await SharedPreferences.getInstance();
+    final refCode = prefs.getString('pending_ref_code');
     final resp = await dio.post('auth/email/verify', data: {
       'email': email,
       'code': code,
       'fingerprint': fingerprint,
+      if (refCode != null && refCode.isNotEmpty) 'ref_code': refCode,
     });
     // Валидируем ответ — при частичном/пустом теле не даём приложению крашнуться.
     final data = resp.data;
@@ -53,8 +56,8 @@ class Auth extends _$Auth {
     }
     await _storage.write(key: 'access_token',  value: access);
     await _storage.write(key: 'refresh_token', value: refresh);
-    final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_role', 'host');
+    await prefs.remove('pending_ref_code');
     state = const AsyncData(true);
     // Регистрируем FCM-токен на бэкенде (fire-and-forget).
     unawaited(PushService.registerAfterLogin(ref.read(dioProvider)));

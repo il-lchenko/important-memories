@@ -12,6 +12,11 @@ async def get_by_email(session: AsyncSession, email: str) -> User | None:
     return result.scalar_one_or_none()
 
 
+async def get_by_referral_code(session: AsyncSession, code: str) -> User | None:
+    result = await session.execute(select(User).where(User.referral_code == code.strip()))
+    return result.scalar_one_or_none()
+
+
 async def get_by_id(session: AsyncSession, user_id: UUID) -> User | None:
     return await session.get(User, user_id)
 

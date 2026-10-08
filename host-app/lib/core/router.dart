@@ -24,6 +24,9 @@ import '../features/album/screens/frame_detail_screen.dart';
 import '../features/memories/screens/memories_screen.dart';
 import '../features/memories/screens/memory_collection_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
+import '../features/profile/screens/referrals_screen.dart';
+import '../features/profile/screens/my_promocodes_screen.dart';
+import '../features/admin/screens/admin_promocodes_screen.dart';
 import 'widgets/main_shell.dart';
 import '../features/guest/screens/role_selection_screen.dart';
 import '../features/guest/screens/guest_entry_screen.dart';
@@ -163,6 +166,9 @@ GoRouter appRouter(Ref ref) {
         path: '/extend/:eventId',
         builder: (c, s) => ExtendStorageScreen(eventId: s.pathParameters['eventId']!),
       ),
+      GoRoute(path: '/profile/referrals',  builder: (c, s) => const ReferralsScreen()),
+      GoRoute(path: '/profile/promocodes', builder: (c, s) => const MyPromocodesScreen()),
+      GoRoute(path: '/admin/promocodes',   builder: (c, s) => const AdminPromocodesScreen()),
       GoRoute(path: '/dev',         builder: (c, s) => const DevScreen()),
 
       // Guest entry flow (public — no auth required)

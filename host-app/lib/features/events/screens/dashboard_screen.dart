@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/tokens.dart';
+import '../../auth/auth_provider.dart';
 import '../events_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -306,6 +307,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
+    final userAsync = ref.watch(currentUserProvider);
+    final isAdmin = userAsync.valueOrNull?['is_admin'] == true;
 
     return Scaffold(
       backgroundColor: AppColors.paper2,
@@ -313,6 +316,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (isAdmin)
+              Container(
+                width: double.infinity,
+                color: const Color(0xFFC9881E),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: const Text(
+                  'ADMIN MODE · платежи в обход',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF16100C),
+                  ),
+                ),
+              ),
             // Header: soft cream (paper) + subtle shadow below to separate from content.
             Container(
               width: double.infinity,

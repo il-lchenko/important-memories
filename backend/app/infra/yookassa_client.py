@@ -112,13 +112,20 @@ async def create_payment(
         logger.warning("yookassa_mock_mode", event_id=str(event_id), plan=plan)
         return _create_mock(amount_kopecks, idempotency_key)
 
-    return await asyncio.to_thread(
-        _create_real_sync,
-        amount_kopecks,
-        idempotency_key,
-        return_url,
-        description,
-        metadata,
-        user_email,
-        payment_method,
-    )
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                _create_real_sync,
+                amount_kopecks,
+                idempotency_key,
+                return_url,
+                description,
+                metadata,
+                user_email,
+                payment_method,
+            ),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError as exc:
+        logger.error("yookassa_timeout", event_id=str(event_id), plan=plan)
+        raise ExternalServiceError("YooKassa timeout") from exc

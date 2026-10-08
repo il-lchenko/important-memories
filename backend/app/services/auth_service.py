@@ -99,6 +99,7 @@ async def verify_otp(
     code: str,
     *,
     fingerprint: str | None = None,
+    ref_code: str | None = None,
 ) -> TokenOut:
     email = email.lower().strip()
     active = await email_code_repo.find_active(session, email)
@@ -124,6 +125,32 @@ async def verify_otp(
         linked = await guest_repo.backfill_user_id_by_fingerprint(
             session, fingerprint=fingerprint, user_id=user.id
         )
+
+    # Реферальная привязка + welcome-бонус — только для новых аккаунтов.
+    if is_new:
+        from app.services import promocode_service
+        try:
+            await promocode_service.ensure_unique_referral_code(session, user)
+        except Exception as exc:
+            logger.error("referral_code_gen_failed", user_id=str(user.id), error=str(exc))
+
+        if ref_code:
+            referrer = await user_repo.get_by_referral_code(session, ref_code.strip().upper())
+            if referrer is not None and referrer.id != user.id:
+                user.invited_by_user_id = referrer.id
+                try:
+                    await promocode_service.issue_welcome_bonus(session, user.id)
+                except Exception as exc:
+                    logger.error(
+                        "welcome_bonus_failed",
+                        user_id=str(user.id),
+                        error=str(exc),
+                    )
+                logger.info(
+                    "user_invited_by_referral",
+                    user_id=str(user.id),
+                    referrer_id=str(referrer.id),
+                )
 
     await session.commit()
 

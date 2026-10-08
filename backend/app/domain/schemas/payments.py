@@ -18,6 +18,7 @@ PaymentMethod = Literal["sbp", "bank_card", "yoo_money", "sberbank"]
 class CheckoutIn(BaseModel):
     plan: Plan
     payment_method: PaymentMethod | None = None
+    promocode: str | None = None
 
 
 class CheckoutOut(BaseModel):
@@ -26,6 +27,9 @@ class CheckoutOut(BaseModel):
     confirmation_url: str
     amount_kopecks: int
     currency: str = "RUB"
+    original_amount_kopecks: int | None = None
+    discount_kopecks: int = 0
+    admin_bypass: bool = False
 
 
 # Storage extension periods and their prices (kopecks) — see business plan v3.2 section 10.
@@ -35,6 +39,7 @@ ExtendPeriod = Literal["3m", "6m", "1y"]
 class ExtendIn(BaseModel):
     period: ExtendPeriod
     payment_method: PaymentMethod | None = None
+    promocode: str | None = None
 
 
 class ExtendOut(BaseModel):
@@ -46,6 +51,9 @@ class ExtendOut(BaseModel):
     period: ExtendPeriod
     new_expires_at: datetime
     days_added: int
+    original_amount_kopecks: int | None = None
+    discount_kopecks: int = 0
+    admin_bypass: bool = False
 
 
 UpgradeKind = Literal["guests", "frames"]
@@ -54,6 +62,7 @@ UpgradeKind = Literal["guests", "frames"]
 class UpgradeIn(BaseModel):
     kind: UpgradeKind
     payment_method: PaymentMethod | None = None
+    promocode: str | None = None
 
 
 class UpgradeOut(BaseModel):
@@ -66,3 +75,6 @@ class UpgradeOut(BaseModel):
     new_plan: str | None = None       # only for kind="guests"
     new_max_guests: int | None = None
     new_frames_per_guest: int | None = None  # only for kind="frames"
+    original_amount_kopecks: int | None = None
+    discount_kopecks: int = 0
+    admin_bypass: bool = False

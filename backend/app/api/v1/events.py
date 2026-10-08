@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, Query, UploadFile, File
+from fastapi import APIRouter, Header, HTTPException, Query, UploadFile, File
 from fastapi.responses import Response
 
 from app.api.deps import CurrentActor, CurrentUserId, SessionDep
@@ -139,6 +139,15 @@ async def complete_event(
     return await event_service.complete_event(session, user_id, event_id)
 
 
+def _require_idempotency_key(idempotency_key: str | None) -> str:
+    if not idempotency_key or not idempotency_key.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Idempotency-Key header is required for payment endpoints",
+        )
+    return idempotency_key.strip()
+
+
 @router.post("/{event_id}/checkout", response_model=CheckoutOut)
 async def create_checkout(
     event_id: UUID,
@@ -147,10 +156,11 @@ async def create_checkout(
     session: SessionDep,
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> CheckoutOut:
-    key = idempotency_key or str(uuid4())
+    key = _require_idempotency_key(idempotency_key)
     return await payment_service.create_checkout(
         session, user_id, event_id, payload.plan, key,
         payment_method=payload.payment_method,
+        promocode=payload.promocode,
     )
 
 
@@ -166,10 +176,11 @@ async def extend_storage(
 
     expires_at is updated only after webhook confirms the payment (see handle_webhook).
     """
-    key = idempotency_key or str(uuid4())
+    key = _require_idempotency_key(idempotency_key)
     return await payment_service.create_extend_checkout(
         session, user_id, event_id, payload.period, key,
         payment_method=payload.payment_method,
+        promocode=payload.promocode,
     )
 
 
@@ -187,10 +198,11 @@ async def upgrade_event(
     kind="frames" — extend frames_per_guest from 30 to 45 (+5 ₽/guest).
     Changes applied after webhook confirms payment.
     """
-    key = idempotency_key or str(uuid4())
+    key = _require_idempotency_key(idempotency_key)
     return await payment_service.create_upgrade_checkout(
         session, user_id, event_id, payload.kind, key,
         payment_method=payload.payment_method,
+        promocode=payload.promocode,
     )
 
 

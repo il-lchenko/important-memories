@@ -228,13 +228,6 @@ function ConsentStep({
   eventTitle: string; onBack: () => void; onNext: () => void;
   loading: boolean; error: string | null;
 }) {
-  const [offer, setOffer] = useState(false)
-  const [privacy, setPrivacy] = useState(false)
-  const [consent, setConsent] = useState(false)
-  const [rules, setRules] = useState(false)
-  const [age, setAge] = useState(false)
-  const allChecked = offer && privacy && consent && rules && age
-
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
       <button onClick={onBack} style={{ padding: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)', fontFamily: 'Inter, sans-serif', letterSpacing: '.04em', background: 'none', border: 'none', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}>
@@ -242,91 +235,25 @@ function ConsentStep({
         {eventTitle || 'Назад'}
       </button>
 
-      <div style={{ flex: 1, padding: '20px 24px 0', display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto' }}>
-        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
-          Шаг 2 из 2
-        </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.1, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
-          Немного<br />формальностей
+      <div style={{ flex: 1, padding: '32px 24px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0 }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.1, letterSpacing: '-.02em', margin: '0 0 16px' }}>
+          Почти всё готово
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 20px' }}>
-          Отметьте, что ознакомились с четырьмя документами. Каждый открывается по клику.
+        <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.55, margin: '0 0 12px' }}>
+          Нажимая «Продолжить», вы соглашаетесь с <a href="/terms" target="_blank" rel="noopener" style={{ color: 'var(--amber)', textDecoration: 'underline', textUnderlineOffset: 3 }}>условиями сервиса</a> и подтверждаете, что вам исполнилось 14 лет.
+        </p>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.5, margin: 0 }}>
+          Организатор события отвечает за приглашение гостей и обработку общего альбома.
         </p>
 
-        <ConsentRow
-          checked={offer} onToggle={() => setOffer(v => !v)}
-          title="Публичная оферта" subtitle="Условия использования сервиса"
-          link="/offer"
-        />
-        <ConsentRow
-          checked={privacy} onToggle={() => setPrivacy(v => !v)}
-          title="Политика конфиденциальности" subtitle="Какие данные мы обрабатываем"
-          link="/privacy"
-        />
-        <ConsentRow
-          checked={consent} onToggle={() => setConsent(v => !v)}
-          title="Согласие на обработку ПД" subtitle="Отдельный документ по 152-ФЗ"
-          link="/consent"
-        />
-        <ConsentRow
-          checked={rules} onToggle={() => setRules(v => !v)}
-          title="Правила пользовательского контента" subtitle="Что можно и нельзя загружать"
-          link="/content-rules"
-        />
-        <ConsentRow
-          checked={age} onToggle={() => setAge(v => !v)}
-          title="Мне исполнилось 14 лет" subtitle="Подтверждаю самостоятельно"
-        />
-
-        {error && <p style={{ color: 'var(--shutter)', fontSize: 13, marginTop: 8 }}>{error}</p>}
+        {error && <p style={{ color: 'var(--shutter)', fontSize: 13, marginTop: 12 }}>{error}</p>}
       </div>
 
       <div style={{ padding: '16px 20px', paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)', background: 'var(--paper)', flexShrink: 0 }}>
-        <button className="btn" onClick={onNext} disabled={loading || !allChecked}>
+        <button className="btn" onClick={onNext} disabled={loading}>
           {loading ? 'Сохраняем...' : 'Продолжить'}
           {!loading && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>}
         </button>
-      </div>
-    </div>
-  )
-}
-
-function ConsentRow({ checked, onToggle, title, subtitle, link }: {
-  checked: boolean; onToggle: () => void; title: string; subtitle: string; link?: string;
-}) {
-  return (
-    <div
-      onClick={onToggle}
-      style={{
-        display: 'flex', gap: 12, alignItems: 'flex-start',
-        padding: '10px 12px', marginBottom: 10, borderRadius: 12, cursor: 'pointer',
-        background: checked ? 'rgba(201,136,30,0.06)' : 'var(--paper-2)',
-        border: `1px solid ${checked ? 'rgba(201,136,30,0.30)' : 'var(--line)'}`,
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={onToggle}
-        onClick={(e) => e.stopPropagation()}
-        style={{ marginTop: 3, width: 18, height: 18, accentColor: 'var(--amber)', flexShrink: 0 }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{title}</div>
-          {link && (
-            <a
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontSize: 11, color: 'var(--amber)', fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' }}
-            >
-              открыть →
-            </a>
-          )}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4, marginTop: 2 }}>{subtitle}</div>
       </div>
     </div>
   )

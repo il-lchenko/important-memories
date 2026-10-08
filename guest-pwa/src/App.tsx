@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import HomeScreen from './features/home/HomeScreen'
 import LandingScreen from './features/landing/LandingScreen'
@@ -16,10 +17,28 @@ import ProfileScreen from './features/profile/ProfileScreen'
 import InvitePage from './features/invite/InvitePage'
 
 export default function App() {
+  useEffect(() => {
+    // Ловим ?ref=IM-XXXXXX на любой странице landing/PWA и сохраняем
+    // в localStorage — при переходе в host-app он подхватит из web-storage
+    // (через query param в install prompt / share intent).
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref && /^IM-[A-Z0-9]{6}$/i.test(ref)) {
+      const normalized = ref.trim().toUpperCase()
+      localStorage.setItem('pending_ref_code', normalized)
+      // Прокидываем на страницу /get-app для host-app deep link.
+      // Убираем ?ref из адресной строки, чтобы не логировать при аналитике.
+      const url = new URL(window.location.href)
+      url.searchParams.delete('ref')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [])
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/"                                      element={<HomeScreen />} />
+        <Route path="/join"                                  element={<HomeScreen />} />
         <Route path="/g/:shortCode"                          element={<LandingScreen />} />
         <Route path="/g/:shortCode/camera"                   element={<CameraScreen />} />
         <Route path="/g/:shortCode/album"                    element={<AlbumScreen />} />
@@ -35,7 +54,7 @@ export default function App() {
         <Route path="/a/:token"                              element={<PublicAlbumScreen />} />
         <Route path="/a/:token/f/:frameIndex"                element={<FrameFullscreen />} />
         <Route path="/i/:token"                              element={<InvitePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/join" replace />} />
       </Routes>
     </BrowserRouter>
   )

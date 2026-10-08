@@ -1,11 +1,15 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../payments/screens/payment_waiting_screen.dart';
+import '../../payments/utils/idempotency_key.dart';
 import '../album_provider.dart';
 
 const _publicShareBase = String.fromEnvironment(
@@ -137,7 +141,7 @@ class _Content extends ConsumerWidget {
               title: '45 кадров на гостя',
               meta: 'Больше свободы для съёмки · сейчас $framesPerGuest',
               price: '+ ${maxGuests * 5} ₽',
-              onTap: () => _upgradeFrames(context, eventId),
+              onTap: () => _upgradeFrames(context, ref, eventId),
             ),
           _UpgradeRow(
             icon: Icons.event_available_outlined,
@@ -255,10 +259,77 @@ class _Content extends ConsumerWidget {
     );
   }
 
-  static void _upgradeFrames(BuildContext context, String eventId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Оплата 45 кадров — скоро')),
+  static Future<void> _upgradeFrames(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId,
+  ) async {
+    await _startUpgrade(
+      context,
+      ref,
+      eventId,
+      kind: 'frames',
+      successPredicate: (data) => (data['settings']?['frames_per_guest'] as int? ?? 0) >= 45,
+      successMessage: 'Кадры увеличены до 45',
     );
+  }
+
+  /// Общий хелпер апгрейда — вызывает POST /events/{id}/upgrade и запускает polling.
+  static Future<void> _startUpgrade(
+    BuildContext context,
+    WidgetRef ref,
+    String eventId, {
+    required String kind,
+    required bool Function(Map<String, dynamic>) successPredicate,
+    required String successMessage,
+  }) async {
+    try {
+      final dio = ref.read(dioProvider);
+      final key = newIdempotencyKey();
+      final resp = await dio.post(
+        'events/$eventId/upgrade',
+        data: {'kind': kind, 'payment_method': 'sbp'},
+        options: Options(headers: {'Idempotency-Key': key}),
+      );
+      final confirmUrl = resp.data['confirmation_url'] as String?;
+      final adminBypass = resp.data['admin_bypass'] == true;
+      if (!context.mounted) return;
+
+      if (adminBypass) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Админ-режим: апгрейд применён без оплаты',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+          backgroundColor: Color(0xFFC9881E),
+          behavior: SnackBarBehavior.floating,
+        ));
+        ref.invalidate(eventDetailProvider(eventId));
+        return;
+      }
+
+      if (confirmUrl != null && confirmUrl.isNotEmpty) {
+        final uri = Uri.parse(confirmUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+      if (!context.mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PaymentWaitingScreen(
+          eventId: eventId,
+          successPredicate: successPredicate,
+          successMessage: successMessage,
+          returnPath: '/events/$eventId',
+        ),
+      ));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(extractUserMessage(e),
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+        backgroundColor: AppColors.shutter,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   /// Переключение uploads_enabled. При включении первый раз — модалка warning
@@ -753,7 +824,7 @@ class _DangerRow extends StatelessWidget {
 
 // ─── Bottom sheet выбора следующего тира гостей ─────────────────────────────
 
-class _GuestsUpgradeSheet extends StatelessWidget {
+class _GuestsUpgradeSheet extends ConsumerWidget {
   final String eventId;
   final int currentMax;
   const _GuestsUpgradeSheet({required this.eventId, required this.currentMax});
@@ -771,7 +842,7 @@ class _GuestsUpgradeSheet extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentPrice = _priceForGuests(currentMax);
     final available = _tiers.where((t) => t.$1 > currentMax).toList();
 
@@ -816,10 +887,16 @@ class _GuestsUpgradeSheet extends StatelessWidget {
                     meta: '${t.$2} ₽ базовый — вы платите разницу',
                     price: '+ $delta ₽',
                     onTap: () {
+                      final tierGuests = t.$1;
                       Navigator.of(context).pop();
-                      // TODO: POST /events/{id}/upgrade с plan = pN + YooKassa
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Апгрейд до ${t.$1} гостей за $delta ₽ — оплата скоро')),
+                      _Content._startUpgrade(
+                        context,
+                        ref,
+                        eventId,
+                        kind: 'guests',
+                        successPredicate: (data) =>
+                            (data['settings']?['max_guests'] as int? ?? 0) >= tierGuests,
+                        successMessage: 'Расширено до $tierGuests гостей',
                       );
                     },
                   ),

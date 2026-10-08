@@ -35,7 +35,9 @@ async def verify_email_otp(
     session: SessionDep,
 ) -> TokenOut:
     return await auth_service.verify_otp(
-        session, payload.email, payload.code, fingerprint=payload.fingerprint
+        session, payload.email, payload.code,
+        fingerprint=payload.fingerprint,
+        ref_code=payload.ref_code,
     )
 
 

@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_session
 from app.core.errors import AuthError
 from app.core.security import TokenDecodeError, decode_token
-from app.domain.models import Guest
-from app.repos import guest_repo
+from app.core.errors import PermissionDeniedError
+from app.domain.models import Guest, User
+from app.repos import guest_repo, user_repo
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -88,3 +89,20 @@ async def get_optional_user_id(
 
 
 OptionalUserId = Annotated[UUID | None, Depends(get_optional_user_id)]
+
+
+async def require_admin(
+    session: SessionDep,
+    user_id: CurrentUserId,
+) -> User:
+    """Пропускает только пользователей с is_admin=True.
+
+    Использовать в admin-only endpoints: /admin/promocodes, /admin/users/*.
+    """
+    user = await user_repo.get_by_id(session, user_id)
+    if user is None or not user.is_admin:
+        raise PermissionDeniedError("Admin only")
+    return user
+
+
+AdminUser = Annotated[User, Depends(require_admin)]

@@ -93,6 +93,24 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => _openAlbumSettingsPicker(context, ref),
             ),
 
+            const _SectionTitle('Друзья и промокоды'),
+            _NavRow(
+              label: 'Приглашай друзей',
+              desc: 'Ты — 20%, друг — 20% на первый альбом',
+              onTap: () => context.push('/profile/referrals'),
+            ),
+            _NavRow(
+              label: 'Мои промокоды',
+              desc: 'Ваучеры и скидки',
+              onTap: () => context.push('/profile/promocodes'),
+            ),
+            if (userAsync.valueOrNull?['is_admin'] == true)
+              _NavRow(
+                label: 'Админ-панель',
+                desc: 'Управление промокодами и юзерами',
+                onTap: () => context.push('/admin/promocodes'),
+              ),
+
             const _SectionTitle('Уведомления'),
             const _ToggleRow(
               label: 'Когда гость снимает',

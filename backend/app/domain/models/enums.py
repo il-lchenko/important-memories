@@ -96,6 +96,24 @@ class PhotoFormat(StrEnum):
     LANDSCAPE_43 = "landscape_43"
 
 
+class PromocodeKind(StrEnum):
+    ADMIN_BYPASS = "admin_bypass"  # 100% скидка, обычно owner_user_id = админ
+    REFERRAL = "referral"          # авто-выпуск за приглашение
+    MANUAL = "manual"              # админ создал вручную (public или адресный)
+
+
+class PromocodeDiscountType(StrEnum):
+    PERCENT = "percent"   # discount_value = 1..100
+    FIXED = "fixed"       # discount_value = копейки
+
+
+class PromocodeAppliesTo(StrEnum):
+    ALL = "all"
+    CHECKOUT = "checkout"
+    EXTEND = "extend"
+    UPGRADE = "upgrade"
+
+
 class JoinAttemptOutcome(StrEnum):
     """Outcome of a guest join attempt — used for anti-bruteforce audit + host stats."""
     OK = "ok"                          # created new session or matched existing

@@ -1,8 +1,14 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../payments/screens/payment_waiting_screen.dart';
+import '../../payments/utils/idempotency_key.dart';
+import '../../payments/widgets/promo_code_field.dart';
 import '../album_provider.dart';
 
 /// Продление хранения альбома. Открывается: (а) из AlbumSettingsScreen,
@@ -17,6 +23,8 @@ class ExtendStorageScreen extends ConsumerStatefulWidget {
 
 class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
   String _selected = '6m'; // default = «выгодно»
+  bool _loading = false;
+  String? _promocode;
 
   static const _options = <_ExtendOption>[
     _ExtendOption(id: '3m', label: '+ 3 месяца', days: 90, priceRub: 490, savingsHint: null),
@@ -95,6 +103,14 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
                 fromDate: expiresAt,
                 onTap: () => setState(() => _selected = opt.id),
               )),
+          const SizedBox(height: 16),
+          PromoCodeField(
+            kind: 'extend',
+            eventId: widget.eventId,
+            period: _selected,
+            onApplied: (code, _, __) => setState(() => _promocode = code),
+            onCleared: () => setState(() => _promocode = null),
+          ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(14),
@@ -152,7 +168,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
               ),
             ),
             GestureDetector(
-              onTap: () => _proceed(context, opt),
+              onTap: _loading ? null : () => _proceed(context, opt),
               child: Container(
                 height: AppSizes.buttonHeight,
                 decoration: BoxDecoration(
@@ -166,8 +182,13 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Text('Продлить и оплатить',
-                    style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                child: _loading
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('Продлить и оплатить',
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
               ),
             ),
           ],
@@ -176,11 +197,73 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
     );
   }
 
-  void _proceed(BuildContext context, _ExtendOption opt) {
-    // TODO: POST /events/{id}/extend с payload {period: opt.id} → YooKassa redirect
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Продление ${opt.label} за ${opt.priceRub} ₽ — оплата скоро')),
-    );
+  Future<void> _proceed(BuildContext context, _ExtendOption opt) async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final initialExpiresAt = ref.read(eventDetailProvider(widget.eventId)).valueOrNull?['expires_at'] as String?;
+    try {
+      final dio = ref.read(dioProvider);
+      final key = newIdempotencyKey();
+      final resp = await dio.post(
+        'events/${widget.eventId}/extend',
+        data: {
+          'period': opt.id,
+          'payment_method': 'sbp',
+          if (_promocode != null && _promocode!.isNotEmpty) 'promocode': _promocode,
+        },
+        options: Options(headers: {'Idempotency-Key': key}),
+      );
+      final confirmUrl = resp.data['confirmation_url'] as String?;
+      final adminBypass = resp.data['admin_bypass'] == true;
+      if (!mounted) return;
+
+      if (adminBypass) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Админ-режим: хранение продлено без оплаты',
+              style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+          backgroundColor: Color(0xFFC9881E),
+          behavior: SnackBarBehavior.floating,
+        ));
+        ref.invalidate(eventDetailProvider(widget.eventId));
+        Navigator.of(context).pop();
+        return;
+      }
+
+      if (confirmUrl != null && confirmUrl.isNotEmpty) {
+        final uri = Uri.parse(confirmUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => PaymentWaitingScreen(
+          eventId: widget.eventId,
+          successPredicate: (data) {
+            final newExpires = data['expires_at'] as String?;
+            if (newExpires == null) return false;
+            if (initialExpiresAt == null) return true;
+            try {
+              return DateTime.parse(newExpires).isAfter(DateTime.parse(initialExpiresAt));
+            } catch (_) {
+              return false;
+            }
+          },
+          successMessage: 'Хранение продлено на ${opt.label}',
+          returnPath: '/events/${widget.eventId}',
+        ),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(extractUserMessage(e),
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+        backgroundColor: AppColors.shutter,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   static int _daysUntil(String? iso) {

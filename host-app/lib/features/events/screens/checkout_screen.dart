@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +8,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../payments/screens/payment_waiting_screen.dart';
+import '../../payments/utils/idempotency_key.dart';
+import '../../payments/widgets/promo_code_field.dart';
 import '../events_provider.dart';
 
 /// Смета создаваемого события: сетка гостей → итог → создать.
@@ -25,6 +29,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   int _tierIndex = 0; // FREE / 5 гостей по умолчанию
   bool _loading = false;
+  String? _promocode;
+  int _discountKopecks = 0;
 
   int get _guests => _tiers[_tierIndex];
 
@@ -78,23 +84,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ref.invalidate(eventsProvider);
         context.go('/dashboard');
       } else {
+        final key = newIdempotencyKey();
         final resp = await dio.post(
           'events/$eventId/checkout',
           data: {
             'plan': _planId,
             if (paymentMethod != null) 'payment_method': paymentMethod,
+            if (_promocode != null && _promocode!.isNotEmpty) 'promocode': _promocode,
           },
+          options: Options(headers: {'Idempotency-Key': key}),
         );
         final confirmUrl = resp.data['confirmation_url'] as String?;
+        final adminBypass = resp.data['admin_bypass'] == true;
         if (!mounted) return;
         ref.invalidate(eventsProvider);
+
+        if (adminBypass) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Админ-режим: событие активировано без оплаты',
+                style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+            backgroundColor: Color(0xFFC9881E),
+            behavior: SnackBarBehavior.floating,
+          ));
+          context.go('/events/$eventId');
+          return;
+        }
+
         if (confirmUrl != null && confirmUrl.isNotEmpty) {
           final uri = Uri.parse(confirmUrl);
           if (await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           }
         }
-        context.go('/dashboard');
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => PaymentWaitingScreen(
+            eventId: eventId,
+            successPredicate: (data) => data['status'] == 'active',
+            successMessage: 'Оплата прошла — событие активно',
+          ),
+        ));
       }
     } catch (e) {
       if (!mounted) return;
@@ -142,9 +171,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       retentionDays: _retentionDays,
                       expiresAt: _expiresAt,
                     ),
+                    if (_planPriceRub > 0) ...[
+                      const SizedBox(height: 16),
+                      PromoCodeField(
+                        kind: 'checkout',
+                        plan: _planId,
+                        onApplied: (code, discount, finalAmt) {
+                          setState(() {
+                            _promocode = code;
+                            _discountKopecks = discount;
+                          });
+                        },
+                        onCleared: () {
+                          setState(() {
+                            _promocode = null;
+                            _discountKopecks = 0;
+                          });
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     _SubmitCta(
-                      totalRub: _planPriceRub,
+                      totalRub: _planPriceRub - (_discountKopecks / 100).round(),
                       loading: _loading,
                       onTap: () => _submit(paymentMethod: _planPriceRub == 0 ? null : 'sbp'),
                       isSbp: _planPriceRub > 0,

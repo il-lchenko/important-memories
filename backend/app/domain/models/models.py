@@ -41,6 +41,9 @@ from app.domain.models.enums import (
     PhotoFormat,
     Plan,
     Platform,
+    PromocodeAppliesTo,
+    PromocodeDiscountType,
+    PromocodeKind,
     ReportCategory,
     ReportStatus,
     RevealMode,
@@ -68,6 +71,10 @@ class User(Base):
     display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     avatar_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    referral_code: Mapped[str | None] = mapped_column(String(16), unique=True, index=True, nullable=True)
+    invited_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = _ts()
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -267,12 +274,20 @@ class Payment(Base):
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    yookassa_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    # nullable — для admin-bypass и 100% promocode платежей без обращения к ЮMoney.
+    yookassa_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
     amount_kopecks: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Сумма до применения скидки — для отчётности. None если скидка не применялась.
+    original_amount_kopecks: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[PaymentStatus] = mapped_column(
         _enum_col(PaymentStatus, "payment_status"), default=PaymentStatus.PENDING, nullable=False
     )
     idempotency_key: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    promocode_redemption_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("promocode_redemptions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     meta: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = mapped_column(
@@ -283,6 +298,72 @@ class Payment(Base):
     )
 
     event: Mapped[Event] = relationship(back_populates="payments")
+
+
+class Promocode(Base):
+    __tablename__ = "promocodes"
+    __table_args__ = (
+        Index("ix_promocodes_owner_kind", "owner_user_id", "kind"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    kind: Mapped[PromocodeKind] = mapped_column(
+        _enum_col(PromocodeKind, "promocode_kind"), nullable=False, default=PromocodeKind.MANUAL
+    )
+    discount_type: Mapped[PromocodeDiscountType] = mapped_column(
+        _enum_col(PromocodeDiscountType, "promocode_discount_type"),
+        nullable=False,
+        default=PromocodeDiscountType.PERCENT,
+    )
+    # Для PERCENT: 1..100. Для FIXED: копейки.
+    discount_value: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_redemptions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    redemptions_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    applies_to: Mapped[PromocodeAppliesTo] = mapped_column(
+        _enum_col(PromocodeAppliesTo, "promocode_applies_to"),
+        nullable=False,
+        default=PromocodeAppliesTo.ALL,
+    )
+    min_amount_kopecks: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+    single_use_per_user: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Кто создал промокод (админ). Для реферальных = пригласивший (== owner).
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Кому предназначен: для REFERRAL/ADMIN_BYPASS — конкретный юзер; для публичного MANUAL — NULL.
+    owner_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class PromocodeRedemption(Base):
+    __tablename__ = "promocode_redemptions"
+    __table_args__ = (
+        UniqueConstraint("promocode_id", "user_id", name="uq_promocode_user"),
+        Index("ix_promocode_redemptions_payment", "payment_id"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    promocode_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("promocodes.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    payment_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("payments.id", ondelete="SET NULL"), nullable=True
+    )
+    discount_applied_kopecks: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    redeemed_at: Mapped[datetime] = _ts()
 
 
 class DeviceToken(Base):

@@ -18,6 +18,9 @@ class EmailVerifyIn(BaseModel):
     # Опционально: fingerprint текущего устройства. Если передан — все анонимные
     # guest-записи с этим fingerprint будут привязаны к создаваемому/найденному User.
     fingerprint: str | None = Field(default=None, max_length=128)
+    # Реферальный код пригласившего (формат IM-XXXXXX). Применяется только при
+    # первой регистрации — существующие юзеры игнорируют это поле.
+    ref_code: str | None = Field(default=None, max_length=16)
 
 
 class RefreshIn(BaseModel):
