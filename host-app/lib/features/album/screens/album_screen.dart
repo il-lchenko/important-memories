@@ -222,7 +222,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                               const SizedBox(width: 12),
                               _HeaderCamBtn(
                                 loading: _openingCamera,
-                                onTap: _openingCamera ? null : () => _openCamera(shortCode),
+                                onTap: _openingCamera
+                                    ? null
+                                    : () => _handleAddPhotoTap(
+                                          shortCode,
+                                          eventAsync.valueOrNull,
+                                        ),
                               ),
                             ],
                           ),
@@ -245,6 +250,107 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Проверяет статус события и решает — открывать камеру или показать
+  /// пояснительный диалог. Кнопка «Добавить фото» не должна молча ломаться.
+  Future<void> _handleAddPhotoTap(
+    String shortCode,
+    Map<String, dynamic>? event,
+  ) async {
+    final status = (event?['status'] as String?) ?? '';
+    final settings = event?['settings'] as Map?;
+    final uploadsEnabled = settings?['uploads_enabled'] == true;
+    final windowEndsRaw = event?['uploads_window_ends_at'] as String?;
+    final windowActive = windowEndsRaw != null &&
+        (DateTime.tryParse(windowEndsRaw)?.isAfter(DateTime.now()) ?? false);
+
+    // Активное событие — обычный сценарий, идём в камеру.
+    if (status == 'active') {
+      await _openCamera(shortCode);
+      return;
+    }
+
+    // Событие завершено. Разрешаем только если хост включил post-event окно
+    // загрузки (uploads_enabled + uploads_window_ends_at в будущем).
+    if (status == 'completed') {
+      if (uploadsEnabled && windowActive) {
+        await _openCamera(shortCode);
+        return;
+      }
+      await _showEventClosedDialog(
+        title: 'Событие уже завершено',
+        message: uploadsEnabled && windowEndsRaw != null
+            ? 'Окно догрузки фотографий закрылось. Новые кадры добавить нельзя, но альбом остаётся у вас.'
+            : 'Мероприятие проявлено — новые кадры добавить нельзя. Все фотографии уже в альбоме.',
+      );
+      return;
+    }
+
+    // Отменённое / черновик — тоже пояснительный диалог.
+    if (status == 'cancelled') {
+      await _showEventClosedDialog(
+        title: 'Событие отменено',
+        message: 'Загрузка фотографий недоступна.',
+      );
+      return;
+    }
+    if (status == 'draft') {
+      await _showEventClosedDialog(
+        title: 'Событие ещё не активно',
+        message: 'Сначала активируйте событие в настройках, потом можно снимать и загружать фото.',
+      );
+      return;
+    }
+
+    // Неизвестный статус — на всякий случай пускаем в камеру, там свои проверки.
+    await _openCamera(shortCode);
+  }
+
+  Future<void> _showEventClosedDialog({
+    required String title,
+    required String message,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: GoogleFonts.playfairDisplay(
+            fontFeatures: [const FontFeature.liningFigures()],
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.ink,
+          ),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            height: 1.45,
+            color: AppColors.ink2,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'Понятно',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.amber,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -460,10 +566,10 @@ class _FrameImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Приоритет: preview (2560px q=92) → thumbnail (сжатый) → full. Preview даёт
-    // хорошее качество даже в маленькой сетке — иначе видно артефакты JPEG.
-    final url = (frame?['preview_url'] as String?)
-        ?? (frame?['thumbnail_url'] as String?)
+    // Приоритет: thumbnail_url (800px q=88, ~100 KB) → preview_url (1600px, ~300 KB) → full.
+    // Thumbnail теперь качественный (800px не 400px) — быстрая сетка без потери резкости.
+    final url = (frame?['thumbnail_url'] as String?)
+        ?? (frame?['preview_url'] as String?)
         ?? (frame?['full_url'] as String?);
     final grad = _filmGrads[fallbackIndex % _filmGrads.length];
     final quarterTurns = ((frame?['rotation'] as num?)?.toInt() ?? 0) ~/ 90;

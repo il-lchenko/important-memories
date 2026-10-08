@@ -155,6 +155,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   _BatchState? _batchState;
   // Хост разрешил загрузку из галереи? Читаем при _loadPrefs из session.
   bool _uploadsEnabled = false;
+  bool _galleryOnlyMode = false;
 
   // Hardware zoom — реальный zoom через камеру (не CSS-скейл).
   // Первые уровни на Android — оптика/hardware digital (лучше качество),
@@ -192,12 +193,46 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         options: Options(headers: {'X-Guest-Token': token}),
       );
       if (!mounted) return;
-      final status = resp.data['event']?['status'] as String?;
-      if (status != null && status != 'active' && status != 'draft') {
-        // Событие завершено или отменено — уводим в альбом (там же откроется reveal).
-        _statusTimer?.cancel();
-        if (mounted) context.go('/events/${widget.eventId}/album');
+      final event = resp.data['event'] as Map?;
+      final status = event?['status'] as String?;
+      final settings = event?['settings'] as Map?;
+      final uploadsEnabled = settings?['uploads_enabled'] == true;
+      final windowRaw = event?['uploads_window_ends_at'] as String?;
+      final windowActive = windowRaw != null &&
+          (DateTime.tryParse(windowRaw)?.isAfter(DateTime.now()) ?? false);
+
+      // Обновляем закешированный флаг — хост мог включить uploads уже после
+      // открытия камеры.
+      if (uploadsEnabled != _uploadsEnabled) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('gs_uploads_enabled_${widget.eventId}', uploadsEnabled);
+        if (mounted) setState(() => _uploadsEnabled = uploadsEnabled);
       }
+
+      // Активное или черновик — камера работает штатно.
+      if (status == 'active' || status == 'draft' || status == null) return;
+
+      // Завершено + окно догрузки открыто → остаёмся, но только галерея
+      // (камеру не показываем).
+      if (status == 'completed' && uploadsEnabled && windowActive) {
+        if (mounted && !_galleryOnlyMode) {
+          setState(() => _galleryOnlyMode = true);
+        }
+        return;
+      }
+
+      // Всё, окно закрыто или событие отменено — уходим в альбом с пояснением.
+      _statusTimer?.cancel();
+      if (!mounted) return;
+      final msg = status == 'cancelled'
+          ? 'Событие отменено'
+          : 'Событие завершено — новые кадры добавить нельзя';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+        behavior: SnackBarBehavior.floating,
+      ));
+      context.go('/events/${widget.eventId}/album');
     } catch (_) {
       // Тихо игнорируем — polling пере-попытается.
     }
@@ -248,6 +283,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   }
 
   Future<void> _initCamera() async {
+    // В режиме «только галерея» (событие завершено, но окно догрузки открыто)
+    // камеру не поднимаем — гость увидит только кнопку выбора из галереи.
+    if (_galleryOnlyMode) return;
     if (_isInitializing) return;
     _isInitializing = true;
     try {
@@ -271,6 +309,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   /// Проверка из build() — если камера потеряна (после возврата с другого
   /// экрана / системного очищения), переподнимаем без блокировки UI.
   void _maybeReinit() {
+    if (_galleryOnlyMode) return;
     if (_initialized || _isInitializing || _preview != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -776,6 +815,118 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     );
   }
 
+  /// Экран пост-event догрузки — событие уже завершено, но окно открыто.
+  /// Показываем только заголовок «Догрузка из галереи» и большую кнопку выбора.
+  Widget _buildGalleryOnlyMode(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: AppColors.paper,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppColors.ink),
+          onPressed: () => context.go('/events/${widget.eventId}/album'),
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.amber.withValues(alpha: 0.10),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.amber,
+                    size: 32,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Догрузите фото',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.playfairDisplay(
+                  fontFeatures: [const FontFeature.liningFigures()],
+                  fontSize: 28,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.5,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Событие уже завершено, но хост открыл окно догрузки. Выберите '
+                'до 5 фото из галереи — они появятся в общем альбоме с плёночным фильтром.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  height: 1.5,
+                  color: AppColors.ink3,
+                ),
+              ),
+              const Spacer(),
+              if (_batchState != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _BatchProgressOverlay(state: _batchState!),
+                ),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: (_batchState != null || _framesRemaining <= 0)
+                      ? null
+                      : _pickFromGallery,
+                  icon: const Icon(Icons.attach_file, size: 18),
+                  label: Text(
+                    _framesRemaining <= 0
+                        ? 'Лимит кадров исчерпан'
+                        : 'Выбрать из галереи',
+                    style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.amber,
+                    disabledBackgroundColor: AppColors.paper3,
+                    foregroundColor: Colors.white,
+                    disabledForegroundColor: AppColors.ink4,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Осталось кадров: $_framesRemaining',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12,
+                  color: AppColors.ink4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final quarter = ref.watch(deviceRotationProvider);
@@ -783,6 +934,12 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     final iconTurns = rotationTurnsFor(quarter);
 
     _maybeReinit();
+
+    // Пост-event режим: событие завершено, но хост открыл окно догрузки из
+    // галереи. Камеру не показываем — только кнопка выбора файлов.
+    if (_galleryOnlyMode) {
+      return _buildGalleryOnlyMode(context);
+    }
 
     return PopScope(
       // Свайп-назад на экране «снятого кадра» должен убирать превью,

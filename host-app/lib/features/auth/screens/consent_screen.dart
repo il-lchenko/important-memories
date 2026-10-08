@@ -1,5 +1,5 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,14 +8,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 
-/// Отдельный экран согласий по 152-ФЗ ст. 9 (в редакции с 01.09.2025).
+/// Экран согласий по 152-ФЗ — одна фраза + ссылка на страницу с документами.
 ///
-/// Показывается ПОСЛЕ verify_otp (пользователь уже залогинен, есть access-token),
-/// ДО перехода на /dashboard. Четыре независимых чекбокса — по одному на каждый
-/// документ. Кнопка «Продолжить» активна только когда все четыре ✓.
-///
-/// При «Продолжить» шлём POST /api/v1/consent × 4 (по одному на doc_type)
-/// и переходим на /dashboard.
+/// Показывается ПОСЛЕ verify_otp, ДО перехода на /dashboard. Никаких чекбоксов —
+/// само нажатие «Продолжить» = согласие (паттерн web PWA landing).
 class ConsentScreen extends ConsumerStatefulWidget {
   const ConsentScreen({super.key});
 
@@ -25,21 +21,11 @@ class ConsentScreen extends ConsumerStatefulWidget {
 
 class _ConsentScreenState extends ConsumerState<ConsentScreen> {
   static const _docVersion = '2.3';
-
-  bool _agreeOffer = false;
-  bool _agreePrivacy = false;
-  bool _agreeConsent = false;
-  bool _agreeContentRules = false;
-  bool _confirmAge = false;
-
   bool _loading = false;
   String? _errorMsg;
 
-  bool get _allChecked =>
-      _agreeOffer && _agreePrivacy && _agreeConsent && _agreeContentRules && _confirmAge;
-
   Future<void> _submit() async {
-    if (!_allChecked || _loading) return;
+    if (_loading) return;
     setState(() {
       _loading = true;
       _errorMsg = null;
@@ -63,9 +49,9 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
     }
   }
 
-  Future<void> _openDoc(String path) async {
+  Future<void> _openTerms() async {
     await launchUrl(
-      Uri.parse('https://impomento.pro/$path'),
+      Uri.parse('https://impomento.pro/terms'),
       mode: LaunchMode.externalApplication,
     );
   }
@@ -76,88 +62,59 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
       backgroundColor: AppColors.paper,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.amber.withValues(alpha: 0.10),
-                      ),
-                      child: const Icon(
-                        Icons.privacy_tip_outlined,
-                        color: AppColors.amber,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
                     Text(
-                      'Немного\nформальностей',
+                      'Почти всё готово',
                       style: GoogleFonts.playfairDisplay(
-                        fontFeatures: [const FontFeature.liningFigures()],
-                        fontSize: 36,
+                        fontStyle: FontStyle.italic,
                         fontWeight: FontWeight.w500,
-                        letterSpacing: -0.72,
-                        height: 1.05,
+                        fontSize: 32,
+                        height: 1.1,
+                        letterSpacing: -0.64,
                         color: AppColors.ink,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 15,
+                          height: 1.55,
+                          color: AppColors.ink2,
+                        ),
+                        children: [
+                          const TextSpan(text: 'Нажимая «Продолжить», вы соглашаетесь с '),
+                          TextSpan(
+                            text: 'условиями сервиса',
+                            style: const TextStyle(
+                              color: AppColors.amber,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.amber,
+                            ),
+                            recognizer: TapGestureRecognizerFactory.of(_openTerms),
+                          ),
+                          const TextSpan(text: ' и подтверждаете, что вам исполнилось 14 лет.'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     const Text(
-                      'Перед началом работы с ImpoMento подтвердите, что ознакомлены с четырьмя документами. Каждый — по клику.',
+                      'Организатор события отвечает за приглашение гостей и обработку общего альбома.',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 14,
+                        fontSize: 12,
                         color: AppColors.ink3,
                         height: 1.5,
                       ),
-                    ),
-                    const SizedBox(height: 28),
-                    _ConsentCheckbox(
-                      checked: _agreeOffer,
-                      onChanged: (v) => setState(() => _agreeOffer = v ?? false),
-                      onLinkTap: () => _openDoc('offer'),
-                      title: 'Публичная оферта',
-                      subtitle: 'Условия оказания услуг, тарифы, возвраты',
-                    ),
-                    const SizedBox(height: 12),
-                    _ConsentCheckbox(
-                      checked: _agreePrivacy,
-                      onChanged: (v) => setState(() => _agreePrivacy = v ?? false),
-                      onLinkTap: () => _openDoc('privacy'),
-                      title: 'Политика конфиденциальности',
-                      subtitle: 'Какие данные и зачем мы обрабатываем',
-                    ),
-                    const SizedBox(height: 12),
-                    _ConsentCheckbox(
-                      checked: _agreeConsent,
-                      onChanged: (v) => setState(() => _agreeConsent = v ?? false),
-                      onLinkTap: () => _openDoc('consent'),
-                      title: 'Согласие на обработку ПД',
-                      subtitle: 'Отдельный документ по 152-ФЗ',
-                    ),
-                    const SizedBox(height: 12),
-                    _ConsentCheckbox(
-                      checked: _agreeContentRules,
-                      onChanged: (v) => setState(() => _agreeContentRules = v ?? false),
-                      onLinkTap: () => _openDoc('content-rules'),
-                      title: 'Правила пользовательского контента',
-                      subtitle: 'Что можно и нельзя загружать в альбомы',
-                    ),
-                    const SizedBox(height: 24),
-                    _ConsentCheckbox(
-                      checked: _confirmAge,
-                      onChanged: (v) => setState(() => _confirmAge = v ?? false),
-                      title: 'Возраст и согласие',
-                      subtitle:
-                          'Мне 18 лет и больше — либо мне 16–17, и мой законный представитель дал согласие на использование сервиса и оплату тарифа (ст. 26 ГК РФ)',
                     ),
                     if (_errorMsg != null) ...[
                       const SizedBox(height: 16),
@@ -180,7 +137,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: (_allChecked && !_loading) ? _submit : null,
+                  onPressed: _loading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.amber,
                     disabledBackgroundColor: AppColors.paper3,
@@ -218,100 +175,13 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
   }
 }
 
-class _ConsentCheckbox extends StatelessWidget {
-  final bool checked;
-  final ValueChanged<bool?> onChanged;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onLinkTap;
+/// Helper для tap-recognizer в RichText без внешних зависимостей.
+class TapGestureRecognizerFactory {
+  static _TapWrapper of(VoidCallback onTap) => _TapWrapper(onTap);
+}
 
-  const _ConsentCheckbox({
-    required this.checked,
-    required this.onChanged,
-    required this.title,
-    required this.subtitle,
-    this.onLinkTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => onChanged(!checked),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
-        decoration: BoxDecoration(
-          color: checked ? AppColors.amber.withValues(alpha: 0.06) : AppColors.paper2,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: checked ? AppColors.amber.withValues(alpha: 0.30) : AppColors.line,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: Checkbox(
-                value: checked,
-                onChanged: onChanged,
-                activeColor: AppColors.amber,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                side: const BorderSide(color: AppColors.ink3, width: 1.5),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                      ),
-                      if (onLinkTap != null)
-                        GestureDetector(
-                          onTap: onLinkTap,
-                          child: const Text(
-                            'открыть →',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              color: AppColors.amber,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 12,
-                      color: AppColors.ink3,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+class _TapWrapper extends TapGestureRecognizer {
+  _TapWrapper(VoidCallback onTap) {
+    this.onTap = onTap;
   }
 }
