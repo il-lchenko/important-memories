@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import (
     ConflictError,
     NotFoundError,
@@ -47,16 +48,43 @@ PAID_TIERS: tuple[Plan, ...] = (
     Plan.P150, Plan.P175, Plan.P200, Plan.P250,
 )
 
-# 250+ гостей: цена P250 + 30 ₽ за каждого гостя сверх 250, до 2000 гостей.
-CUSTOM_PER_GUEST_KOPECKS = 3000
+def pricing_v2_active(now: datetime | None = None) -> bool:
+    """Новые цены действуют для покупок с PRICING_V2_FROM (уведомление по оферте — 14 дней)."""
+    now = now or datetime.now(timezone.utc)
+    return now >= datetime.fromisoformat(settings.PRICING_V2_FROM)
+
+
+# 250+ гостей: цена P250 + N ₽ за каждого гостя сверх 250, до 2000 гостей.
+# v2: 35 ₽ — при 30 ₽ хранение 1000+ гостей в худшем случае почти не окупалось.
+_CUSTOM_PER_GUEST_KOPECKS_V1 = 3000
+_CUSTOM_PER_GUEST_KOPECKS_V2 = 3500
 CUSTOM_MAX_GUESTS = 2000
 
-# Storage extension: (days added, price in kopecks). Business plan v3.2 section 10.
+
+def custom_per_guest_kopecks() -> int:
+    return _CUSTOM_PER_GUEST_KOPECKS_V2 if pricing_v2_active() else _CUSTOM_PER_GUEST_KOPECKS_V1
+
+
+# Продление хранения: (дней, минимальная цена в копейках).
 EXTEND_OPTIONS: dict[str, tuple[int, int]] = {
-    "3m": (90, 49000),    # 490 ₽
-    "6m": (180, 79000),   # 790 ₽
-    "1y": (365, 129000),  # 1 290 ₽
+    "3m": (90, 49000),    # от 490 ₽
+    "6m": (180, 79000),   # от 790 ₽
+    "1y": (365, 129000),  # от 1 290 ₽
 }
+# v2: продление растёт с размером альбома — фиксированные 490 ₽ за 3 месяца
+# не покрывали хранение альбомов от 75 гостей.
+EXTEND_PER_GUEST_KOPECKS: dict[str, int] = {
+    "3m": 1000,   # 10 ₽ за гостя
+    "6m": 1700,   # 17 ₽ за гостя
+    "1y": 3200,   # 32 ₽ за гостя
+}
+
+
+def extend_price_kopecks(period: str, max_guests: int) -> int:
+    _days, minimum = EXTEND_OPTIONS[period]
+    if not pricing_v2_active():
+        return minimum
+    return max(minimum, EXTEND_PER_GUEST_KOPECKS[period] * max_guests)
 
 # Guest count upgrade path (from -> to). Only "next tier" upgrades are supported.
 # Aligned with business plan v3.2 discrete tiers.
@@ -76,14 +104,20 @@ _UPGRADE_GUESTS_PATH: dict[Plan, Plan] = {
 # Post-purchase upgrade premium (business plan v3.2 section 10 — "no arbitrage" rule).
 _UPGRADE_PREMIUM = 1.15
 
-# Extended frames per guest (default 30, extension 45). Price: 5 ₽/guest.
+# Extended frames per guest (default 30, extension 45).
+# v2: 10 ₽/гость — при 5 ₽ лишние кадры на долгих тарифах хранились в убыток.
 _FRAMES_EXTENDED = 45
 _FRAMES_DEFAULT = 30
-_FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS = 500
+_FRAMES_UPGRADE_PRICE_V1_KOPECKS = 500
+_FRAMES_UPGRADE_PRICE_V2_KOPECKS = 1000
+
+
+def frames_upgrade_price_per_guest_kopecks() -> int:
+    return _FRAMES_UPGRADE_PRICE_V2_KOPECKS if pricing_v2_active() else _FRAMES_UPGRADE_PRICE_V1_KOPECKS
 
 
 def pricing_catalog() -> PricingOut:
-    from app.services.event_service import _PLAN_LIMITS, _PLAN_RETENTION_DAYS
+    from app.services.event_service import _PLAN_LIMITS, retention_days
 
     top = PAID_TIERS[-1]
     return PricingOut(
@@ -92,7 +126,7 @@ def pricing_catalog() -> PricingOut:
                 plan=plan,
                 max_guests=_PLAN_LIMITS[plan],
                 price_kopecks=PLAN_PRICES_KOPECKS[plan],
-                retention_days=_PLAN_RETENTION_DAYS[plan],
+                retention_days=retention_days(plan),
             )
             for plan in (Plan.FREE, *PAID_TIERS)
         ],
@@ -100,19 +134,26 @@ def pricing_catalog() -> PricingOut:
             from_guests=_PLAN_LIMITS[top] + 1,
             max_guests=CUSTOM_MAX_GUESTS,
             base_price_kopecks=PLAN_PRICES_KOPECKS[top],
-            per_guest_kopecks=CUSTOM_PER_GUEST_KOPECKS,
-            retention_days=_PLAN_RETENTION_DAYS[Plan.CUSTOM],
+            per_guest_kopecks=custom_per_guest_kopecks(),
+            retention_days=retention_days(Plan.CUSTOM),
         ),
         frames=PricingFramesOut(
             base_per_guest=_FRAMES_DEFAULT,
             extended_per_guest=_FRAMES_EXTENDED,
-            price_per_guest_kopecks=_FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS,
+            price_per_guest_kopecks=frames_upgrade_price_per_guest_kopecks(),
         ),
         extend=[
-            PricingExtendOut(period=period, days=days, price_kopecks=price)
-            for period, (days, price) in EXTEND_OPTIONS.items()
+            PricingExtendOut(
+                period=period,
+                days=days,
+                price_kopecks=minimum,
+                per_guest_kopecks=EXTEND_PER_GUEST_KOPECKS[period] if pricing_v2_active() else 0,
+            )
+            for period, (days, minimum) in EXTEND_OPTIONS.items()
         ],
         upgrade_premium=_UPGRADE_PREMIUM,
+        free_active_events=settings.FREE_ACTIVE_EVENTS,
+        free_events_per_month=settings.FREE_EVENTS_PER_MONTH,
     )
 
 
@@ -211,6 +252,7 @@ async def create_checkout(
         event.settings.plan = plan
         event.settings.max_guests = _PLAN_LIMITS[plan]
         event.status = EventStatus.ACTIVE
+        event.activated_at = datetime.now(timezone.utc)
         event.expires_at = default_expires_at(plan)
 
         await _maybe_issue_referral_reward(session, user, payment)
@@ -330,7 +372,8 @@ async def create_extend_checkout(
 
     if period not in EXTEND_OPTIONS:
         raise ConflictError("Unknown extension period", details={"period": period})
-    days_added, original_amount = EXTEND_OPTIONS[period]
+    days_added = EXTEND_OPTIONS[period][0]
+    original_amount = extend_price_kopecks(period, event.settings.max_guests)
 
     existing = await payment_repo.get_by_idempotency_key(session, idempotency_key)
     if existing is not None:
@@ -519,7 +562,7 @@ async def create_upgrade_checkout(
                 details={"current_frames": current_frames},
             )
         max_guests = event.settings.max_guests
-        original_amount = max_guests * _FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS
+        original_amount = max_guests * frames_upgrade_price_per_guest_kopecks()
         meta["from_frames"] = current_frames
         meta["to_frames"] = _FRAMES_EXTENDED
 
@@ -799,6 +842,7 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
                 event.settings.plan = paid_plan
                 event.settings.max_guests = _PLAN_LIMITS[paid_plan]
                 event.status = EventStatus.ACTIVE
+                event.activated_at = datetime.now(timezone.utc)
                 event.expires_at = default_expires_at(paid_plan)
             else:
                 # Черновик успели активировать бесплатно до прихода вебхука —

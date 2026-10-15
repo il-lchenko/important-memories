@@ -120,6 +120,12 @@ class Event(Base):
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    # Когда событие стало ACTIVE — для лимита бесплатных альбомов в месяц.
+    activated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    # Когда файлы альбома удалены из S3 (по сроку хранения или после удаления события).
+    storage_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Log of paid storage extensions: [{"added_days": 90, "price_kopecks": 49000, "paid_at": ISO}]
     extension_history: Mapped[list[dict]] = mapped_column(
         JSON, default=list, server_default="[]", nullable=False

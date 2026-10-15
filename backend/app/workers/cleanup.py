@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update
@@ -5,6 +6,7 @@ from sqlalchemy import select, update
 from app.core.db import SessionLocal
 from app.core.logging import logger
 from app.domain.models import Frame, FrameStatus
+from app.infra import s3_client
 
 
 async def retry_failed_uploads(ctx: dict) -> int:
@@ -24,11 +26,20 @@ async def retry_failed_uploads(ctx: dict) -> int:
     return count
 
 
-async def cleanup_expired_frames(ctx: dict) -> int:
-    """Hard-delete soft-deleted frames older than 30 days (frees S3 storage).
+def _frame_keys(frame: Frame) -> list[str]:
+    from app.workers.thumbnail import _preview_key, _thumbnail_key
 
-    For MVP just clears the DB rows; the S3 sweep is a separate maintenance job.
-    """
+    keys = []
+    if frame.s3_key:
+        keys += [frame.s3_key, _thumbnail_key(frame.s3_key), _preview_key(frame.s3_key)]
+    if frame.voice_s3_key:
+        keys.append(frame.voice_s3_key)
+    return keys
+
+
+async def cleanup_expired_frames(ctx: dict) -> int:
+    """Окончательно удаляет кадры, удалённые больше 30 дней назад: сначала файлы в S3,
+    потом строки в БД (раньше удалялись только строки, а файлы оставались навсегда)."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     async with SessionLocal() as session:
         stmt = select(Frame).where(
@@ -36,6 +47,9 @@ async def cleanup_expired_frames(ctx: dict) -> int:
             Frame.deleted_at < cutoff,
         )
         frames = list((await session.execute(stmt)).scalars().all())
+        keys = [k for f in frames for k in _frame_keys(f)]
+        if keys:
+            await asyncio.to_thread(s3_client.delete_keys, keys)
         for f in frames:
             await session.delete(f)
         await session.commit()

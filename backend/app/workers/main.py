@@ -21,6 +21,7 @@ from app.workers.auto_complete import auto_complete_expired_events
 from app.workers.cleanup import cleanup_expired_frames, retry_failed_uploads
 from app.workers.notifications import notify_expiring_events
 from app.workers.reveal import execute_reveal
+from app.workers.storage_purge import purge_expired_events, purge_old_archives
 from app.workers.thumbnail import make_thumbnail
 from app.workers.zip_builder import build_zip
 
@@ -37,6 +38,9 @@ class WorkerSettings:
     cron_jobs = [
         cron(retry_failed_uploads, minute={0, 10, 20, 30, 40, 50}, run_at_startup=False),
         cron(cleanup_expired_frames, hour={3}, minute={0}, run_at_startup=False),
+        # Очистка хранилища по срокам: 03:20 и 03:40 UTC, после cleanup_expired_frames.
+        cron(purge_expired_events, hour={3}, minute={20}, run_at_startup=False),
+        cron(purge_old_archives, hour={3}, minute={40}, run_at_startup=False),
         # Daily at 12:00 UTC (15:00 MSK) — enough headroom for late-night morning check.
         cron(notify_expiring_events, hour={12}, minute={0}, run_at_startup=False),
         # Каждую минуту: перевод ACTIVE → COMPLETED для событий с истёкшим end_at.

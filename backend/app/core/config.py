@@ -70,8 +70,18 @@ class Settings(BaseSettings):
     # Защита webhook: nginx IP-whitelist (см. infra/nginx.conf).
     YOOKASSA_WEBHOOK_SECRET: SecretStr = SecretStr("deprecated-not-used")
 
-    # Права и подписка (этап 4). None = без лимита бесплатных событий.
-    FREE_EVENTS_PER_MONTH: int | None = None
+    # Бесплатный тариф. None = без лимита.
+    # FREE_ACTIVE_EVENTS — одновременно живых бесплатных альбомов (удаление освобождает место).
+    # FREE_EVENTS_PER_MONTH — всего бесплатных активаций за календарный месяц,
+    # чтобы «удалил — создал новый» не превращался в бесконечный бесплатный тариф.
+    FREE_ACTIVE_EVENTS: int | None = 2
+    FREE_EVENTS_PER_MONTH: int | None = 4
+    # Новые цены (продление по числу гостей, 45 кадров, 250+, хранение 250+)
+    # действуют для покупок с этой даты: оферта требует уведомить за 14 дней.
+    PRICING_V2_FROM: str = "2026-11-01T00:00:00+03:00"
+    # Очистка хранилища: файлы альбомов, у которых срок истёк, удаляются не раньше
+    # этой даты, чтобы старые альбомы не пропали в день выкладки.
+    STORAGE_PURGE_NOT_BEFORE: str = "2026-11-16T00:00:00+03:00"
     SUB_EVENTS_PER_MONTH: int | None = None
     SUB_PRICE_KOPECKS: int | None = None
     SUBSCRIPTION_ENABLED: bool = False

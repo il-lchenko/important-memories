@@ -104,7 +104,9 @@ class PricingFramesOut(BaseModel):
 class PricingExtendOut(BaseModel):
     period: ExtendPeriod
     days: int
+    # Минимальная цена продления. Итог = max(price_kopecks, per_guest_kopecks × max_guests).
     price_kopecks: int
+    per_guest_kopecks: int = 0
 
 
 class PricingOut(BaseModel):
@@ -114,3 +116,7 @@ class PricingOut(BaseModel):
     frames: PricingFramesOut
     extend: list[PricingExtendOut]
     upgrade_premium: float
+    # Бесплатный тариф: сколько альбомов может жить одновременно и сколько
+    # бесплатных активаций в месяц. None — без лимита.
+    free_active_events: int | None = None
+    free_events_per_month: int | None = None

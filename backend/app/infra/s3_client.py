@@ -77,3 +77,37 @@ def delete_object(key: str) -> None:
         get_s3_client().delete_object(Bucket=settings.S3_BUCKET, Key=key)
     except Exception:
         pass
+
+
+def list_objects(prefix: str):
+    """Все объекты с префиксом: [(key, last_modified)]. Постранично, без ограничений."""
+    client = get_s3_client()
+    token: str | None = None
+    while True:
+        kwargs = {"Bucket": settings.S3_BUCKET, "Prefix": prefix, "MaxKeys": 1000}
+        if token:
+            kwargs["ContinuationToken"] = token
+        page = client.list_objects_v2(**kwargs)
+        for obj in page.get("Contents", []):
+            yield obj["Key"], obj["LastModified"]
+        if not page.get("IsTruncated"):
+            return
+        token = page.get("NextContinuationToken")
+
+
+def delete_keys(keys: list[str]) -> int:
+    """Удаление по одному ключу: DeleteObjects на S3-совместимых хранилищах
+    с botocore >=1.36 упирается в контрольные суммы, а API-запросы у Timeweb бесплатны."""
+    client = get_s3_client()
+    deleted = 0
+    for key in keys:
+        try:
+            client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
+            deleted += 1
+        except Exception:
+            pass
+    return deleted
+
+
+def delete_prefix(prefix: str) -> int:
+    return delete_keys([key for key, _ in list_objects(prefix)])

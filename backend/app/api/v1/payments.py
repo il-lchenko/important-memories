@@ -15,7 +15,8 @@ from app.services import payment_service, promocode_service
 from app.services.payment_service import (
     EXTEND_OPTIONS,
     PLAN_PRICES_KOPECKS,
-    _FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS,
+    extend_price_kopecks,
+    frames_upgrade_price_per_guest_kopecks,
     _UPGRADE_GUESTS_PATH,
     _UPGRADE_PREMIUM,
 )
@@ -35,9 +36,9 @@ def _estimate_amount(event, kind: str, plan: str | None, period: str | None, upg
             return PLAN_PRICES_KOPECKS.get(event.settings.plan, 0)
         return 0
     if kind == "extend":
-        if period and period in EXTEND_OPTIONS:
-            return EXTEND_OPTIONS[period][1]
-        return EXTEND_OPTIONS["6m"][1]
+        chosen = period if period in EXTEND_OPTIONS else "6m"
+        guests = event.settings.max_guests if event is not None else 0
+        return extend_price_kopecks(chosen, guests)
     if kind == "upgrade" and event is not None:
         if upgrade_kind == "guests":
             current_plan = event.settings.plan
@@ -49,7 +50,7 @@ def _estimate_amount(event, kind: str, plan: str | None, period: str | None, upg
                 * _UPGRADE_PREMIUM
             )
         if upgrade_kind == "frames":
-            return event.settings.max_guests * _FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS
+            return event.settings.max_guests * frames_upgrade_price_per_guest_kopecks()
     return 0
 
 

@@ -30,7 +30,8 @@ from app.repos import device_repo, event_repo, user_repo
 from app.services import entitlement_service
 from app.services.payment_service import (
     CUSTOM_MAX_GUESTS,
-    CUSTOM_PER_GUEST_KOPECKS,
+    custom_per_guest_kopecks,
+    pricing_v2_active,
     EXTEND_OPTIONS,
     PAID_TIERS,
     PLAN_PRICES_KOPECKS,
@@ -56,7 +57,7 @@ _PLAN_LIMITS: dict[Plan, int] = {
 
 # Default storage retention (days) per plan.
 _PLAN_RETENTION_DAYS: dict[Plan, int] = {
-    Plan.FREE: 14,
+    Plan.FREE: 30,
     Plan.P10: 30,
     Plan.P25: 60,
     Plan.P50: 90,
@@ -70,6 +71,19 @@ _PLAN_RETENTION_DAYS: dict[Plan, int] = {
     Plan.UNLIMITED: 240,
 }
 
+# v2: 240 дней для 250+ гостей съедали маржу сильнее, чем у тарифа на 200.
+_RETENTION_DAYS_V2: dict[Plan, int] = {
+    Plan.P250: 180,
+    Plan.CUSTOM: 180,
+    Plan.UNLIMITED: 180,
+}
+
+
+def retention_days(plan: Plan) -> int:
+    if pricing_v2_active() and plan in _RETENTION_DAYS_V2:
+        return _RETENTION_DAYS_V2[plan]
+    return _PLAN_RETENTION_DAYS.get(plan, 60)
+
 
 def price_for_guests(guests: int) -> int:
     """Цена в копейках для произвольного числа гостей; -1 — нужен B2B-запрос."""
@@ -80,14 +94,14 @@ def price_for_guests(guests: int) -> int:
             return PLAN_PRICES_KOPECKS[plan]
     if guests <= CUSTOM_MAX_GUESTS:
         top = PAID_TIERS[-1]
-        return PLAN_PRICES_KOPECKS[top] + (guests - _PLAN_LIMITS[top]) * CUSTOM_PER_GUEST_KOPECKS
+        return PLAN_PRICES_KOPECKS[top] + (guests - _PLAN_LIMITS[top]) * custom_per_guest_kopecks()
     return -1
 
 
 def default_expires_at(plan: Plan, activated_at: datetime | None = None) -> datetime:
     """Compute expires_at for an event newly activated on `plan`."""
     base = activated_at or datetime.now(timezone.utc)
-    return base + timedelta(days=_PLAN_RETENTION_DAYS.get(plan, 60))
+    return base + timedelta(days=retention_days(plan))
 
 
 async def _allocate_short_code(session: AsyncSession) -> str:
@@ -172,7 +186,7 @@ async def create_event(
         ext = EXTEND_OPTIONS.get(payload.storage_extension)
         if ext is not None:
             extra_days = ext[0]
-    base_days = _PLAN_RETENTION_DAYS.get(payload.plan, 60)
+    base_days = retention_days(payload.plan)
     expires_at = datetime.now(timezone.utc) + timedelta(days=base_days + extra_days)
 
     event = Event(
@@ -346,6 +360,7 @@ async def activate_event(
     user = await user_repo.get_by_id(session, user_id)
     await entitlement_service.ensure_can_activate(session, user, event)
     event.status = EventStatus.ACTIVE
+    event.activated_at = datetime.now(timezone.utc)
     event.expires_at = default_expires_at(event.settings.plan)
     await session.commit()
     return _to_out(event)
