@@ -10,6 +10,7 @@ import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../payments/screens/payment_waiting_screen.dart';
 import '../../payments/utils/idempotency_key.dart';
+import '../../payments/pricing_provider.dart';
 import '../album_provider.dart';
 
 const _publicShareBase = String.fromEnvironment(
@@ -132,7 +133,7 @@ class _Content extends ConsumerWidget {
             icon: Icons.people_outline,
             title: 'Больше гостей',
             meta: _nextGuestsUpgradeMeta(maxGuests),
-            price: _nextGuestsUpgradePrice(maxGuests),
+            price: _nextGuestsUpgradePrice(maxGuests, pricingOf(ref)),
             onTap: () => _showGuestsUpgradeSheet(context, eventId, maxGuests),
           ),
           if (framesPerGuest < 45)
@@ -140,14 +141,14 @@ class _Content extends ConsumerWidget {
               icon: Icons.photo_camera_outlined,
               title: '45 кадров на гостя',
               meta: 'Больше свободы для съёмки · сейчас $framesPerGuest',
-              price: '+ ${maxGuests * 5} ₽',
+              price: '+ ${maxGuests * pricingOf(ref).framesPricePerGuestRub} ₽',
               onTap: () => _upgradeFrames(context, ref, eventId),
             ),
           _UpgradeRow(
             icon: Icons.event_available_outlined,
             title: 'Продлить хранение',
             meta: expiresAt != null ? 'Сейчас до ${_formatDate(expiresAt)}' : '+3 мес / +6 мес / +1 год',
-            price: 'от 490 ₽',
+            price: 'от ${pricingOf(ref).extendFor('3m')?.priceFor(maxGuests) ?? 490} ₽',
             onTap: () => context.push('/extend/$eventId'),
           ),
           const SizedBox(height: 24),
@@ -212,33 +213,18 @@ class _Content extends ConsumerWidget {
     return next.map((n) => 'до $n').join(' · ');
   }
 
-  static String _nextGuestsUpgradePrice(int current) {
-    // Минимальная цена следующего апгрейда (× 1.15 премия по бизнес-плану v3.2).
-    final tiers = <int, int>{
-      5: 249, 10: 449, 25: 1290, 50: 1990, 75: 2990,
-      100: 4490, 150: 5490, 175: 6290, 200: 7690, 250: 0,
-    };
-    final currentPrice = _priceForGuests(current);
-    final next = _nextTiers(current);
-    if (next.isEmpty) return 'по запросу';
-    final nextPrice = tiers[next.first] ?? 0;
-    if (nextPrice == 0) return 'по запросу';
-    final delta = ((nextPrice - currentPrice) * 1.15).round();
-    return 'от $delta ₽';
+  /// Доплата за следующую ступень — так же, как считает сервер:
+  /// (цена следующего тарифа − текущего) × премия апгрейда.
+  static int upgradeDeltaRub(Pricing pricing, int current, int next) {
+    final cur = pricing.priceForGuests(current) * 100;
+    final nxt = pricing.priceForGuests(next) * 100;
+    return ((nxt - cur) * pricing.upgradePremium).floor() ~/ 100;
   }
 
-  static int _priceForGuests(int n) {
-    if (n <= 5) return 0;
-    if (n <= 10) return 249;
-    if (n <= 25) return 449;
-    if (n <= 50) return 1290;
-    if (n <= 75) return 1990;
-    if (n <= 100) return 2990;
-    if (n <= 150) return 4490;
-    if (n <= 175) return 5490;
-    if (n <= 200) return 6290;
-    if (n <= 250) return 7690;
-    return 7690 + (n - 250) * 30;
+  static String _nextGuestsUpgradePrice(int current, Pricing pricing) {
+    final next = _nextTiers(current);
+    if (next.isEmpty) return 'по запросу';
+    return '+ ${upgradeDeltaRub(pricing, current, next.first)} ₽';
   }
 
   static List<int> _nextTiers(int current) {
@@ -829,22 +815,12 @@ class _GuestsUpgradeSheet extends ConsumerWidget {
   final int currentMax;
   const _GuestsUpgradeSheet({required this.eventId, required this.currentMax});
 
-  static const _tiers = [
-    (10,   249),
-    (25,   449),
-    (50,  1290),
-    (75,  1990),
-    (100, 2990),
-    (150, 4490),
-    (175, 5490),
-    (200, 6290),
-    (250, 7690),
-  ];
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentPrice = _priceForGuests(currentMax);
-    final available = _tiers.where((t) => t.$1 > currentMax).toList();
+    final pricing = pricingOf(ref);
+    // Сервер повышает тариф только на одну ступень за платёж — показываем её.
+    final next = _Content._nextTiers(currentMax);
+    final available = next.isEmpty ? <int>[] : [next.first];
 
     return SafeArea(
       top: false,
@@ -873,21 +849,20 @@ class _GuestsUpgradeSheet extends ConsumerWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Сейчас у вас до $currentMax гостей. Доплата = разница цены × 1.15',
+                'Сейчас у вас до $currentMax гостей. Доплата — разница цены тарифов × ${pricing.upgradePremium.toStringAsFixed(2)}. Дальше можно расширять по одной ступени.',
                 style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink3, height: 1.4),
               ),
               const SizedBox(height: 20),
-              ...available.map((t) {
-                final delta = ((t.$2 - currentPrice) * 1.15).round();
+              ...available.map((tierGuests) {
+                final delta = _Content.upgradeDeltaRub(pricing, currentMax, tierGuests);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _UpgradeRow(
                     icon: Icons.people_outline,
-                    title: 'До ${t.$1} гостей',
-                    meta: '${t.$2} ₽ базовый — вы платите разницу',
+                    title: 'До $tierGuests гостей',
+                    meta: '${pricing.priceForGuests(tierGuests)} ₽ базовый — вы платите разницу',
                     price: '+ $delta ₽',
                     onTap: () {
-                      final tierGuests = t.$1;
                       Navigator.of(context).pop();
                       _Content._startUpgrade(
                         context,
@@ -917,19 +892,6 @@ class _GuestsUpgradeSheet extends ConsumerWidget {
     );
   }
 
-  static int _priceForGuests(int n) {
-    if (n <= 5) return 0;
-    if (n <= 10) return 249;
-    if (n <= 25) return 449;
-    if (n <= 50) return 1290;
-    if (n <= 75) return 1990;
-    if (n <= 100) return 2990;
-    if (n <= 150) return 4490;
-    if (n <= 175) return 5490;
-    if (n <= 200) return 6290;
-    if (n <= 250) return 7690;
-    return 7690 + (n - 250) * 30;
-  }
 }
 
 // ── Public share block (виден только когда альбом COMPLETED/CANCELLED) ───────

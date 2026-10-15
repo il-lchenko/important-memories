@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../payments/pricing_provider.dart';
 import '../../payments/screens/payment_waiting_screen.dart';
 import '../../payments/utils/idempotency_key.dart';
 import '../../payments/widgets/promo_code_field.dart';
@@ -25,7 +26,10 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   static const _tiers = <int>[5, 10, 25, 50, 75, 100, 150, 175, 200, 250];
-  static const _prices = <int>[0, 249, 449, 1290, 1990, 2990, 4490, 5490, 6290, 7690];
+
+  // Цены и сроки хранения — с сервера (GET /pricing), см. pricing_provider.dart.
+  Pricing get _pricing => ref.read(pricingProvider).valueOrNull ?? Pricing.fallback;
+  List<int> get _prices => [for (final g in _tiers) _pricing.priceForGuests(g)];
 
   int _tierIndex = 0; // FREE / 5 гостей по умолчанию
   bool _loading = false;
@@ -50,18 +54,51 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   int get _planPriceRub => _prices[_tierIndex];
 
-  // Бесплатно: 2 мес, платные: 3 мес базово
-  int get _retentionDays => _planId == 'free' ? 60 : 90;
+  int get _retentionDays => _pricing.tierFor(_planId)?.retentionDays ?? 30;
 
   int get _framesPerGuest => (widget.draft['frames_per_guest'] as int?) ?? 30;
 
   DateTime get _expiresAt => DateTime.now().add(Duration(days: _retentionDays));
+
+  Future<String?> _freeLimitMessage(Dio dio) async {
+    try {
+      final resp = await dio.get('me/entitlements');
+      final data = Map<String, dynamic>.from(resp.data as Map);
+      if (data['free_active_left'] == 0) {
+        return 'Одновременно можно вести ${data['free_active_limit']} бесплатных альбома. '
+            'Удалите ненужный или выберите платный тариф.';
+      }
+      if (data['free_events_left'] == 0) {
+        return 'Бесплатные альбомы в этом месяце закончились. '
+            'Новые откроются с 1-го числа, или выберите платный тариф.';
+      }
+    } catch (_) {
+      // Сервер всё равно проверит лимит при активации.
+    }
+    return null;
+  }
 
   /// paymentMethod: null → YooKassa покажет все способы; 'sbp' → сразу СБП.
   Future<void> _submit({String? paymentMethod}) async {
     setState(() => _loading = true);
     try {
       final dio = ref.read(dioProvider);
+
+      // Лимит бесплатных альбомов проверяем до создания черновика,
+      // иначе при отказе в активации остаётся висящий черновик.
+      if (_planPriceRub == 0) {
+        final blocked = await _freeLimitMessage(dio);
+        if (blocked != null) {
+          if (!mounted) return;
+          setState(() => _loading = false);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(blocked, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+          ));
+          return;
+        }
+      }
 
       final created = await ref.read(createEventProvider({
         'name': widget.draft['name'],
@@ -141,6 +178,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(pricingProvider);
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
@@ -398,11 +436,13 @@ class _GuestsTileGrid extends StatelessWidget {
   }
 }
 
-class _CustomTierSheet extends StatelessWidget {
+class _CustomTierSheet extends ConsumerWidget {
   const _CustomTierSheet();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pricing = pricingOf(ref);
+    final base = NumberFormat.decimalPattern('ru').format(pricing.customBaseRub);
     return Padding(
       padding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 24 + MediaQuery.of(context).padding.bottom),
       child: Column(
@@ -421,13 +461,14 @@ class _CustomTierSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(color: AppColors.paper2, borderRadius: AppRadius.mdBR),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.calculate_outlined, size: 18, color: AppColors.amber),
-                SizedBox(width: 10),
+                const Icon(Icons.calculate_outlined, size: 18, color: AppColors.amber),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Формула: 7 690 ₽ + 30 ₽ × (гости − 250)',
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink2)),
+                  child: Text(
+                      'Формула: $base ₽ + ${pricing.customPerGuestRub} ₽ × (гости − ${pricing.customFromGuests - 1})',
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: AppColors.ink2)),
                 ),
               ],
             ),

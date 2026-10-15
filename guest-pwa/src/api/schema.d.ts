@@ -1383,6 +1383,15 @@ export interface components {
             free_events_used: number;
             /** Free Events Left */
             free_events_left: number | null;
+            /** Free Active Limit */
+            free_active_limit?: number | null;
+            /**
+             * Free Active Used
+             * @default 0
+             */
+            free_active_used: number;
+            /** Free Active Left */
+            free_active_left?: number | null;
             features: components["schemas"]["EntitlementFeaturesOut"];
         };
         /** EventCreateIn */
@@ -2129,6 +2138,11 @@ export interface components {
             days: number;
             /** Price Kopecks */
             price_kopecks: number;
+            /**
+             * Per Guest Kopecks
+             * @default 0
+             */
+            per_guest_kopecks: number;
         };
         /** PricingFramesOut */
         PricingFramesOut: {
@@ -2154,6 +2168,10 @@ export interface components {
             extend: components["schemas"]["PricingExtendOut"][];
             /** Upgrade Premium */
             upgrade_premium: number;
+            /** Free Active Events */
+            free_active_events?: number | null;
+            /** Free Events Per Month */
+            free_events_per_month?: number | null;
         };
         /** PricingTierOut */
         PricingTierOut: {

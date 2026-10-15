@@ -4094,6 +4094,33 @@
             ],
             "title": "Free Events Left"
           },
+          "free_active_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Active Limit"
+          },
+          "free_active_used": {
+            "type": "integer",
+            "title": "Free Active Used",
+            "default": 0
+          },
+          "free_active_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Active Left"
+          },
           "features": {
             "$ref": "#/components/schemas/EntitlementFeaturesOut"
           }
@@ -6057,6 +6084,11 @@
           "price_kopecks": {
             "type": "integer",
             "title": "Price Kopecks"
+          },
+          "per_guest_kopecks": {
+            "type": "integer",
+            "title": "Per Guest Kopecks",
+            "default": 0
           }
         },
         "type": "object",
@@ -6120,6 +6152,28 @@
           "upgrade_premium": {
             "type": "number",
             "title": "Upgrade Premium"
+          },
+          "free_active_events": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Active Events"
+          },
+          "free_events_per_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Events Per Month"
           }
         },
         "type": "object",

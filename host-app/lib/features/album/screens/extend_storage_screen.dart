@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../payments/pricing_provider.dart';
 import '../../payments/screens/payment_waiting_screen.dart';
 import '../../payments/utils/idempotency_key.dart';
 import '../../payments/widgets/promo_code_field.dart';
@@ -26,11 +27,28 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
   bool _loading = false;
   String? _promocode;
 
-  static const _options = <_ExtendOption>[
-    _ExtendOption(id: '3m', label: '+ 3 месяца', days: 90, priceRub: 490, savingsHint: null),
-    _ExtendOption(id: '6m', label: '+ 6 месяцев', days: 180, priceRub: 790, savingsHint: 'Скидка 40% к цене за месяц'),
-    _ExtendOption(id: '1y', label: '+ 1 год', days: 365, priceRub: 1290, savingsHint: 'Скидка 65% к цене за месяц'),
-  ];
+  static const _labels = <String, (String, String?)>{
+    '3m': ('+ 3 месяца', null),
+    '6m': ('+ 6 месяцев', 'Дешевле, чем дважды по 3 месяца'),
+    '1y': ('+ 1 год', 'Самая низкая цена за месяц'),
+  };
+
+  // Цена продления зависит от размера альбома — считается по /pricing.
+  int _maxGuests = 5;
+
+  List<_ExtendOption> get _options {
+    final pricing = pricingOf(ref);
+    return [
+      for (final e in pricing.extend)
+        _ExtendOption(
+          id: e.period,
+          label: _labels[e.period]?.$1 ?? e.period,
+          days: e.days,
+          priceRub: e.priceFor(_maxGuests),
+          savingsHint: _labels[e.period]?.$2,
+        ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,12 +89,15 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
             ),
           ),
         ),
-        data: (event) => Column(
+        data: (event) {
+          _maxGuests = ((event['settings'] as Map?)?['max_guests'] as int?) ?? 5;
+          return Column(
           children: [
             Expanded(child: _buildBody(event)),
             _buildFooter(context),
           ],
-        ),
+        );
+        },
       ),
     );
   }
@@ -126,7 +147,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Если не продлить, альбом сохраняется в архиве ещё 30 дней после истечения. После — удаляется навсегда',
+                    'Если не продлить, после окончания срока фото альбома удаляются навсегда. Скачайте важные кадры заранее',
                     style: const TextStyle(
                       fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, height: 1.5,
                     ),
