@@ -10,7 +10,8 @@ from app.domain.schemas.promocodes import (
     ValidatePromocodeOut,
 )
 from app.repos import event_repo, promocode_repo, user_repo
-from app.services import promocode_service
+from app.domain.schemas.payments import PricingOut
+from app.services import payment_service, promocode_service
 from app.services.payment_service import (
     EXTEND_OPTIONS,
     PLAN_PRICES_KOPECKS,
@@ -50,6 +51,11 @@ def _estimate_amount(event, kind: str, plan: str | None, period: str | None, upg
         if upgrade_kind == "frames":
             return event.settings.max_guests * _FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS
     return 0
+
+
+@router.get("/pricing", response_model=PricingOut)
+async def get_pricing() -> PricingOut:
+    return payment_service.pricing_catalog()
 
 
 @router.post("/promocodes/validate", response_model=ValidatePromocodeOut)

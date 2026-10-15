@@ -78,3 +78,39 @@ class UpgradeOut(BaseModel):
     original_amount_kopecks: int | None = None
     discount_kopecks: int = 0
     admin_bypass: bool = False
+
+
+class PricingTierOut(BaseModel):
+    plan: Plan
+    max_guests: int
+    price_kopecks: int
+    retention_days: int
+
+
+class PricingCustomOut(BaseModel):
+    from_guests: int
+    max_guests: int
+    base_price_kopecks: int
+    per_guest_kopecks: int
+    retention_days: int
+
+
+class PricingFramesOut(BaseModel):
+    base_per_guest: int
+    extended_per_guest: int
+    price_per_guest_kopecks: int
+
+
+class PricingExtendOut(BaseModel):
+    period: ExtendPeriod
+    days: int
+    price_kopecks: int
+
+
+class PricingOut(BaseModel):
+    currency: str = "RUB"
+    tiers: list[PricingTierOut]
+    custom: PricingCustomOut
+    frames: PricingFramesOut
+    extend: list[PricingExtendOut]
+    upgrade_premium: float

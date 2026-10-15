@@ -10,7 +10,18 @@ from app.core.errors import (
 )
 from app.core.logging import logger
 from app.domain.models import EventStatus, Payment, PaymentStatus, Plan
-from app.domain.schemas.payments import CheckoutOut, ExtendOut, ExtendPeriod, UpgradeKind, UpgradeOut
+from app.domain.schemas.payments import (
+    CheckoutOut,
+    ExtendOut,
+    ExtendPeriod,
+    PricingCustomOut,
+    PricingExtendOut,
+    PricingFramesOut,
+    PricingOut,
+    PricingTierOut,
+    UpgradeKind,
+    UpgradeOut,
+)
 from app.infra import yookassa_client
 from app.repos import event_repo, payment_repo, user_repo
 from app.services import entitlement_service, promocode_service
@@ -30,6 +41,15 @@ PLAN_PRICES_KOPECKS: dict[Plan, int] = {
     # CUSTOM (>250): computed via price_for_guests(n) in event_service.
     Plan.UNLIMITED: 769000,  # legacy — treat as P250
 }
+
+PAID_TIERS: tuple[Plan, ...] = (
+    Plan.P10, Plan.P25, Plan.P50, Plan.P75, Plan.P100,
+    Plan.P150, Plan.P175, Plan.P200, Plan.P250,
+)
+
+# 250+ гостей: цена P250 + 30 ₽ за каждого гостя сверх 250, до 2000 гостей.
+CUSTOM_PER_GUEST_KOPECKS = 3000
+CUSTOM_MAX_GUESTS = 2000
 
 # Storage extension: (days added, price in kopecks). Business plan v3.2 section 10.
 EXTEND_OPTIONS: dict[str, tuple[int, int]] = {
@@ -60,6 +80,40 @@ _UPGRADE_PREMIUM = 1.15
 _FRAMES_EXTENDED = 45
 _FRAMES_DEFAULT = 30
 _FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS = 500
+
+
+def pricing_catalog() -> PricingOut:
+    from app.services.event_service import _PLAN_LIMITS, _PLAN_RETENTION_DAYS
+
+    top = PAID_TIERS[-1]
+    return PricingOut(
+        tiers=[
+            PricingTierOut(
+                plan=plan,
+                max_guests=_PLAN_LIMITS[plan],
+                price_kopecks=PLAN_PRICES_KOPECKS[plan],
+                retention_days=_PLAN_RETENTION_DAYS[plan],
+            )
+            for plan in (Plan.FREE, *PAID_TIERS)
+        ],
+        custom=PricingCustomOut(
+            from_guests=_PLAN_LIMITS[top] + 1,
+            max_guests=CUSTOM_MAX_GUESTS,
+            base_price_kopecks=PLAN_PRICES_KOPECKS[top],
+            per_guest_kopecks=CUSTOM_PER_GUEST_KOPECKS,
+            retention_days=_PLAN_RETENTION_DAYS[Plan.CUSTOM],
+        ),
+        frames=PricingFramesOut(
+            base_per_guest=_FRAMES_DEFAULT,
+            extended_per_guest=_FRAMES_EXTENDED,
+            price_per_guest_kopecks=_FRAMES_UPGRADE_PRICE_PER_GUEST_KOPECKS,
+        ),
+        extend=[
+            PricingExtendOut(period=period, days=days, price_kopecks=price)
+            for period, (days, price) in EXTEND_OPTIONS.items()
+        ],
+        upgrade_premium=_UPGRADE_PREMIUM,
+    )
 
 
 async def create_checkout(
