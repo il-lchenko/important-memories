@@ -48,7 +48,13 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
   }
 
   Future<void> _loadTitleFont() async {
-    final f = await loadTitleFont(widget.eventId);
+    final dio = ref.read(dioProvider);
+    String? server;
+    try {
+      final e = await ref.read(eventDetailProvider(widget.eventId).future);
+      server = (e['settings'] as Map?)?['title_font'] as String?;
+    } catch (_) {}
+    final f = await loadTitleFont(dio, widget.eventId, serverValue: server);
     if (mounted) setState(() => _titleFont = f);
   }
 
@@ -59,8 +65,19 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       sampleText: currentTitle,
     );
     if (selected != null && selected != _titleFont) {
+      final previous = _titleFont;
       setState(() => _titleFont = selected);
-      await saveTitleFont(widget.eventId, selected);
+      try {
+        await saveTitleFont(ref.read(dioProvider), widget.eventId, selected);
+        ref.invalidate(eventDetailProvider(widget.eventId));
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _titleFont = previous);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Не удалось сохранить шрифт'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 

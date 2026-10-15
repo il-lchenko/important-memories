@@ -15,6 +15,10 @@ from app.domain.models.enums import (
 )
 
 
+QrStyle = Literal["classic", "dark", "warm", "mono"]
+TitleFont = Literal["playfair", "fraunces", "caveat", "manrope"]
+
+
 def _sanitize_title(v: str | None) -> str | None:
     """Escape HTML in event titles — displayed publicly in album views."""
     if v is None:
@@ -40,6 +44,8 @@ class EventSettingsOut(BaseModel):
     # Пост-event окно загрузки из галереи. Если > now — гости могут заливать
     # даже на завершённом событии. См. POST /events/{id}/uploads-window.
     uploads_window_ends_at: datetime | None = None
+    qr_style: QrStyle | None = None
+    title_font: TitleFont | None = None
 
 
 class EventOut(BaseModel):
@@ -124,6 +130,8 @@ class EventSettingsUpdateIn(BaseModel):
     sound_enabled: bool | None = None
     photo_format: PhotoFormat | None = None
     uploads_enabled: bool | None = None
+    qr_style: QrStyle | None = None
+    title_font: TitleFont | None = None
 
     @field_validator("frames_per_guest")
     @classmethod

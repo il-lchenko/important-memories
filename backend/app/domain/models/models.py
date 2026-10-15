@@ -182,6 +182,9 @@ class EventSettings(Base):
     uploads_window_ends_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Оформление: пресет QR и шрифт заголовка альбома. NULL = значение по умолчанию.
+    qr_style: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    title_font: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     event: Mapped[Event] = relationship(back_populates="settings")
 

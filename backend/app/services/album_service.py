@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.domain.models import (
     Event,
+    EventSettings,
     EventStatus,
     Frame,
     FrameStatus,
@@ -142,6 +143,7 @@ async def get_album(
             revealed=False,
             total_frames=total_frames,
             is_admin_preview=False,
+            title_font=event.settings.title_font,
         )
 
     stmt = (
@@ -189,6 +191,7 @@ async def get_album(
         revealed=True,
         total_frames=total_frames,
         is_admin_preview=is_admin_preview,
+        title_font=event.settings.title_font,
     )
 
 
@@ -253,7 +256,13 @@ async def get_public_album(
         revealed=True,
         total_frames=total_frames,
         is_admin_preview=False,
+        title_font=await _title_font(session, event.id),
     )
+
+
+async def _title_font(session: AsyncSession, event_id: UUID) -> str | None:
+    event_settings = await session.get(EventSettings, event_id)
+    return event_settings.title_font if event_settings else None
 
 
 async def get_public_meta(
@@ -285,4 +294,5 @@ async def get_public_meta(
         "cover_url": cover_url,
         "total_frames": total_frames,
         "revealed": True,
+        "title_font": await _title_font(session, event.id),
     }

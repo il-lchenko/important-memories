@@ -1,10 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/tokens.dart';
 
 /// 4 пресета шрифта для title альбома. Применяется в hero-заголовке
-/// `album_screen` (hero-title). Хранится локально по `title_font_{eventId}`.
+/// `album_screen` (hero-title). Хранится на сервере в `settings.title_font`.
 enum TitleFont { playfair, fraunces, caveat, manrope }
 
 class TitleFontStyle {
@@ -69,19 +70,29 @@ final Map<TitleFont, TitleFontStyle> kTitleFonts = {
 
 String _storageKey(String eventId) => 'title_font_$eventId';
 
-Future<TitleFont> loadTitleFont(String eventId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_storageKey(eventId));
-  if (raw == null) return TitleFont.playfair;
+TitleFont parseTitleFont(String? raw) {
   for (final f in TitleFont.values) {
     if (f.name == raw) return f;
   }
   return TitleFont.playfair;
 }
 
-Future<void> saveTitleFont(String eventId, TitleFont font) async {
+/// [serverValue] — `settings.title_font` события. Если на сервере пусто, а в
+/// SharedPreferences осталось значение от старой версии — выгружаем его один раз.
+Future<TitleFont> loadTitleFont(Dio dio, String eventId, {String? serverValue}) async {
+  if (serverValue != null) return parseTitleFont(serverValue);
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_storageKey(eventId), font.name);
+  final local = prefs.getString(_storageKey(eventId));
+  if (local == null) return TitleFont.playfair;
+  try {
+    await dio.patch('events/$eventId/settings', data: {'title_font': local});
+    await prefs.remove(_storageKey(eventId));
+  } catch (_) {}
+  return parseTitleFont(local);
+}
+
+Future<void> saveTitleFont(Dio dio, String eventId, TitleFont font) async {
+  await dio.patch('events/$eventId/settings', data: {'title_font': font.name});
 }
 
 /// Bottom sheet picker. Возвращает выбранный TitleFont или null (отмена).

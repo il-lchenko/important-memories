@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../album/album_provider.dart';
 import '../qr_style.dart';
@@ -27,7 +28,13 @@ class _QrFullscreenScreenState extends ConsumerState<QrFullscreenScreen> {
   }
 
   Future<void> _loadPreset() async {
-    final p = await loadQrPreset(widget.eventId);
+    final dio = ref.read(dioProvider);
+    String? server;
+    try {
+      final e = await ref.read(eventDetailProvider(widget.eventId).future);
+      server = (e['settings'] as Map?)?['qr_style'] as String?;
+    } catch (_) {}
+    final p = await loadQrPreset(dio, widget.eventId, serverValue: server);
     if (mounted) setState(() => _preset = p);
   }
 
@@ -42,8 +49,19 @@ class _QrFullscreenScreenState extends ConsumerState<QrFullscreenScreen> {
       builder: (ctx) => _StylePickerSheet(current: _preset),
     );
     if (selected != null && selected != _preset) {
+      final previous = _preset;
       setState(() => _preset = selected);
-      await saveQrPreset(widget.eventId, selected);
+      try {
+        await saveQrPreset(ref.read(dioProvider), widget.eventId, selected);
+        ref.invalidate(eventDetailProvider(widget.eventId));
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _preset = previous);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Не удалось сохранить стиль QR'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 

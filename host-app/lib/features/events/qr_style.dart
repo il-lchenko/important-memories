@@ -1,9 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/tokens.dart';
 
-/// 4 пресета оформления QR. Хранятся локально в SharedPreferences
-/// по ключу `qr_preset_{eventId}`. При null (не выбран) — classic.
+/// 4 пресета оформления QR. Хранятся на сервере в `settings.qr_style`.
+/// При null (не выбран) — classic.
 enum QrPreset { classic, dark, warm, mono }
 
 class QrPresetStyle {
@@ -67,17 +68,27 @@ const Map<QrPreset, QrPresetStyle> kQrPresets = {
 
 String _storageKey(String eventId) => 'qr_preset_$eventId';
 
-Future<QrPreset> loadQrPreset(String eventId) async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString(_storageKey(eventId));
-  if (raw == null) return QrPreset.classic;
+QrPreset parseQrPreset(String? raw) {
   for (final p in QrPreset.values) {
     if (p.name == raw) return p;
   }
   return QrPreset.classic;
 }
 
-Future<void> saveQrPreset(String eventId, QrPreset preset) async {
+/// [serverValue] — `settings.qr_style` события. Если на сервере пусто, а в
+/// SharedPreferences осталось значение от старой версии — выгружаем его один раз.
+Future<QrPreset> loadQrPreset(Dio dio, String eventId, {String? serverValue}) async {
+  if (serverValue != null) return parseQrPreset(serverValue);
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_storageKey(eventId), preset.name);
+  final local = prefs.getString(_storageKey(eventId));
+  if (local == null) return QrPreset.classic;
+  try {
+    await dio.patch('events/$eventId/settings', data: {'qr_style': local});
+    await prefs.remove(_storageKey(eventId));
+  } catch (_) {}
+  return parseQrPreset(local);
+}
+
+Future<void> saveQrPreset(Dio dio, String eventId, QrPreset preset) async {
+  await dio.patch('events/$eventId/settings', data: {'qr_style': preset.name});
 }

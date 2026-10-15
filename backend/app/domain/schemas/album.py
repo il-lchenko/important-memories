@@ -33,3 +33,4 @@ class AlbumOut(BaseModel):
     revealed: bool
     total_frames: int
     is_admin_preview: bool = False
+    title_font: str | None = None

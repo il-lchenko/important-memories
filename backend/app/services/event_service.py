@@ -151,6 +151,8 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
             photo_format=s.photo_format,
             uploads_enabled=s.uploads_enabled,
             uploads_window_ends_at=s.uploads_window_ends_at,
+            qr_style=s.qr_style,
+            title_font=s.title_font,
         ),
         guests_count=guests_count,
         frames_count=frames_count,
@@ -306,8 +308,14 @@ async def update_settings(
     # быстро отключить фичу при абьюзе, даже после присоединения гостей.
     if payload.uploads_enabled is not None:
         s.uploads_enabled = payload.uploads_enabled
+    # Оформление тоже не блокируется: QR и шрифт меняются в любой момент.
+    if payload.qr_style is not None:
+        s.qr_style = payload.qr_style
+    if payload.title_font is not None:
+        s.title_font = payload.title_font
 
-    if s.reveal_mode == RevealMode.DELAYED:
+    reveal_changed = payload.reveal_mode is not None or payload.reveal_at is not None
+    if reveal_changed and s.reveal_mode == RevealMode.DELAYED:
         if s.reveal_at is None:
             raise ConflictError("reveal_at is required for delayed reveal")
         if s.reveal_at <= datetime.now(timezone.utc):
@@ -315,7 +323,8 @@ async def update_settings(
 
     await session.commit()
     if (
-        s.reveal_mode == RevealMode.DELAYED
+        reveal_changed
+        and s.reveal_mode == RevealMode.DELAYED
         and s.reveal_at is not None
         and event.status == EventStatus.ACTIVE
     ):
