@@ -136,6 +136,63 @@ function FilmCounter({ frames }: { frames: number }) {
 }
 
 // ── FramePreview ─────────────────────────────────────────────────────────────
+// ── ShotConfirm — короткий preview сразу после съёмки (Оставить / Удалить) ────
+function ShotConfirm({ blobUrl, captureRatio, onKeep, onDiscard }: {
+  blobUrl: string; captureRatio: number; onKeep: () => void; onDiscard: () => void;
+}) {
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false)
+  return (
+    <div className="darkroom" style={{ position: 'absolute', inset: 0, zIndex: 60, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '60px 24px 0', fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(240,230,210,.55)', letterSpacing: '.14em', textAlign: 'center' }}>
+        ПРЕДПРОСМОТР · ОСТАВИТЬ КАДР?
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px 20px', flex: 1, minHeight: 0 }}>
+        <div style={{ maxWidth: captureRatio > 1 ? 440 : 320, width: '100%', aspectRatio: captureRatio > 1 ? '4/3' : '3/4', borderRadius: 6, overflow: 'hidden', background: '#000', boxShadow: '0 20px 50px -8px rgba(0,0,0,.5)' }}>
+          <img src={blobUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+      </div>
+      <div className="footer-gradient dark" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {!confirmingDiscard ? (
+          <>
+            <button className="btn-dark-amber" onClick={onKeep}>
+              Оставить кадр
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--dark)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+            <button
+              className="btn-ghost-dark btn-sm"
+              onClick={() => setConfirmingDiscard(true)}
+              style={{ color: '#F0C8B8' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6, verticalAlign: 'middle' }}>
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Удалить
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: 'var(--dr-text)', lineHeight: 1.4, padding: '0 12px 4px' }}>
+              Удалить этот кадр? Он не загрузится в альбом.
+            </div>
+            <button
+              onClick={onDiscard}
+              style={{ width: '100%', height: 50, border: 'none', borderRadius: 12, background: '#D54B3D', color: '#fff', fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 600, letterSpacing: '.02em', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
+              Да, удалить
+            </button>
+            <button className="btn-ghost-dark btn-sm" onClick={() => setConfirmingDiscard(false)}>
+              Отмена
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, captureRatio, uploadStatus, canSign }: {
   blobUrl: string; frameNum: number; onShootMore: () => void; onSign: () => Promise<void> | void;
   onRetryUpload?: () => void;
@@ -414,6 +471,9 @@ export default function CameraScreen() {
     url: string; frameNum: number; ratio: number;
     frameId: string | null; uploadStatus: 'pending' | 'ok' | 'failed';
     canSign: boolean;
+  } | null>(null)
+  const [pendingShot, setPendingShot] = useState<{
+    blob: Blob; width: number; height: number; actualRatio: number; blobUrl: string;
   } | null>(null)
   const uploadPromiseRef = useRef<Promise<{ ok: true; frameId: string } | { ok: false }> | null>(null)
   const previewItemRef = useRef<QueueItem | null>(null)
@@ -703,11 +763,22 @@ export default function CameraScreen() {
       const shot = await capture(actualRatio, facingMode === 'user', lutPreset)
       if (flashOn && !torchSupported) setScreenFlashing(false)
       if (!shot) return
-      setFramesLeft((n) => (n !== null ? Math.max(0, n - 1) : null))
-      const capturedAt = new Date().toISOString()
+      // Показываем короткий preview-confirm (Оставить / Удалить) ДО любой записи:
+      // framesLeft, recentShots, IDB и upload — ничего не трогаем, пока юзер не подтвердил.
       const blobUrl = URL.createObjectURL(shot.blob)
-      const frameNum = framesTotal != null && framesLeft != null ? framesTotal - framesLeft + 1 : 1
-      const thumbDataUrl = await blobToThumbDataUrl(shot.blob).catch(() => blobUrl)
+      setPendingShot({ blob: shot.blob, width: shot.width, height: shot.height, actualRatio, blobUrl })
+    } finally {
+      setShooting(false)
+    }
+  }
+
+  // Старая логика upload — вызывается только после явного подтверждения на preview-confirm экране.
+  const commitShot = (shot: { blob: Blob; width: number; height: number; blobUrl: string }, actualRatio: number) => {
+    setFramesLeft((n) => (n !== null ? Math.max(0, n - 1) : null))
+    const capturedAt = new Date().toISOString()
+    const blobUrl = shot.blobUrl
+    const frameNum = framesTotal != null && framesLeft != null ? framesTotal - framesLeft + 1 : 1
+    blobToThumbDataUrl(shot.blob).catch(() => blobUrl).then((thumbDataUrl) => {
       setRecentShots((prev) => {
         const next: RecentShot[] = [
           { url: thumbDataUrl, frameNum, ratio: actualRatio },
@@ -716,28 +787,36 @@ export default function CameraScreen() {
         saveRecentShots(shortCode, next)
         return next
       })
-      // Запускаем upload в фоне — preview показываем сразу, чтобы можно было сразу подписать
-      const item: QueueItem = { id: newId(), blob: shot.blob, width: shot.width, height: shot.height, capturedAt }
-      previewItemRef.current = item
-      // Пишем в IndexedDB СРАЗУ — переживёт refresh/закрытие вкладки
-      if (shortCode) {
-        idbEnqueue({ id: item.id, shortCode, blob: item.blob, width: item.width, height: item.height, capturedAt, attempts: 0, createdAt: Date.now() })
-          .catch((e) => console.warn('idb enqueue failed', e))
-      }
-      const promise = uploadItem(item)
-      uploadPromiseRef.current = promise
-      setPreview({ url: blobUrl, frameNum, ratio: actualRatio, frameId: null, uploadStatus: 'pending', canSign: true })
-      // Обновляем preview когда upload завершится — но только если preview всё ещё этот же
-      promise.then((res) => {
-        if (!res.ok) uploadQueue.current.push(item)
-        setPreview((curr) => {
-          if (!curr || curr.url !== blobUrl) return curr
-          return { ...curr, frameId: res.ok ? res.frameId : null, uploadStatus: res.ok ? 'ok' : 'failed' }
-        })
-      })
-    } finally {
-      setShooting(false)
+    })
+    const item: QueueItem = { id: newId(), blob: shot.blob, width: shot.width, height: shot.height, capturedAt }
+    previewItemRef.current = item
+    if (shortCode) {
+      idbEnqueue({ id: item.id, shortCode, blob: item.blob, width: item.width, height: item.height, capturedAt, attempts: 0, createdAt: Date.now() })
+        .catch((e) => console.warn('idb enqueue failed', e))
     }
+    const promise = uploadItem(item)
+    uploadPromiseRef.current = promise
+    setPreview({ url: blobUrl, frameNum, ratio: actualRatio, frameId: null, uploadStatus: 'pending', canSign: true })
+    promise.then((res) => {
+      if (!res.ok) uploadQueue.current.push(item)
+      setPreview((curr) => {
+        if (!curr || curr.url !== blobUrl) return curr
+        return { ...curr, frameId: res.ok ? res.frameId : null, uploadStatus: res.ok ? 'ok' : 'failed' }
+      })
+    })
+  }
+
+  const handleKeepShot = () => {
+    if (!pendingShot) return
+    const shot = pendingShot
+    setPendingShot(null)
+    commitShot({ blob: shot.blob, width: shot.width, height: shot.height, blobUrl: shot.blobUrl }, shot.actualRatio)
+  }
+
+  const handleDiscardShot = () => {
+    if (!pendingShot) return
+    URL.revokeObjectURL(pendingShot.blobUrl)
+    setPendingShot(null)
   }
 
   if (!online && showOffline) {
@@ -745,6 +824,15 @@ export default function CameraScreen() {
       queue={uploadQueue.current}
       onRetry={() => { processQueue(); setShowOffline(false) }}
       onContinue={() => setShowOffline(false)}
+    />
+  }
+
+  if (pendingShot) {
+    return <ShotConfirm
+      blobUrl={pendingShot.blobUrl}
+      captureRatio={pendingShot.actualRatio}
+      onKeep={handleKeepShot}
+      onDiscard={handleDiscardShot}
     />
   }
 

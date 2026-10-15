@@ -169,12 +169,14 @@ export interface VoicePresignResponse {
 
 export interface FrameUpdatePayload {
   caption?: string | null
+  note?: string | null
   voice_s3_key?: string | null
   voice_duration_ms?: number | null
   voice_peaks?: number[] | null
   rotation?: 0 | 90 | 180 | 270
   clear_caption?: boolean
   clear_voice?: boolean
+  clear_note?: boolean
 }
 
 export interface PublicAlbumMeta {

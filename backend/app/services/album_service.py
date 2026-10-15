@@ -84,6 +84,7 @@ def _to_frame_out(frame: Frame, guest_name: str | None, is_mine: bool, guest_ava
         height=frame.height,
         is_mine=is_mine,
         caption=frame.caption,
+        note=frame.note,
         voice_url=voice_url,
         voice_duration_ms=frame.voice_duration_ms,
         voice_peaks=frame.voice_peaks,

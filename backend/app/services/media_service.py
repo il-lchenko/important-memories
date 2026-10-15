@@ -301,6 +301,11 @@ async def update_frame(
         if frame.voice_s3_key:
             frame.caption = None
 
+    if payload.clear_note:
+        frame.note = None
+    elif payload.note is not None:
+        frame.note = payload.note.strip() or None
+
     if payload.rotation is not None:
         frame.rotation = payload.rotation
 

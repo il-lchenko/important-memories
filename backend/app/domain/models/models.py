@@ -255,6 +255,10 @@ class Frame(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     caption: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Длинная заметка/мысль к кадру — до 2000 символов. В отличие от caption,
+    # не является взаимоисключающей с voice; показывается отдельным блоком
+    # в FrameFullscreen / frame_detail. HTML экранируется в схеме.
+    note: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     voice_s3_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     voice_duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     voice_peaks: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)

@@ -27,6 +27,10 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
   String _eventId = '';
   String? _savedText;
   String? _errorText;
+  // Реальный frameId — заменяет widget.frameId если тот == 'pending' (съёмка ещё
+  // грузится в момент перехода).
+  String? _resolvedFrameId;
+  Future<String>? _uploadFuture;
 
   static const _maxLen = 120;
 
@@ -120,15 +124,43 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
     return result == 'leave';
   }
 
+  Future<String?> _ensureFrameId() async {
+    // Если frameId уже разрешён или был передан напрямую — возвращаем его.
+    if (_resolvedFrameId != null) return _resolvedFrameId;
+    if (widget.frameId != 'pending') {
+      _resolvedFrameId = widget.frameId;
+      return _resolvedFrameId;
+    }
+    // 'pending' означает: кадр ещё грузится. Ждём uploadFuture из extra.
+    final f = _uploadFuture;
+    if (f == null) return null;
+    try {
+      final real = await f;
+      _resolvedFrameId = real;
+      return real;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _save() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isSaving) return;
     setState(() { _isSaving = true; _errorText = null; });
     try {
+      final frameId = await _ensureFrameId();
+      if (!mounted) return;
+      if (frameId == null) {
+        setState(() {
+          _isSaving = false;
+          _errorText = 'Кадр не загрузился. Проверьте интернет и попробуйте снова.';
+        });
+        return;
+      }
       final token = _eventId.isEmpty ? '' : await GuestPrefs.tokenFor(_eventId);
       final dio = ref.read(dioProvider);
       await dio.patch(
-        'guest/frames/${widget.frameId}',
+        'guest/frames/$frameId',
         data: {'caption': text},
         options: Options(headers: {'X-Guest-Token': token}),
       );
@@ -150,6 +182,7 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
     final ratio = (extra['ratio'] as num?)?.toDouble() ?? 3 / 4;
     final frameNum = extra['frameNum'] as int? ?? 0;
     final guestName = extra['guestName'] as String? ?? 'Гость';
+    _uploadFuture ??= extra['uploadFuture'] as Future<String>?;
 
     final topPad = MediaQuery.of(context).padding.top;
     final botPad = MediaQuery.of(context).padding.bottom;

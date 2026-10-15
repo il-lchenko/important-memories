@@ -16,6 +16,7 @@ interface Frame {
   height: number
   is_mine: boolean
   caption?: string | null
+  note?: string | null
   voice_url?: string | null
   voice_duration_ms?: number | null
   voice_peaks?: number[] | null
@@ -63,6 +64,8 @@ export default function FrameFullscreen() {
   const [initialRotation, setInitialRotation] = useState(0)
   const [savingRotation, setSavingRotation] = useState(false)
   const [rotationToast, setRotationToast] = useState<string | null>(null)
+  const [showNoteSheet, setShowNoteSheet] = useState(false)
+  const [noteSaving, setNoteSaving] = useState(false)
   const touchStartX = useRef<number | null>(null)
 
   const frames: Frame[] = state?.frames ?? []
@@ -104,6 +107,28 @@ export default function FrameFullscreen() {
       setSavingRotation(false)
     }
   }, [frame, rotation, savingRotation])
+
+  const handleSaveNote = useCallback(async (value: string) => {
+    if (!frame || noteSaving) return
+    if (isPublic || !frame.is_mine) return
+    const trimmed = value.trim()
+    setNoteSaving(true)
+    try {
+      if (trimmed) {
+        await guestApi.updateFrame(frame.id, { note: trimmed })
+        frame.note = trimmed
+      } else {
+        await guestApi.updateFrame(frame.id, { clear_note: true })
+        frame.note = null
+      }
+      setShowNoteSheet(false)
+    } catch {
+      setRotationToast('Не удалось сохранить')
+      setTimeout(() => setRotationToast(null), 2000)
+    } finally {
+      setNoteSaving(false)
+    }
+  }, [frame, noteSaving, isPublic])
 
   const goTo = useCallback((idx: number) => {
     if (idx >= 0 && idx < frames.length) setCurrentIndex(idx)
@@ -371,6 +396,49 @@ export default function FrameFullscreen() {
         </span>
       </div>
 
+      {/* Note — длинная заметка/мысль. Clamp 2 строки, тап раскрывает sheet. */}
+      {frame.note ? (
+        <button
+          onClick={() => setShowNoteSheet(true)}
+          style={{
+            flexShrink: 0,
+            margin: '2px 20px 0',
+            padding: '10px 14px',
+            background: 'rgba(255,179,71,.06)',
+            border: '1px solid rgba(255,179,71,.18)',
+            borderRadius: 12,
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'rgba(240,230,210,.92)',
+            fontFamily: 'Inter, sans-serif', fontSize: 13, lineHeight: 1.4,
+            display: '-webkit-box',
+            WebkitBoxOrient: 'vertical' as const,
+            WebkitLineClamp: 2,
+            overflow: 'hidden',
+          }}
+        >
+          {frame.note}
+        </button>
+      ) : frame.is_mine && !isPublic ? (
+        <button
+          onClick={() => setShowNoteSheet(true)}
+          style={{
+            flexShrink: 0,
+            margin: '2px 20px 0',
+            padding: '8px 0',
+            background: 'none',
+            border: 'none',
+            textAlign: 'left',
+            cursor: 'pointer',
+            color: 'rgba(255,179,71,.85)',
+            fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 500,
+            letterSpacing: '.02em',
+          }}
+        >
+          + Добавить заметку
+        </button>
+      ) : null}
+
       {/* Actions */}
       <div style={{ flexShrink: 0, padding: '8px 20px 30px', display: 'flex', justifyContent: 'space-around', background: 'var(--dark)' }}>
         {/* Rotate */}
@@ -499,7 +567,154 @@ export default function FrameFullscreen() {
         </div>
       )}
 
+      {showNoteSheet && (
+        <NoteSheet
+          note={frame.note ?? ''}
+          canEdit={!isPublic && frame.is_mine}
+          saving={noteSaving}
+          onClose={() => !noteSaving && setShowNoteSheet(false)}
+          onSave={handleSaveNote}
+        />
+      )}
+
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
+function NoteSheet({ note, canEdit, saving, onClose, onSave }: {
+  note: string
+  canEdit: boolean
+  saving: boolean
+  onClose: () => void
+  onSave: (value: string) => void
+}) {
+  const [value, setValue] = useState(note)
+  const [editing, setEditing] = useState(canEdit && !note)
+  const dirty = value.trim() !== note.trim()
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,.55)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(2px)',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 560,
+          background: 'var(--dark-2, #1F1812)',
+          borderTopLeftRadius: 20, borderTopRightRadius: 20,
+          padding: '18px 20px calc(env(safe-area-inset-bottom, 16px) + 18px)',
+          color: 'var(--dr-text, #F0E6D2)',
+          display: 'flex', flexDirection: 'column', gap: 12,
+          maxHeight: '85dvh',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 600 }}>
+            Заметка
+          </div>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(240,230,210,.6)', padding: 4,
+              opacity: saving ? 0.4 : 1,
+            }}
+            aria-label="Закрыть"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {editing ? (
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            maxLength={2000}
+            placeholder="Мысль, воспоминание, контекст…"
+            disabled={saving}
+            style={{
+              width: '100%', minHeight: 160, maxHeight: '55dvh',
+              background: 'rgba(0,0,0,.3)',
+              color: 'var(--dr-text, #F0E6D2)',
+              border: '1px solid rgba(255,179,71,.2)',
+              borderRadius: 12, padding: '12px 14px',
+              fontFamily: 'Inter, sans-serif', fontSize: 15, lineHeight: 1.5,
+              resize: 'vertical', outline: 'none',
+            }}
+          />
+        ) : (
+          <div style={{
+            overflowY: 'auto', maxHeight: '55dvh',
+            fontFamily: 'Inter, sans-serif', fontSize: 15, lineHeight: 1.5,
+            color: 'rgba(240,230,210,.95)',
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            padding: '6px 2px',
+          }}>
+            {note || <span style={{ color: 'rgba(240,230,210,.5)' }}>Пусто</span>}
+          </div>
+        )}
+
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(240,230,210,.5)' }}>
+              {editing ? `${value.length} / 2000` : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {editing ? (
+                <>
+                  <button
+                    onClick={() => { setValue(note); setEditing(false) }}
+                    disabled={saving}
+                    style={{
+                      background: 'transparent', color: 'rgba(240,230,210,.7)',
+                      border: '1px solid rgba(255,255,255,.15)', borderRadius: 12,
+                      padding: '9px 14px', fontFamily: 'Inter, sans-serif', fontSize: 13,
+                      cursor: saving ? 'default' : 'pointer',
+                    }}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => onSave(value)}
+                    disabled={saving || !dirty}
+                    style={{
+                      background: 'var(--amber, #C9881E)', color: '#fff',
+                      border: 'none', borderRadius: 12,
+                      padding: '9px 18px', fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
+                      cursor: saving ? 'wait' : 'pointer',
+                      opacity: saving || !dirty ? 0.5 : 1,
+                    }}
+                  >
+                    {saving ? '…' : 'Сохранить'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  style={{
+                    background: 'var(--amber, #C9881E)', color: '#fff',
+                    border: 'none', borderRadius: 12,
+                    padding: '9px 18px', fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Изменить
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

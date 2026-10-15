@@ -80,19 +80,26 @@ class FrameVoicePresignOut(BaseModel):
 
 
 class FrameUpdateIn(BaseModel):
-    """Guest updates caption, voice or rotation for their own frame."""
+    """Guest updates caption, voice, note or rotation for their own frame."""
 
     caption: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=2000)
     voice_s3_key: str | None = Field(default=None, max_length=1024)
     voice_duration_ms: int | None = Field(default=None, ge=0, le=25_000)
     voice_peaks: list[float] | None = Field(default=None)
     rotation: int | None = Field(default=None)
     clear_caption: bool = False
     clear_voice: bool = False
+    clear_note: bool = False
 
     @field_validator("caption")
     @classmethod
     def _sanitize(cls, v: str | None) -> str | None:
+        return _sanitize_caption(v)
+
+    @field_validator("note")
+    @classmethod
+    def _sanitize_note(cls, v: str | None) -> str | None:
         return _sanitize_caption(v)
 
     @field_validator("voice_peaks")

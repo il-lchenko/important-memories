@@ -1384,7 +1384,28 @@ class _CreateAlbumFab extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.add_photo_alternate_outlined, size: 28, color: Colors.white),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.collections_bookmark_outlined, size: 28, color: Colors.white),
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: AppColors.amber.withValues(alpha: 0.4), blurRadius: 2),
+                  ],
+                ),
+                child: const Icon(Icons.add, size: 10, color: AppColors.amber, weight: 700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -40,6 +40,26 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
   String? _recordedPath;
   AudioPlayer? _player;
   bool _isPlaying = false;
+  // Если frameId == 'pending' — ждём uploadFuture из extra в момент submit.
+  String? _resolvedFrameId;
+  Future<String>? _uploadFuture;
+
+  Future<String?> _ensureFrameId() async {
+    if (_resolvedFrameId != null) return _resolvedFrameId;
+    if (widget.frameId != 'pending') {
+      _resolvedFrameId = widget.frameId;
+      return _resolvedFrameId;
+    }
+    final f = _uploadFuture;
+    if (f == null) return null;
+    try {
+      final real = await f;
+      _resolvedFrameId = real;
+      return real;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static const _maxMs = 20000;
 
@@ -189,6 +209,19 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     setState(() => _state = _RecordState.uploading);
 
     try {
+      final frameId = await _ensureFrameId();
+      if (!mounted) return;
+      if (frameId == null) {
+        setState(() => _state = _RecordState.recorded);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Кадр не загрузился. Проверьте интернет.'),
+            backgroundColor: AppColors.shutter,
+          ),
+        );
+        return;
+      }
+
       final bytes = await File(path).readAsBytes();
       final durationMs = _elapsedMs;
       final peaks = _resamplePeaks(_peaks, 40);
@@ -199,7 +232,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
 
       // 1. Presign
       final presignResp = await dio.post(
-        'guest/frames/${widget.frameId}/voice-presign',
+        'guest/frames/$frameId/voice-presign',
         data: {
           'content_type': 'audio/mp4',
           'size_bytes': bytes.length,
@@ -229,7 +262,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
 
       // 3. PATCH frame with voice metadata
       await dio.patch(
-        'guest/frames/${widget.frameId}',
+        'guest/frames/$frameId',
         data: {
           'voice_s3_key': voiceS3Key,
           'voice_duration_ms': durationMs,
@@ -277,6 +310,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
     final ratio = (extra['ratio'] as num?)?.toDouble() ?? 3 / 4;
     final frameNum = extra['frameNum'] as int? ?? 0;
     final guestName = extra['guestName'] as String? ?? 'Гость';
+    _uploadFuture ??= extra['uploadFuture'] as Future<String>?;
 
     final botPad = MediaQuery.of(context).padding.bottom;
     final isRecording = _state == _RecordState.recording;

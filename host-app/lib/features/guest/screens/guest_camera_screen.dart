@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:crypto/crypto.dart';
@@ -522,6 +523,11 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final rawRatio = _aspectMode == _AspectMode.ratio34
           ? (_quarterIsLandscape(quarter) ? 4.0 / 3.0 : 3.0 / 4.0)
           : (_quarterIsLandscape(quarter) ? 1 / screenRatio0 : screenRatio0);
+      // uploadCompleter — Future создаётся СРАЗУ, чтобы CaptionScreen/VoiceRecordScreen
+      // могли ждать его даже если юзер успел перейти «Подписать» до завершения full compute.
+      // Resolve'ится в then() от _upload ниже, или rejectится из _discardPreview.
+      final uploadCompleter = Completer<String>();
+      final cancelToken = CancelToken();
       if (!mounted) return;
       setState(() {
         _isCapturing = false;
@@ -532,6 +538,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           frameNum: frameNum,
           status: _UploadStatus.pending,
           isProcessing: true,
+          uploadFuture: uploadCompleter.future,
+          uploadCancel: cancelToken,
+          uploadCompleter: uploadCompleter,
         );
       });
 
@@ -545,6 +554,12 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       } else {
         targetRatio = _quarterIsLandscape(quarter) ? 1 / screenRatio : screenRatio;
       }
+
+      // Fast preview phase: нативный Skia-decode до 800px + LUT в compute → мгновенное
+      // превью (~0.5с). Запускаем параллельно с full-обработкой, не ждём результат —
+      // кто первым обновит _preview, тот и покажется. Full всегда больше по bytes →
+      // _runFastPreview не перепишет его если уже пришёл.
+      unawaited(_runFastPreview(rawBytes, _lutPreset, frameNum, targetRatio));
 
       // Обрабатываем в фоне (film filter + EXIF-ориентация + кроп до targetRatio).
       // maxSize 4000 → сохраняем ~12MP (полный размер камеры), чтобы при скачивании
@@ -577,6 +592,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           '${recentDir.path}/${DateTime.now().millisecondsSinceEpoch}_$frameNum.jpg';
       await File(filePath).writeAsBytes(processed);
 
+      // Снэпшот старых recent-shots — нужен для корректного отката при Delete.
+      final prevRecentShots = List<_RecentShot>.from(_recentShots);
       final newShots = [
         _RecentShot(
           thumbDataUrl: thumbDataUrl,
@@ -593,10 +610,19 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       }
       await _saveRecentShots(widget.eventId, newShots);
 
-      // Запускаем upload и обновляем превью обработанными байтами.
-      final uploadFuture = _upload(processed, width, height);
+      // Проверяем — пользователь мог нажать «Удалить» пока шла обработка.
+      // Если _preview уже null или кадр другой — не стартуем upload, завершаем completer с ошибкой.
+      final currentPreview = _preview;
+      if (!mounted || currentPreview == null || currentPreview.frameNum != frameNum) {
+        if (!uploadCompleter.isCompleted) {
+          uploadCompleter.completeError('preview-discarded');
+        }
+        return;
+      }
 
-      if (!mounted) return;
+      // Запускаем upload и обновляем превью обработанными байтами.
+      final uploadFuture = _upload(processed, width, height, cancelToken: cancelToken);
+
       setState(() {
         _recentShots = newShots;
         final p = _preview;
@@ -605,12 +631,14 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
             bytes: processed,
             ratio: ratio,
             isProcessing: false,
-            uploadFuture: uploadFuture,
+            localFilePath: filePath,
+            previousRecentShots: prevRecentShots,
           );
         }
       });
 
       uploadFuture.then((frameId) {
+        if (!uploadCompleter.isCompleted) uploadCompleter.complete(frameId);
         if (!mounted) return;
         setState(() {
           final p = _preview;
@@ -618,7 +646,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           _preview = p.copyWith(frameId: frameId, status: _UploadStatus.ok);
         });
       }).catchError((e) {
+        if (!uploadCompleter.isCompleted) uploadCompleter.completeError(e);
         if (!mounted) return;
+        // Отмена через CancelToken — тихо, никаких ошибок.
+        if (e is DioException && CancelToken.isCancel(e)) return;
         // 409 от backend означает «съёмка завершена / альбом закрыт».
         // Сразу уводим гостя в альбом (там reveal / архив).
         if (e is DioException && e.response?.statusCode == 409) {
@@ -656,6 +687,111 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     }
   }
 
+  // Fast preview: нативный Skia-decode до 800px → compute LUT → показать preview
+  // мгновенно (~0.5с), пока в фоне идёт полная 12MP-обработка.
+  // Fire-and-forget — если упадёт или придёт позже полной версии, тихо игнорируем.
+  Future<void> _runFastPreview(Uint8List rawBytes, String preset, int frameNum, double targetRatio) async {
+    try {
+      final buffer = await ui.ImmutableBuffer.fromUint8List(rawBytes);
+      final descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final codec = await descriptor.instantiateCodec(targetWidth: 800);
+      final frame = await codec.getNextFrame();
+      final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final w = frame.image.width;
+      final h = frame.image.height;
+      frame.image.dispose();
+      codec.dispose();
+      descriptor.dispose();
+      buffer.dispose();
+      if (byteData == null) return;
+      final rgba = byteData.buffer.asUint8List();
+
+      final result = await compute(applyLutToRgbaInIsolate, {
+        'rgba': rgba,
+        'width': w,
+        'height': h,
+        'preset': preset,
+        'targetRatio': targetRatio,
+      });
+      if (!mounted) return;
+      final previewBytes = result['bytes'] as Uint8List;
+      final previewW = result['width'] as int;
+      final previewH = result['height'] as int;
+      setState(() {
+        final p = _preview;
+        if (p == null || p.frameNum != frameNum) return;
+        // Если full-версия уже пришла (isProcessing == false и bytes.length > этого preview),
+        // не затираем её. Иначе — показываем preview и разблокируем «Подписать».
+        if (p.isProcessing) {
+          _preview = p.copyWith(
+            bytes: previewBytes,
+            ratio: previewW / previewH,
+            isProcessing: false,
+          );
+        }
+      });
+    } catch (_) {
+      // Native decode иногда падает (нестандартный EXIF, низкая память) — тихо.
+      // Полная обработка через compute() всё равно сработает.
+    }
+  }
+
+  // Удаляем кадр из preview полностью:
+  // - откатываем счётчик кадров + persist,
+  // - восстанавливаем предыдущий стек recent-shots + persist,
+  // - удаляем файл с диска,
+  // - отменяем in-flight upload (CancelToken),
+  // - если frame_id уже зарегистрирован на сервере — отправляем DELETE.
+  Future<void> _discardPreview() async {
+    final p = _preview;
+    if (p == null) return;
+    final frameId = p.frameId;
+    final filePath = p.localFilePath;
+    final prevShots = p.previousRecentShots ?? const <_RecentShot>[];
+
+    // 1. UI-мгновенный откат.
+    final restoredRemaining = _framesTotal > 0
+        ? (_framesRemaining + 1).clamp(0, _framesTotal)
+        : (_framesRemaining + 1);
+    setState(() {
+      _preview = null;
+      _framesRemaining = restoredRemaining;
+      _recentShots = List<_RecentShot>.from(prevShots);
+    });
+
+    // 2. Отменяем in-flight upload (если ещё идёт) + rejectим Completer, чтобы
+    // CaptionScreen/VoiceRecordScreen перестали ждать и показали сообщение.
+    try {
+      p.uploadCancel?.cancel('user-discarded');
+    } catch (_) {}
+    final completer = p.uploadCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.completeError('user-discarded');
+    }
+
+    // 3. Персист: счётчик кадров + recent-shots.
+    await GuestPrefs.setFramesRemainingFor(widget.eventId, restoredRemaining);
+    await _saveRecentShots(widget.eventId, prevShots);
+
+    // 4. Удаляем файл-кадр с диска (recent-dir).
+    if (filePath != null) {
+      try { await File(filePath).delete(); } catch (_) {}
+    }
+
+    // 5. Если frame уже успел зарегистрироваться на сервере — DELETE.
+    if (frameId != null) {
+      try {
+        final guestToken = await GuestPrefs.tokenFor(widget.eventId);
+        await ref.read(dioProvider).delete(
+          'events/${widget.eventId}/frames/$frameId',
+          options: Options(headers: {'X-Guest-Token': guestToken}),
+        );
+      } catch (_) {
+        // Не критично — хост сможет удалить вручную из альбома.
+      }
+    }
+  }
+
   Future<String> _upload(
     Uint8List bytes,
     int width,
@@ -663,6 +799,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     String source = 'camera',
     String? uploadHash,
     String mimeType = 'image/jpeg',
+    CancelToken? cancelToken,
   }) async {
     final guestToken = await GuestPrefs.tokenFor(widget.eventId);
     final guestOpts = Options(headers: {'X-Guest-Token': guestToken});
@@ -677,6 +814,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         if (source == 'upload' && uploadHash != null) 'upload_hash': uploadHash,
       },
       options: guestOpts,
+      cancelToken: cancelToken,
     );
     final pdata = presignResp.data;
     final frameId = (pdata is Map ? pdata['frame_id'] : null) as String?;
@@ -700,6 +838,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         },
         validateStatus: (s) => s != null && s < 300,
       ),
+      cancelToken: cancelToken,
     );
 
     await dio.post(
@@ -712,6 +851,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         if (source == 'upload') 'source': 'upload',
       },
       options: guestOpts,
+      cancelToken: cancelToken,
     );
 
     return frameId;
@@ -1040,37 +1180,17 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
               data: _preview!,
               onShootMore: () => setState(() => _preview = null),
               onBack: () => setState(() => _preview = null),
+              onDelete: _discardPreview,
               onSign: () async {
                 final p = _preview;
                 if (p == null) return;
-                String? frameId = p.frameId;
-                if (frameId == null && p.uploadFuture != null) {
-                  try {
-                    frameId = await p.uploadFuture;
-                  } catch (_) {}
-                }
-                if (!mounted) return;
-                if (frameId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Кадр не загрузился. Проверьте интернет и попробуйте снова.',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 13,
-                        ),
-                      ),
-                      backgroundColor: AppColors.dark3,
-                      duration: Duration(seconds: 3),
-                    ),
-                  );
-                  return;
-                }
+                // Разрешаем переход сразу после preview phase — не ждём upload.
+                // Передаём frameId (если уже есть) ИЛИ 'pending' + uploadFuture,
+                // CaptionScreen/VoiceRecordScreen дождутся реальный frameId при save.
+                final frameId = p.frameId ?? 'pending';
                 final prefs = await SharedPreferences.getInstance();
                 final guestName = prefs.getString('guest_name') ?? 'Гость';
                 if (!mounted) return;
-                // await push — когда пользователь вернётся с любого экрана подписи,
-                // превью автоматически очищается и камера открывается сразу.
                 await context.push(
                   '/guest/sign/$frameId',
                   extra: {
@@ -1078,6 +1198,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
                     'ratio': p.ratio,
                     'frameNum': p.frameNum,
                     'guestName': guestName,
+                    'uploadFuture': p.uploadFuture,
                   },
                 );
                 if (!mounted) return;
@@ -1108,6 +1229,15 @@ class _PreviewData {
   final Future<String>? uploadFuture;
   final bool canSign;
   final bool isProcessing; // true while film filter is being applied in background
+  // Для «Удалить кадр»: отменяем in-flight upload, если юзер нажал удаление до register.
+  final CancelToken? uploadCancel;
+  // Completer который резолвит uploadFuture — нужен для Delete (rejectим future,
+  // если юзер удалил кадр до завершения обработки/upload).
+  final Completer<String>? uploadCompleter;
+  // Путь к файлу на диске (нужен для корректного удаления при отмене).
+  final String? localFilePath;
+  // Снэпшот _recentShots ДО добавления этого кадра — восстанавливаем при Delete.
+  final List<_RecentShot>? previousRecentShots;
 
   const _PreviewData({
     this.bytes,
@@ -1119,6 +1249,10 @@ class _PreviewData {
     this.uploadFuture,
     this.canSign = true,
     this.isProcessing = false,
+    this.uploadCancel,
+    this.uploadCompleter,
+    this.localFilePath,
+    this.previousRecentShots,
   });
 
   _PreviewData copyWith({
@@ -1128,6 +1262,10 @@ class _PreviewData {
     String? frameId,
     Future<String>? uploadFuture,
     bool? isProcessing,
+    CancelToken? uploadCancel,
+    Completer<String>? uploadCompleter,
+    String? localFilePath,
+    List<_RecentShot>? previousRecentShots,
   }) =>
       _PreviewData(
         bytes: bytes ?? this.bytes,
@@ -1139,6 +1277,10 @@ class _PreviewData {
         uploadFuture: uploadFuture ?? this.uploadFuture,
         canSign: canSign,
         isProcessing: isProcessing ?? this.isProcessing,
+        uploadCancel: uploadCancel ?? this.uploadCancel,
+        uploadCompleter: uploadCompleter ?? this.uploadCompleter,
+        localFilePath: localFilePath ?? this.localFilePath,
+        previousRecentShots: previousRecentShots ?? this.previousRecentShots,
       );
 }
 
@@ -1745,11 +1887,13 @@ class _FramePreview extends StatefulWidget {
   final VoidCallback onShootMore;
   final VoidCallback onBack;
   final Future<void> Function() onSign;
+  final Future<void> Function()? onDelete;
   const _FramePreview({
     required this.data,
     required this.onShootMore,
     required this.onBack,
     required this.onSign,
+    this.onDelete,
   });
 
   @override
@@ -1759,6 +1903,57 @@ class _FramePreview extends StatefulWidget {
 class _FramePreviewState extends State<_FramePreview> {
   bool _signLoading = false;
   String? _guestName;
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.dark2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(22, 22, 22, 6),
+        contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        title: Text(
+          'Удалить этот кадр?',
+          style: GoogleFonts.fraunces(
+            fontStyle: FontStyle.italic,
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            color: AppColors.drText,
+          ),
+        ),
+        content: Text(
+          'Он не попадёт в альбом. Счётчик кадров вернётся на место.',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            height: 1.4,
+            color: AppColors.drText.withValues(alpha: 0.7),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            style: TextButton.styleFrom(foregroundColor: AppColors.drText.withValues(alpha: 0.6)),
+            child: const Text('Отмена', style: TextStyle(fontFamily: 'Inter', fontSize: 14)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: AppColors.shutter,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Удалить', style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && widget.onDelete != null) {
+      await widget.onDelete!();
+    }
+  }
 
   @override
   void initState() {
@@ -1990,7 +2185,7 @@ class _FramePreviewState extends State<_FramePreview> {
                                   ),
                                 ],
                               )
-                            : _signLoading || d.status == _UploadStatus.pending
+                            : _signLoading
                             ? Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -2004,7 +2199,7 @@ class _FramePreviewState extends State<_FramePreview> {
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    'Кадр загружается…',
+                                    'Открываем подпись…',
                                     style: TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 15,
@@ -2044,6 +2239,34 @@ class _FramePreviewState extends State<_FramePreview> {
                           textAlign: TextAlign.center,
                         ),
                       ),
+                    // Удалить кадр — доступно только если это только что снятый кадр
+                    // (canSign + не идёт обработка). При открытии из recent-стека
+                    // onDelete == null → кнопка не показывается.
+                    if (widget.onDelete != null && !d.isProcessing) ...[
+                      const SizedBox(height: 6),
+                      TextButton.icon(
+                        onPressed: _confirmDelete,
+                        icon: Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: AppColors.drText.withValues(alpha: 0.55),
+                        ),
+                        label: Text(
+                          'Удалить кадр',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.drText.withValues(alpha: 0.55),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               ),

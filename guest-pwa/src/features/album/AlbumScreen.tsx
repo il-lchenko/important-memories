@@ -17,6 +17,7 @@ export interface Frame {
   is_mine: boolean
   rotation?: number
   caption?: string | null
+  note?: string | null
   // camera vs upload — используется для метки-скрепки на карточке.
   source?: 'camera' | 'upload'
 }

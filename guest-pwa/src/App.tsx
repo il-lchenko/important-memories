@@ -15,6 +15,7 @@ import CaptionScreen from './features/sign/CaptionScreen'
 import VoiceScreen from './features/sign/VoiceScreen'
 import ProfileScreen from './features/profile/ProfileScreen'
 import InvitePage from './features/invite/InvitePage'
+import DevAlbumPreview from './features/album/DevAlbumPreview'
 
 export default function App() {
   useEffect(() => {
@@ -54,6 +55,9 @@ export default function App() {
         <Route path="/a/:token"                              element={<PublicAlbumScreen />} />
         <Route path="/a/:token/f/:frameIndex"                element={<FrameFullscreen />} />
         <Route path="/i/:token"                              element={<InvitePage />} />
+        {import.meta.env.DEV && (
+          <Route path="/dev/album-preview"                   element={<DevAlbumPreview />} />
+        )}
         <Route path="*" element={<Navigate to="/join" replace />} />
       </Routes>
     </BrowserRouter>

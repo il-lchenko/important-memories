@@ -21,6 +21,8 @@ class AlbumFrameOut(BaseModel):
     voice_duration_ms: int | None = None
     voice_peaks: list[float] | None = None
     rotation: int = 0
+    # Длинная заметка/мысль к кадру (до 2000 символов). Отдельно от caption.
+    note: str | None = None
     # camera vs upload — используется клиентом для метки-скрепки на карточке.
     source: str = "camera"
 

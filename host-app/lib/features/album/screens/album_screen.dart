@@ -12,6 +12,7 @@ import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../../utils/guest_prefs.dart';
 import '../album_provider.dart';
+import '../album_title_font.dart';
 
 class AlbumScreen extends ConsumerStatefulWidget {
   final String eventId;
@@ -34,6 +35,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
   final _scrollCtrl = ScrollController();
   bool _titleVisible = false;
+  TitleFont _titleFont = TitleFont.playfair;
 
   @override
   void initState() {
@@ -42,6 +44,24 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       final show = _scrollCtrl.hasClients && _scrollCtrl.offset > 56;
       if (show != _titleVisible) setState(() => _titleVisible = show);
     });
+    _loadTitleFont();
+  }
+
+  Future<void> _loadTitleFont() async {
+    final f = await loadTitleFont(widget.eventId);
+    if (mounted) setState(() => _titleFont = f);
+  }
+
+  Future<void> _pickTitleFont(String currentTitle) async {
+    final selected = await showTitleFontPicker(
+      context,
+      current: _titleFont,
+      sampleText: currentTitle,
+    );
+    if (selected != null && selected != _titleFont) {
+      setState(() => _titleFont = selected);
+      await saveTitleFont(widget.eventId, selected);
+    }
   }
 
   @override
@@ -199,11 +219,12 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      title,
-                                      style: GoogleFonts.playfairDisplay(fontFeatures: [const FontFeature.liningFigures()], 
-                                        fontSize: 30, fontWeight: FontWeight.w700,
-                                        letterSpacing: -0.5, height: 1.1, color: AppColors.ink,
+                                    GestureDetector(
+                                      onLongPress: () => _pickTitleFont(title),
+                                      behavior: HitTestBehavior.opaque,
+                                      child: Text(
+                                        title,
+                                        style: kTitleFonts[_titleFont]!.build(30),
                                       ),
                                     ),
                                     const SizedBox(height: 10),

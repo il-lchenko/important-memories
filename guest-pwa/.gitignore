@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Dev-only config (headless browser testing without HTTPS cert errors)
+vite.config.http.ts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

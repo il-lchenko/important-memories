@@ -212,6 +212,57 @@ Map<String, Object> processImageInIsolate(Map<String, Object> params) {
   };
 }
 
+// Fast preview phase: принимает уже декодированные native-кодеком Skia raw RGBA
+// bytes (ui.instantiateImageCodec с targetWidth: ~800), применяет LUT и энкодит
+// JPEG. Это ~0.3-0.5с на средних Android — используется для мгновенного preview,
+// пока в фоне работает полная 12MP-обработка.
+Map<String, Object> applyLutToRgbaInIsolate(Map<String, Object> params) {
+  final rgba = params['rgba'] as Uint8List;
+  final width = params['width'] as int;
+  final height = params['height'] as int;
+  final preset = params['preset'] as String;
+  final targetRatio = params['targetRatio'] as double?;
+
+  var image = img.Image.fromBytes(
+    width: width,
+    height: height,
+    bytes: rgba.buffer,
+    numChannels: 4,
+    order: img.ChannelOrder.rgba,
+  ).convert(numChannels: 3);
+
+  // Тот же crop что и в полной обработке — чтобы preview и full совпадали визуально.
+  if (targetRatio != null) {
+    final w = image.width;
+    final h = image.height;
+    final srcRatio = w / h;
+    if ((srcRatio - targetRatio).abs() > 0.01) {
+      int cropW, cropH;
+      if (srcRatio > targetRatio) {
+        cropH = h;
+        cropW = (h * targetRatio).round();
+      } else {
+        cropW = w;
+        cropH = (w / targetRatio).round();
+      }
+      final x = ((w - cropW) / 2).round();
+      final y = ((h - cropH) / 2).round();
+      image = img.copyCrop(image, x: x, y: y, width: cropW, height: cropH);
+    }
+  }
+
+  if (preset != 'original') {
+    image = applyFilmFilter(image, preset);
+  }
+
+  final jpegBytes = Uint8List.fromList(img.encodeJpg(image, quality: 85));
+  return {
+    'bytes': jpegBytes,
+    'width': image.width,
+    'height': image.height,
+  };
+}
+
 String filmLabel(String preset) {
   const labels = {
     'portra400': 'PORTRA 400',

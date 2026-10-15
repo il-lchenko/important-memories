@@ -211,6 +211,58 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
     }
   }
 
+  void _openNoteSheet(BuildContext context, String note) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 18,
+          bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Заметка',
+                  style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: const Icon(Icons.close, size: 22, color: AppColors.ink3),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.6),
+              child: SingleChildScrollView(
+                child: Text(
+                  note,
+                  style: const TextStyle(
+                    fontFamily: 'Inter', fontSize: 15, height: 1.5,
+                    color: AppColors.ink2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _savePhoto(String url) async {
     try {
       final hasAccess = await Gal.hasAccess(toAlbum: true);
@@ -292,6 +344,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
         final serverRotation = (frame['rotation'] as num?)?.toInt() ?? 0;
         final effectiveRotation = (serverRotation + _localRotation) % 360;
         final caption = (frame['caption'] as String?)?.trim();
+        final note = (frame['note'] as String?)?.trim();
         final voiceUrl = frame['voice_url'] as String?;
         final isUpload = frame['source'] == 'upload';
         final voicePeaks = (frame['voice_peaks'] as List?)?.cast<num>().map((n) => n.toDouble()).toList();
@@ -423,6 +476,32 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                       url: voiceUrl,
                       peaks: voicePeaks,
                       durationMs: voiceDurationMs ?? 0,
+                    ),
+                  ),
+                if (note != null && note.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: GestureDetector(
+                      onTap: () => _openNoteSheet(context, note),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0x0FC9881E),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0x33C9881E)),
+                        ),
+                        child: Text(
+                          note,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            height: 1.4,
+                            color: AppColors.ink2,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (isUpload)

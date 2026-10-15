@@ -17,6 +17,10 @@ class SignChoiceScreen extends StatelessWidget {
     final ratio = (extra['ratio'] as num?)?.toDouble() ?? 3 / 4;
     final frameNum = extra['frameNum'] as int? ?? 0;
     final guestName = extra['guestName'] as String? ?? 'Гость';
+    // Если фрейм ещё не долетел до сервера (frameId == 'pending'), в extra лежит
+    // Future<String>, которое вернёт реальный frameId. CaptionScreen/Voice ждут его
+    // лениво в момент submit.
+    final uploadFuture = extra['uploadFuture'] as Future<String>?;
 
     final topPad = MediaQuery.of(context).padding.top;
     final botPad = MediaQuery.of(context).padding.bottom;
@@ -105,6 +109,7 @@ class SignChoiceScreen extends StatelessWidget {
                             'ratio': ratio,
                             'frameNum': frameNum,
                             'guestName': guestName,
+                            'uploadFuture': uploadFuture,
                           },
                         );
                         if (context.mounted) context.pop();
@@ -125,6 +130,7 @@ class SignChoiceScreen extends StatelessWidget {
                             'ratio': ratio,
                             'frameNum': frameNum,
                             'guestName': guestName,
+                            'uploadFuture': uploadFuture,
                           },
                         );
                         if (context.mounted) context.pop();
