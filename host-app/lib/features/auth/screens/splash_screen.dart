@@ -101,8 +101,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
       try {
         final dio = ref.read(dioProvider);
         await dio.get('users/me');
+        // Новая редакция документов требует повторного принятия (оферта §14).
+        var needsConsent = false;
+        try {
+          final resp = await dio.get('consent/status');
+          needsConsent = (resp.data is Map) && (resp.data['needs_accept'] == true);
+        } catch (_) {}
         if (!mounted) return;
-        context.go('/dashboard');
+        context.go(needsConsent ? '/auth/consent' : '/dashboard');
         return;
       } catch (_) {
         await _storage.deleteAll();

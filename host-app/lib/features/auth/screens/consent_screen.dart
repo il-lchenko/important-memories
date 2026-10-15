@@ -20,7 +20,7 @@ class ConsentScreen extends ConsumerStatefulWidget {
 }
 
 class _ConsentScreenState extends ConsumerState<ConsentScreen> {
-  static const _docVersion = '2.3';
+  static const _docVersion = '2.4';
   bool _loading = false;
   String? _errorMsg;
 

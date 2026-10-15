@@ -42,6 +42,13 @@ async def count_active_free_events(session: AsyncSession, user_id) -> int:
     return int((await session.execute(stmt)).scalar_one())
 
 
+def _free_limits() -> tuple[int | None, int | None]:
+    """(одновременно, в месяц). Лимиты вступают в силу вместе с офертой 2.4 (PRICING_V2_FROM)."""
+    if datetime.now(timezone.utc) < datetime.fromisoformat(settings.PRICING_V2_FROM):
+        return None, None
+    return settings.FREE_ACTIVE_EVENTS, settings.FREE_EVENTS_PER_MONTH
+
+
 def _left(limit: int | None, used: int, is_admin: bool) -> int | None:
     if limit is None or is_admin:
         return None
@@ -49,8 +56,7 @@ def _left(limit: int | None, used: int, is_admin: bool) -> int | None:
 
 
 async def get_entitlements(session: AsyncSession, user: User) -> EntitlementsOut:
-    monthly_limit = settings.FREE_EVENTS_PER_MONTH
-    active_limit = settings.FREE_ACTIVE_EVENTS
+    active_limit, monthly_limit = _free_limits()
     used = await count_free_events_this_month(session, user.id)
     active = await count_active_free_events(session, user.id)
     return EntitlementsOut(
@@ -78,7 +84,7 @@ async def ensure_can_activate(session: AsyncSession, user: User | None, event: E
         )
     if user is None:
         return
-    active_limit = settings.FREE_ACTIVE_EVENTS
+    active_limit, monthly_limit = _free_limits()
     if active_limit is not None:
         active = await count_active_free_events(session, user.id)
         if active >= active_limit:
@@ -87,7 +93,6 @@ async def ensure_can_activate(session: AsyncSession, user: User | None, event: E
                 "Удалите ненужный или выберите платный тариф.",
                 details={"reason": "free_active_limit", "limit": active_limit, "used": active},
             )
-    monthly_limit = settings.FREE_EVENTS_PER_MONTH
     if monthly_limit is not None:
         used = await count_free_events_this_month(session, user.id)
         if used >= monthly_limit:

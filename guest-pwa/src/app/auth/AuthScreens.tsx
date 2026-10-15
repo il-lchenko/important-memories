@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { apiErrorMessage, deviceFingerprint, hostApi, hostTokens, type Schemas } from '../api/hostClient'
 import { Spinner } from '../ui'
 
-const DOC_VERSION = '2.3'
+const DOC_VERSION = '2.4'
 const DOC_TYPES = ['offer', 'privacy', 'consent', 'content_rules', 'age_confirmation'] as const
 
 function safeNext(raw: string | null): string {

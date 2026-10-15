@@ -18,6 +18,7 @@ async def _create_and_activate(client: AsyncClient, token: str):
 
 @pytest.mark.asyncio
 async def test_free_active_limit_and_slot_release(client: AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "PRICING_V2_FROM", "2000-01-01T00:00:00+03:00")
     monkeypatch.setattr(settings, "FREE_ACTIVE_EVENTS", 2)
     monkeypatch.setattr(settings, "FREE_EVENTS_PER_MONTH", 4)
     token = await authenticate(client)
@@ -38,6 +39,7 @@ async def test_free_active_limit_and_slot_release(client: AsyncClient, monkeypat
 
 @pytest.mark.asyncio
 async def test_free_monthly_limit_counts_deleted(client: AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr(settings, "PRICING_V2_FROM", "2000-01-01T00:00:00+03:00")
     monkeypatch.setattr(settings, "FREE_ACTIVE_EVENTS", 1)
     monkeypatch.setattr(settings, "FREE_EVENTS_PER_MONTH", 2)
     token = await authenticate(client)
