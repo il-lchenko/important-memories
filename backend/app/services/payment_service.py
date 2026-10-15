@@ -13,7 +13,7 @@ from app.domain.models import EventStatus, Payment, PaymentStatus, Plan
 from app.domain.schemas.payments import CheckoutOut, ExtendOut, ExtendPeriod, UpgradeKind, UpgradeOut
 from app.infra import yookassa_client
 from app.repos import event_repo, payment_repo, user_repo
-from app.services import promocode_service
+from app.services import entitlement_service, promocode_service
 
 PLAN_PRICES_KOPECKS: dict[Plan, int] = {
     # Business plan v3.2 pricing grid. All values in kopecks.
@@ -121,12 +121,13 @@ async def create_checkout(
         promocode_id = vr.promocode_id
 
     amount = max(0, original_amount - discount_kopecks)
-    bypass_yookassa = user.is_admin or amount == 0
+    admin_bypass = entitlement_service.has_payment_bypass(user)
+    bypass_yookassa = admin_bypass or amount == 0
 
     from app.services.event_service import _PLAN_LIMITS, default_expires_at
 
     meta: dict = {"plan": plan.value}
-    if user.is_admin:
+    if admin_bypass:
         meta["admin_bypass"] = True
 
     if bypass_yookassa:
@@ -168,7 +169,7 @@ async def create_checkout(
             amount_kopecks=amount,
             original_amount_kopecks=original_amount if discount_kopecks > 0 else None,
             discount_kopecks=discount_kopecks,
-            admin_bypass=user.is_admin,
+            admin_bypass=admin_bypass,
         )
 
     yk = await yookassa_client.create_payment(
@@ -310,14 +311,15 @@ async def create_extend_checkout(
         promocode_id = vr.promocode_id
 
     amount = max(0, original_amount - discount_kopecks)
-    bypass_yookassa = user.is_admin or amount == 0
+    admin_bypass = entitlement_service.has_payment_bypass(user)
+    bypass_yookassa = admin_bypass or amount == 0
 
     meta: dict = {
         "kind": "extend",
         "period": period,
         "days_added": days_added,
     }
-    if user.is_admin:
+    if admin_bypass:
         meta["admin_bypass"] = True
 
     if bypass_yookassa:
@@ -348,7 +350,7 @@ async def create_extend_checkout(
             "period": period,
             "paid_at": datetime.now(timezone.utc).isoformat(),
             "payment_id": str(payment.id),
-            "admin_bypass": user.is_admin,
+            "admin_bypass": admin_bypass,
         })
         event.extension_history = history
 
@@ -363,7 +365,7 @@ async def create_extend_checkout(
             days_added=days_added,
             original_amount_kopecks=original_amount if discount_kopecks > 0 else None,
             discount_kopecks=discount_kopecks,
-            admin_bypass=user.is_admin,
+            admin_bypass=admin_bypass,
         )
 
     yk = await yookassa_client.create_payment(
@@ -491,8 +493,9 @@ async def create_upgrade_checkout(
         promocode_id = vr.promocode_id
 
     amount = max(0, original_amount - discount_kopecks)
-    bypass_yookassa = user.is_admin or amount == 0
-    if user.is_admin:
+    admin_bypass = entitlement_service.has_payment_bypass(user)
+    bypass_yookassa = admin_bypass or amount == 0
+    if admin_bypass:
         meta["admin_bypass"] = True
 
     if bypass_yookassa:
@@ -527,7 +530,7 @@ async def create_upgrade_checkout(
         out = _upgrade_out_from_payment(payment, event, kind, meta)
         out.original_amount_kopecks = original_amount if discount_kopecks > 0 else None
         out.discount_kopecks = discount_kopecks
-        out.admin_bypass = user.is_admin
+        out.admin_bypass = admin_bypass
         return out
 
     yk = await yookassa_client.create_payment(

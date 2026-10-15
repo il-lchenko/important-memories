@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     # Защита webhook: nginx IP-whitelist (см. infra/nginx.conf).
     YOOKASSA_WEBHOOK_SECRET: SecretStr = SecretStr("deprecated-not-used")
 
+    # Права и подписка (этап 4). None = без лимита бесплатных событий.
+    FREE_EVENTS_PER_MONTH: int | None = None
+    SUB_EVENTS_PER_MONTH: int | None = None
+    SUB_PRICE_KOPECKS: int | None = None
+    SUBSCRIPTION_ENABLED: bool = False
+
     FCM_PROJECT_ID: str = ""
     FCM_CREDENTIALS_JSON: SecretStr = SecretStr("")
 

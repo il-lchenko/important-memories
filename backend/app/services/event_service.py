@@ -27,6 +27,7 @@ from app.domain.schemas.events import (
 )
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, user_repo
+from app.services import entitlement_service
 
 # Business plan v3.2 — pricing grid by guest count (analysis/business-plan/index.html §09).
 # Kept in one place so pricing/limits/retention stay in sync.
@@ -366,13 +367,8 @@ async def activate_event(
             "Only draft events can be activated",
             details={"status": event.status.value},
         )
-    if event.settings.plan != Plan.FREE:
-        user = await user_repo.get_by_id(session, user_id)
-        if user is None or not user.is_admin:
-            raise PermissionDeniedError(
-                "Платный тариф активируется после оплаты",
-                details={"plan": event.settings.plan.value},
-            )
+    user = await user_repo.get_by_id(session, user_id)
+    await entitlement_service.ensure_can_activate(session, user, event)
     event.status = EventStatus.ACTIVE
     event.expires_at = default_expires_at(event.settings.plan)
     await session.commit()
