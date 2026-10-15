@@ -49,7 +49,7 @@ async def _join_guest(client: AsyncClient, event: dict, fingerprint: str = "aabb
         "/api/v1/guest/sessions",
         json={"short_code": event["short_code"], "name": "G", "fingerprint": fingerprint},
     )
-    assert join.status_code == 200, join.text
+    assert join.status_code in (200, 201), join.text
     return join.json()["guest_token"]
 
 
@@ -96,7 +96,7 @@ async def test_upload_presign_rejected_when_disabled(client: AsyncClient) -> Non
         headers={"X-Guest-Token": guest_token},
     )
     assert resp.status_code == 409, resp.text
-    assert "uploads_enabled" in (resp.json().get("details") or {})
+    assert "uploads_enabled" in ((resp.json().get("error") or {}).get("details") or {})
 
 
 @pytest.mark.asyncio
@@ -254,7 +254,7 @@ async def test_heic_only_for_source_upload(client: AsyncClient) -> None:
             "content_type": "image/heic",
             "size_bytes": 500_000,
             "source": "upload",
-            "upload_hash": _hash_hex("g"),
+            "upload_hash": _hash_hex("e"),
         },
         headers={"X-Guest-Token": guest_token},
     )

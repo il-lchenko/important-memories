@@ -16,7 +16,11 @@ async def _create_and_activate(client: AsyncClient, token: str):
 
 
 @pytest.mark.asyncio
-async def test_entitlements_default_unlimited(client: AsyncClient) -> None:
+async def test_entitlements_default_unlimited(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # До вступления оферты 2.4 в силу бесплатные лимиты не действуют.
+    monkeypatch.setattr(settings, "PRICING_V2_FROM", "2099-01-01T00:00:00+03:00")
     token = await authenticate(client)
     resp = await client.get("/api/v1/me/entitlements", headers=auth_headers(token))
     assert resp.status_code == 200, resp.text
@@ -26,6 +30,7 @@ async def test_entitlements_default_unlimited(client: AsyncClient) -> None:
     assert body["subscription_enabled"] is False
     assert body["free_events_per_month"] is None
     assert body["free_events_left"] is None
+    assert body["free_active_limit"] is None
     assert body["features"] == {"solo_album": False, "mini_albums": False}
 
 
@@ -39,6 +44,8 @@ async def test_entitlements_requires_auth(client: AsyncClient) -> None:
 async def test_free_events_limit_blocks_activation(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(settings, "PRICING_V2_FROM", "2000-01-01T00:00:00+03:00")
+    monkeypatch.setattr(settings, "FREE_ACTIVE_EVENTS", None)
     monkeypatch.setattr(settings, "FREE_EVENTS_PER_MONTH", 1)
     token = await authenticate(client)
 
