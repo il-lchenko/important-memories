@@ -126,6 +126,22 @@ async def apply_promocode(
     return await promocode_repo.create_redemption(session, redemption)
 
 
+async def release_redemption(session: AsyncSession, redemption_id: UUID) -> None:
+    """Отмена платежа возвращает промокод: удаляем погашение и уменьшаем счётчик."""
+    redemption = await session.get(PromocodeRedemption, redemption_id)
+    if redemption is None:
+        return
+    promo = await promocode_repo.get_by_id(session, redemption.promocode_id)
+    if promo is not None and promo.redemptions_count > 0:
+        promo.redemptions_count = promo.redemptions_count - 1
+    await session.delete(redemption)
+    logger.info(
+        "promocode_redemption_released",
+        promocode_id=str(redemption.promocode_id),
+        redemption_id=str(redemption_id),
+    )
+
+
 async def issue_referral_reward(
     session: AsyncSession,
     referrer_user_id: UUID,

@@ -14,8 +14,58 @@ class YookassaPayment:
     status: str
 
 
+@dataclass
+class YookassaPaymentInfo:
+    id: str
+    status: str
+    amount_kopecks: int
+    refunded_kopecks: int
+
+
 def _is_configured() -> bool:
     return bool(settings.YOOKASSA_SHOP_ID and settings.YOOKASSA_SECRET.get_secret_value())
+
+
+def is_configured() -> bool:
+    return _is_configured()
+
+
+def _to_kopecks(amount: object) -> int:
+    value = getattr(amount, "value", None)
+    if value is None and isinstance(amount, dict):
+        value = amount.get("value")
+    if value is None:
+        return 0
+    return int(round(float(value) * 100))
+
+
+def _fetch_real_sync(yookassa_id: str) -> YookassaPaymentInfo:
+    from yookassa import Configuration, Payment
+
+    Configuration.account_id = settings.YOOKASSA_SHOP_ID
+    Configuration.secret_key = settings.YOOKASSA_SECRET.get_secret_value()
+    payment = Payment.find_one(yookassa_id)
+    return YookassaPaymentInfo(
+        id=payment.id,
+        status=payment.status,
+        amount_kopecks=_to_kopecks(payment.amount),
+        refunded_kopecks=_to_kopecks(getattr(payment, "refunded_amount", None)),
+    )
+
+
+async def fetch_payment(yookassa_id: str) -> YookassaPaymentInfo:
+    """Webhook-тело YooKassa не подписано, поэтому статус и сумму берём из API."""
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_fetch_real_sync, yookassa_id),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError as exc:
+        logger.error("yookassa_fetch_timeout", yookassa_id=yookassa_id)
+        raise ExternalServiceError("YooKassa timeout") from exc
+    except Exception as exc:
+        logger.error("yookassa_fetch_failed", yookassa_id=yookassa_id, error=type(exc).__name__)
+        raise ExternalServiceError("YooKassa fetch failed") from exc
 
 
 def _build_metadata(event_id: UUID, plan: str, user_email: str) -> dict:

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 
 from app.api.deps import SessionDep
+from app.core.client_ctx import client_ip
 from app.domain.schemas.auth import (
     EmailRequestIn,
     EmailRequestOut,
@@ -14,10 +15,7 @@ router = APIRouter()
 
 
 def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return client_ip(request) or "unknown"
 
 
 @router.post("/email/request", response_model=EmailRequestOut)

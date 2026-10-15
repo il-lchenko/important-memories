@@ -82,7 +82,12 @@ async def create_checkout(
             details={"status": event.status.value},
         )
 
-    original_amount = PLAN_PRICES_KOPECKS[plan]
+    original_amount = PLAN_PRICES_KOPECKS.get(plan)
+    if original_amount is None:
+        raise ConflictError(
+            "Тариф рассчитывается индивидуально",
+            details={"plan": plan.value},
+        )
     if original_amount == 0:
         raise ConflictError("Free plan does not require payment")
 
@@ -151,8 +156,7 @@ async def create_checkout(
         event.settings.plan = plan
         event.settings.max_guests = _PLAN_LIMITS[plan]
         event.status = EventStatus.ACTIVE
-        if event.expires_at is None:
-            event.expires_at = default_expires_at(plan)
+        event.expires_at = default_expires_at(plan)
 
         await _maybe_issue_referral_reward(session, user, payment)
         await session.commit()
@@ -584,12 +588,71 @@ def _upgrade_out_from_payment(payment: Payment, event, kind: UpgradeKind, meta: 
     return out
 
 
+_YK_STATUS_MAP = {
+    "succeeded": PaymentStatus.SUCCEEDED,
+    "canceled": PaymentStatus.CANCELLED,
+    "refunded": PaymentStatus.REFUNDED,
+    "waiting_for_capture": PaymentStatus.PENDING,
+    "pending": PaymentStatus.PENDING,
+}
+
+
+async def _resolve_webhook_status(
+    payment: Payment, event_name: str | None, obj: dict
+) -> tuple[PaymentStatus, str] | None:
+    """Возвращает (новый статус, статус YooKassa) или None, если менять нечего.
+
+    Тело вебхука не подписано, поэтому в боевом режиме статус и суммы берём
+    из API YooKassa. Без ключей (mock/тесты) доверяем телу.
+    """
+    is_refund = event_name == "refund.succeeded"
+
+    if yookassa_client.is_configured():
+        info = await yookassa_client.fetch_payment(payment.yookassa_id)
+        if info.amount_kopecks != payment.amount_kopecks:
+            logger.error(
+                "yookassa_webhook_amount_mismatch",
+                payment_id=str(payment.id),
+                expected=payment.amount_kopecks,
+                actual=info.amount_kopecks,
+            )
+            return None
+        if is_refund or info.status == "refunded":
+            if info.refunded_kopecks < payment.amount_kopecks:
+                logger.warning(
+                    "yookassa_partial_refund_ignored",
+                    payment_id=str(payment.id),
+                    refunded=info.refunded_kopecks,
+                )
+                return None
+            return PaymentStatus.REFUNDED, "refunded"
+        return _YK_STATUS_MAP.get(info.status, PaymentStatus.PENDING), info.status
+
+    if is_refund:
+        refunded = int(round(float((obj.get("amount") or {}).get("value", 0)) * 100))
+        if refunded < payment.amount_kopecks:
+            logger.warning(
+                "yookassa_partial_refund_ignored",
+                payment_id=str(payment.id),
+                refunded=refunded,
+            )
+            return None
+        return PaymentStatus.REFUNDED, "refunded"
+    yk_status = obj.get("status", "pending")
+    return _YK_STATUS_MAP.get(yk_status, PaymentStatus.PENDING), yk_status
+
+
 async def handle_webhook(session: AsyncSession, payload: dict) -> None:
     event_name = payload.get("event")
     obj = payload.get("object") or {}
-    yookassa_id = obj.get("id")
+    # refund.succeeded присылает объект возврата: id — это id возврата,
+    # а платёж указан в payment_id.
+    if event_name == "refund.succeeded":
+        yookassa_id = obj.get("payment_id")
+    else:
+        yookassa_id = obj.get("id")
     if not yookassa_id:
-        logger.warning("yookassa_webhook_missing_id", payload=payload)
+        logger.warning("yookassa_webhook_missing_id", webhook_event=event_name)
         return
 
     # SELECT ... FOR UPDATE — блокируем Payment row, чтобы retry YooKassa не
@@ -599,15 +662,10 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
         logger.warning("yookassa_webhook_unknown_payment", yookassa_id=yookassa_id)
         return
 
-    yk_status = obj.get("status", "pending")
-    status_map = {
-        "succeeded": PaymentStatus.SUCCEEDED,
-        "canceled": PaymentStatus.CANCELLED,
-        "refunded": PaymentStatus.REFUNDED,
-        "waiting_for_capture": PaymentStatus.PENDING,
-        "pending": PaymentStatus.PENDING,
-    }
-    new_status = status_map.get(yk_status, PaymentStatus.PENDING)
+    resolved = await _resolve_webhook_status(payment, event_name, obj)
+    if resolved is None:
+        return
+    new_status, yk_status = resolved
 
     # Идемпотентность: терминальное состояние не переходит обратно.
     # SUCCEEDED → REFUNDED разрешено (возврат). REFUNDED → что угодно запрещено.
@@ -676,16 +734,26 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
                     new_frames_per_guest=to_frames,
                 )
             elif event.status == EventStatus.DRAFT:
-                # Initial plan checkout — activate event and set storage expiration.
-                from app.services.event_service import default_expires_at
+                # Первичная оплата: тариф берём из платежа, а не из черновика —
+                # черновик могли поменять после создания платежа.
+                from app.services.event_service import _PLAN_LIMITS, default_expires_at
+                paid_plan_str = payment.meta.get("plan")
+                paid_plan = Plan(paid_plan_str) if paid_plan_str else event.settings.plan
+                event.settings.plan = paid_plan
+                event.settings.max_guests = _PLAN_LIMITS[paid_plan]
                 event.status = EventStatus.ACTIVE
-                if event.expires_at is None:
-                    event.expires_at = default_expires_at(event.settings.plan)
+                event.expires_at = default_expires_at(paid_plan)
 
         # Выдача реферальной награды при первом успешном платном платеже юзера.
         user = await user_repo.get_by_id(session, payment.user_id)
         if user is not None:
             await _maybe_issue_referral_reward(session, user, payment)
+
+    elif new_status == PaymentStatus.CANCELLED and payment.promocode_redemption_id is not None:
+        redemption_id = payment.promocode_redemption_id
+        payment.promocode_redemption_id = None
+        await session.flush()
+        await promocode_service.release_redemption(session, redemption_id)
 
     elif new_status == PaymentStatus.REFUNDED and prior_status == PaymentStatus.SUCCEEDED:
         # Возврат средств — откатываем эффект, который был применён при SUCCEEDED.

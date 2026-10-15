@@ -26,7 +26,7 @@ from app.domain.schemas.events import (
     EventUpdateIn,
 )
 from app.infra import fcm_client, queue, rate_limiter, s3_client
-from app.repos import device_repo, event_repo
+from app.repos import device_repo, event_repo, user_repo
 
 # Business plan v3.2 — pricing grid by guest count (analysis/business-plan/index.html §09).
 # Kept in one place so pricing/limits/retention stay in sync.
@@ -300,6 +300,11 @@ async def update_settings(
     payload: EventSettingsUpdateIn,
 ) -> EventOut:
     event = await _load_owned(session, event_id, user_id)
+    if payload.plan is not None and event.status != EventStatus.DRAFT:
+        raise ConflictError(
+            "Тариф меняется только через оплату",
+            details={"status": event.status.value},
+        )
     guests_count = await event_repo.count_guests(session, event_id)
     if guests_count > 0 and any([
         payload.frames_per_guest is not None,
@@ -353,17 +358,23 @@ async def update_settings(
 async def activate_event(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> EventOut:
-    """DEV-only stub. In prod, activation happens via /webhooks/yookassa after payment."""
+    """Бесплатная активация. Платные тарифы активирует только вебхук оплаты
+    (или checkout в админ-режиме); админ может активировать любой черновик."""
     event = await _load_owned(session, event_id, user_id)
     if event.status != EventStatus.DRAFT:
         raise ConflictError(
             "Only draft events can be activated",
             details={"status": event.status.value},
         )
+    if event.settings.plan != Plan.FREE:
+        user = await user_repo.get_by_id(session, user_id)
+        if user is None or not user.is_admin:
+            raise PermissionDeniedError(
+                "Платный тариф активируется после оплаты",
+                details={"plan": event.settings.plan.value},
+            )
     event.status = EventStatus.ACTIVE
-    # Set storage expiration if not already set (e.g. on manual DEV activate).
-    if event.expires_at is None:
-        event.expires_at = default_expires_at(event.settings.plan)
+    event.expires_at = default_expires_at(event.settings.plan)
     await session.commit()
     return _to_out(event)
 
