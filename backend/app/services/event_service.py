@@ -567,12 +567,21 @@ async def upload_cover(
     if len(data) > 10 * 1024 * 1024:
         raise ConflictError("Cover image too large", details={"max_bytes": 10 * 1024 * 1024})
 
+    event = await _load_owned(session, event_id, user_id)
+
     ext = {"image/png": "png", "image/webp": "webp"}.get(content_type, "jpg")
-    key = f"events/{event_id}/cover.{ext}"
+    # Уникальный ключ на каждую загрузку: клиенты кэшируют картинки по пути,
+    # и при постоянном cover.jpg новая обложка не показывалась.
+    key = f"events/{event_id}/cover-{token_urlsafe(8)}.{ext}"
     s3_client.upload_bytes(key, data, content_type)
 
+    previous = event.cover_url
     # Храним только S3-ключ — клиенту отдадим свежий presign в _to_out.
-    event = await _load_owned(session, event_id, user_id)
     event.cover_url = key
     await session.commit()
+    if previous and not previous.startswith("http") and previous != key:
+        try:
+            s3_client.delete_object(previous)
+        except Exception:
+            pass
     return _to_out(event)

@@ -193,11 +193,18 @@ function ShotConfirm({ blobUrl, captureRatio, onKeep, onDiscard }: {
   )
 }
 
-function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, captureRatio, uploadStatus, canSign }: {
+function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, onRotate, rotation = 0, captureRatio, uploadStatus, canSign }: {
   blobUrl: string; frameNum: number; onShootMore: () => void; onSign: () => Promise<void> | void;
   onRetryUpload?: () => void;
+  onRotate?: () => void;
+  rotation?: number;
   captureRatio: number; uploadStatus: 'pending' | 'ok' | 'failed'; canSign: boolean;
 }) {
+  const sideways = (rotation / 90) % 2 === 1
+  const baseLandscape = captureRatio > 1
+  const shownLandscape = sideways ? !baseLandscape : baseLandscape
+  // Соотношение сторон рамки (ширина/высота) после поворота.
+  const boxRatio = shownLandscape ? 4 / 3 : 3 / 4
   const [savedHint, setSavedHint] = useState(false)
   const [signLoading, setSignLoading] = useState(false)
 
@@ -239,9 +246,21 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, c
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', flex: 1, minHeight: 0 }}>
-        <div style={{ width: captureRatio > 1 ? 300 : 240, padding: '14px 14px 0', background: 'var(--paper)', borderRadius: 4, transform: 'rotate(-1.5deg)', boxShadow: '0 20px 50px -8px rgba(0,0,0,.5), 0 0 80px -10px rgba(255,179,71,.15)', flexShrink: 0 }}>
-          <div style={{ aspectRatio: captureRatio > 1 ? '4/3' : '3/4', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
-            <img src={blobUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{ width: shownLandscape ? 300 : 240, padding: '14px 14px 0', background: 'var(--paper)', borderRadius: 4, transform: 'rotate(-1.5deg)', boxShadow: '0 20px 50px -8px rgba(0,0,0,.5), 0 0 80px -10px rgba(255,179,71,.15)', flexShrink: 0 }}>
+          <div style={{ aspectRatio: shownLandscape ? '4/3' : '3/4', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+            <img
+              src={blobUrl}
+              alt=""
+              style={sideways ? {
+                position: 'absolute', top: '50%', left: '50%',
+                width: `${100 / boxRatio}%`, height: `${100 * boxRatio}%`,
+                objectFit: 'cover',
+                transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              } : {
+                width: '100%', height: '100%', objectFit: 'cover',
+                transform: rotation ? `rotate(${rotation}deg)` : undefined,
+              }}
+            />
           </div>
           <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontFamily: 'Caveat, cursive', fontSize: 24, color: 'var(--ink-2)' }}>
@@ -277,6 +296,17 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, c
             </>
           )}
         </button>
+        )}
+        {canSign && onRotate && (
+          <button
+            onClick={onRotate}
+            style={{ alignSelf: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: 'rgba(240,230,210,.55)', fontFamily: 'Inter, sans-serif', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 12px', letterSpacing: '.02em' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 21 9 15 9"/>
+            </svg>
+            Повернуть
+          </button>
         )}
         {canSign && uploadStatus === 'failed' && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
@@ -471,6 +501,7 @@ export default function CameraScreen() {
     url: string; frameNum: number; ratio: number;
     frameId: string | null; uploadStatus: 'pending' | 'ok' | 'failed';
     canSign: boolean;
+    rotation?: 0 | 90 | 180 | 270;
   } | null>(null)
   const [pendingShot, setPendingShot] = useState<{
     blob: Blob; width: number; height: number; actualRatio: number; blobUrl: string;
@@ -843,6 +874,23 @@ export default function CameraScreen() {
       captureRatio={preview.ratio}
       uploadStatus={preview.uploadStatus}
       canSign={preview.canSign}
+      rotation={preview.rotation ?? 0}
+      onRotate={async () => {
+        const blobUrl = preview.url
+        const next = (((preview.rotation ?? 0) + 90) % 360) as 0 | 90 | 180 | 270
+        setPreview((curr) => (curr && curr.url === blobUrl ? { ...curr, rotation: next } : curr))
+        let frameId = preview.frameId
+        if (!frameId && uploadPromiseRef.current) {
+          const res = await uploadPromiseRef.current
+          if (res.ok) frameId = res.frameId
+        }
+        if (!frameId) return
+        try {
+          await guestApi.updateFrame(frameId, { rotation: next })
+        } catch {
+          // Повернуть можно и позже — в альбоме, на экране кадра.
+        }
+      }}
       onShootMore={() => { setPreview(null); start(facingMode) }}
       onRetryUpload={async () => {
         const item = previewItemRef.current

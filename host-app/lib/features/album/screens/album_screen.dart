@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -22,7 +23,11 @@ class AlbumScreen extends ConsumerStatefulWidget {
   ConsumerState<AlbumScreen> createState() => _AlbumScreenState();
 }
 
-class _AlbumScreenState extends ConsumerState<AlbumScreen> {
+class _AlbumScreenState extends ConsumerState<AlbumScreen>
+    with WidgetsBindingObserver {
+  // Провайдеры альбома keepAlive, поэтому без явного обновления экран навсегда
+  // показывал бы то, что загрузилось при первом открытии.
+  Timer? _refreshTimer;
   int _modeIndex = 0;
   static const _modes = ['Журнал', 'Ретро', 'Полароид'];
 
@@ -45,6 +50,34 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       if (show != _titleVisible) setState(() => _titleVisible = show);
     });
     _loadTitleFont();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshAlbum();
+    });
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) _refreshAlbum();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) _refreshAlbum();
+  }
+
+  void _refreshAlbum() {
+    ref.invalidate(eventAlbumProvider(widget.eventId));
+    ref.invalidate(eventAlbumMetaProvider(widget.eventId));
+  }
+
+  // После камеры кадры ещё догружаются в фоне — обновляем альбом сразу
+  // и ещё дважды, чтобы подхватить кадры, зарегистрированные позже.
+  void _refreshAfterCamera() {
+    _refreshAlbum();
+    for (final delay in const [Duration(seconds: 4), Duration(seconds: 12)]) {
+      Future.delayed(delay, () {
+        if (mounted) _refreshAlbum();
+      });
+    }
   }
 
   Future<void> _loadTitleFont() async {
@@ -83,6 +116,8 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -405,11 +440,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
       await prefs.setString('current_guest_event_id', widget.eventId);
       if (!mounted) return;
       await context.push('/guest/camera/${widget.eventId}');
-      // После возврата с камеры — обновить альбом (новые кадры).
-      if (mounted) {
-        ref.invalidate(eventAlbumProvider(widget.eventId));
-        ref.invalidate(eventAlbumMetaProvider(widget.eventId));
-      }
+      if (mounted) _refreshAfterCamera();
       return;
     }
 
@@ -455,11 +486,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen> {
 
       if (!mounted) return;
       await context.push('/guest/camera/${widget.eventId}');
-      // После возврата с камеры — обновить альбом (новые кадры).
-      if (mounted) {
-        ref.invalidate(eventAlbumProvider(widget.eventId));
-        ref.invalidate(eventAlbumMetaProvider(widget.eventId));
-      }
+      if (mounted) _refreshAfterCamera();
     } on DioException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

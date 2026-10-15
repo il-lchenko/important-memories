@@ -30,18 +30,30 @@ class _RecentShot {
   final String filePath; // полный jpeg на диске для preview
   final int frameNum;
   final double ratio;
+  // Поворот, выбранный гостем после съёмки (0/90/180/270).
+  final int rotation;
   const _RecentShot({
     required this.thumbDataUrl,
     required this.filePath,
     required this.frameNum,
     required this.ratio,
+    this.rotation = 0,
   });
+
+  _RecentShot withRotation(int r) => _RecentShot(
+        thumbDataUrl: thumbDataUrl,
+        filePath: filePath,
+        frameNum: frameNum,
+        ratio: ratio,
+        rotation: r,
+      );
 
   Map<String, Object> toJson() => {
         'url': thumbDataUrl,
         'path': filePath,
         'frameNum': frameNum,
         'ratio': ratio,
+        'rotation': rotation,
       };
 
   static _RecentShot? fromJson(Object? j) {
@@ -53,11 +65,13 @@ class _RecentShot {
     if (url is! String || path is! String || fn is! int || r is! num) {
       return null;
     }
+    final rot = j['rotation'];
     return _RecentShot(
       thumbDataUrl: url,
       filePath: path,
       frameNum: fn,
       ratio: r.toDouble(),
+      rotation: rot is int ? rot : 0,
     );
   }
 }
@@ -152,6 +166,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   String _lutPreset = 'original';
   List<_RecentShot> _recentShots = [];
   _PreviewData? _preview;
+  // Уникальный id каждого снимка. frameNum для этого не годится: после удаления
+  // счётчик откатывается, и следующий снимок получает тот же номер.
+  int _captureSeq = 0;
+  final Set<int> _discardedCaptures = <int>{};
   // Батч-загрузка из галереи (см. _pickFromGallery).
   _BatchState? _batchState;
   // Хост разрешил загрузку из галереи? Читаем при _loadPrefs из session.
@@ -528,11 +546,16 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       // Resolve'ится в then() от _upload ниже, или rejectится из _discardPreview.
       final uploadCompleter = Completer<String>();
       final cancelToken = CancelToken();
+      final captureId = ++_captureSeq;
+      // Снэпшот стека ДО этого кадра — для отката при «Удалить», даже если
+      // удаление нажали раньше, чем закончилась полная обработка.
+      final prevRecentShots = List<_RecentShot>.from(_recentShots);
       if (!mounted) return;
       setState(() {
         _isCapturing = false;
         _framesRemaining = newRemaining;
         _preview = _PreviewData(
+          captureId: captureId,
           bytes: rawBytes,
           ratio: rawRatio,
           frameNum: frameNum,
@@ -541,6 +564,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           uploadFuture: uploadCompleter.future,
           uploadCancel: cancelToken,
           uploadCompleter: uploadCompleter,
+          previousRecentShots: prevRecentShots,
         );
       });
 
@@ -559,7 +583,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       // превью (~0.5с). Запускаем параллельно с full-обработкой, не ждём результат —
       // кто первым обновит _preview, тот и покажется. Full всегда больше по bytes →
       // _runFastPreview не перепишет его если уже пришёл.
-      unawaited(_runFastPreview(rawBytes, _lutPreset, frameNum, targetRatio));
+      unawaited(_runFastPreview(rawBytes, _lutPreset, captureId, targetRatio));
 
       // Обрабатываем в фоне (film filter + EXIF-ориентация + кроп до targetRatio).
       // maxSize 4000 → сохраняем ~12MP (полный размер камеры), чтобы при скачивании
@@ -578,6 +602,15 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final height = result['height'] as int;
       final ratio = width / height;
 
+      // Удалённый кадр дальше не обрабатываем. Закрытое превью («Новый кадр»)
+      // удалением НЕ считается — такой кадр обязан догрузиться в альбом.
+      if (_discardedCaptures.contains(captureId)) {
+        if (!uploadCompleter.isCompleted) {
+          uploadCompleter.completeError('preview-discarded');
+        }
+        return;
+      }
+
       // Строим thumb и сохраняем на диск.
       final thumbDataUrl = await compute(
         _buildThumbDataUrl,
@@ -589,17 +622,27 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         await recentDir.create(recursive: true);
       }
       final filePath =
-          '${recentDir.path}/${DateTime.now().millisecondsSinceEpoch}_$frameNum.jpg';
+          '${recentDir.path}/${DateTime.now().millisecondsSinceEpoch}_c$captureId.jpg';
       await File(filePath).writeAsBytes(processed);
 
-      // Снэпшот старых recent-shots — нужен для корректного отката при Delete.
-      final prevRecentShots = List<_RecentShot>.from(_recentShots);
+      if (_discardedCaptures.contains(captureId)) {
+        try { await File(filePath).delete(); } catch (_) {}
+        if (!uploadCompleter.isCompleted) {
+          uploadCompleter.completeError('preview-discarded');
+        }
+        return;
+      }
+
+      final startPreview = _preview;
+      final startRotation =
+          (startPreview != null && startPreview.captureId == captureId) ? startPreview.rotation : 0;
       final newShots = [
         _RecentShot(
           thumbDataUrl: thumbDataUrl,
           filePath: filePath,
           frameNum: frameNum,
           ratio: ratio,
+          rotation: startRotation,
         ),
         ..._recentShots,
       ].take(_kRecentLimit).toList();
@@ -610,39 +653,41 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       }
       await _saveRecentShots(widget.eventId, newShots);
 
-      // Проверяем — пользователь мог нажать «Удалить» пока шла обработка.
-      // Если _preview уже null или кадр другой — не стартуем upload, завершаем completer с ошибкой.
-      final currentPreview = _preview;
-      if (!mounted || currentPreview == null || currentPreview.frameNum != frameNum) {
+      if (!mounted) {
         if (!uploadCompleter.isCompleted) {
-          uploadCompleter.completeError('preview-discarded');
+          uploadCompleter.completeError('camera-closed');
         }
         return;
       }
-
-      // Запускаем upload и обновляем превью обработанными байтами.
+      // Upload стартует даже если превью уже закрыто кнопкой «Новый кадр».
       final uploadFuture = _upload(processed, width, height, cancelToken: cancelToken);
 
-      setState(() {
-        _recentShots = newShots;
-        final p = _preview;
-        if (p != null && p.frameNum == frameNum) {
-          _preview = p.copyWith(
-            bytes: processed,
-            ratio: ratio,
-            isProcessing: false,
-            localFilePath: filePath,
-            previousRecentShots: prevRecentShots,
-          );
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _recentShots = newShots;
+          final p = _preview;
+          if (p != null && p.captureId == captureId) {
+            _preview = p.copyWith(
+              bytes: processed,
+              ratio: ratio,
+              isProcessing: false,
+              localFilePath: filePath,
+            );
+          }
+        });
+      }
 
-      uploadFuture.then((frameId) {
+      uploadFuture.then((frameId) async {
         if (!uploadCompleter.isCompleted) uploadCompleter.complete(frameId);
+        // Кадр удалили, пока шла загрузка, — убираем его и с сервера.
+        if (_discardedCaptures.contains(captureId)) {
+          await _deleteServerFrame(frameId);
+          return;
+        }
         if (!mounted) return;
         setState(() {
           final p = _preview;
-          if (p == null || p.frameNum != frameNum) return;
+          if (p == null || p.captureId != captureId) return;
           _preview = p.copyWith(frameId: frameId, status: _UploadStatus.ok);
         });
       }).catchError((e) {
@@ -671,7 +716,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         }
         setState(() {
           final p = _preview;
-          if (p == null || p.frameNum != frameNum) return;
+          if (p == null || p.captureId != captureId) return;
           _preview = p.copyWith(status: _UploadStatus.failed);
         });
       });
@@ -690,7 +735,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   // Fast preview: нативный Skia-decode до 800px → compute LUT → показать preview
   // мгновенно (~0.5с), пока в фоне идёт полная 12MP-обработка.
   // Fire-and-forget — если упадёт или придёт позже полной версии, тихо игнорируем.
-  Future<void> _runFastPreview(Uint8List rawBytes, String preset, int frameNum, double targetRatio) async {
+  Future<void> _runFastPreview(Uint8List rawBytes, String preset, int captureId, double targetRatio) async {
     try {
       final buffer = await ui.ImmutableBuffer.fromUint8List(rawBytes);
       final descriptor = await ui.ImageDescriptor.encoded(buffer);
@@ -719,7 +764,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final previewH = result['height'] as int;
       setState(() {
         final p = _preview;
-        if (p == null || p.frameNum != frameNum) return;
+        if (p == null || p.captureId != captureId) return;
         // Если full-версия уже пришла (isProcessing == false и bytes.length > этого preview),
         // не затираем её. Иначе — показываем preview и разблокируем «Подписать».
         if (p.isProcessing) {
@@ -742,9 +787,71 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   // - удаляем файл с диска,
   // - отменяем in-flight upload (CancelToken),
   // - если frame_id уже зарегистрирован на сервере — отправляем DELETE.
+  Future<void> _deleteServerFrame(String frameId) async {
+    try {
+      final guestToken = await GuestPrefs.tokenFor(widget.eventId);
+      await ref.read(dioProvider).delete(
+        'events/${widget.eventId}/frames/$frameId',
+        options: Options(headers: {'X-Guest-Token': guestToken}),
+      );
+    } catch (_) {
+      // Не критично — хост сможет удалить вручную из альбома.
+    }
+  }
+
+  // Поворот кадра на 90° по часовой сразу после съёмки. Применяется локально
+  // мгновенно, на сервер уходит PATCH rotation, как только кадр загружен.
+  Future<void> _rotatePreview() async {
+    final p = _preview;
+    if (p == null || p.captureId == 0) return;
+    final captureId = p.captureId;
+    final rotation = (p.rotation + 90) % 360;
+    setState(() {
+      _preview = p.copyWith(rotation: rotation);
+      _recentShots = [
+        for (final s in _recentShots)
+          (p.localFilePath != null && s.filePath == p.localFilePath)
+              ? s.withRotation(rotation)
+              : s,
+      ];
+    });
+    unawaited(_saveRecentShots(widget.eventId, _recentShots));
+
+    String? frameId = p.frameId;
+    if (frameId == null) {
+      try {
+        frameId = await p.uploadFuture;
+      } catch (_) {
+        return;
+      }
+    }
+    if (frameId == null || _discardedCaptures.contains(captureId)) return;
+    // Пока ждали загрузку, гость мог повернуть ещё раз — отправляем последнее значение.
+    final current = _preview;
+    final latest = (current != null && current.captureId == captureId) ? current.rotation : rotation;
+    if (latest != rotation) return;
+    try {
+      final guestToken = await GuestPrefs.tokenFor(widget.eventId);
+      await ref.read(dioProvider).patch(
+        'guest/frames/$frameId',
+        data: {'rotation': rotation},
+        options: Options(headers: {'X-Guest-Token': guestToken}),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось сохранить поворот — попробуйте ещё раз в альбоме'),
+          backgroundColor: AppColors.dark3,
+        ),
+      );
+    }
+  }
+
   Future<void> _discardPreview() async {
     final p = _preview;
-    if (p == null) return;
+    if (p == null || p.captureId == 0) return;
+    _discardedCaptures.add(p.captureId);
     final frameId = p.frameId;
     final filePath = p.localFilePath;
     final prevShots = p.previousRecentShots ?? const <_RecentShot>[];
@@ -779,16 +886,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     }
 
     // 5. Если frame уже успел зарегистрироваться на сервере — DELETE.
+    // Если ещё не успел — удалит обработчик завершения загрузки.
     if (frameId != null) {
-      try {
-        final guestToken = await GuestPrefs.tokenFor(widget.eventId);
-        await ref.read(dioProvider).delete(
-          'events/${widget.eventId}/frames/$frameId',
-          options: Options(headers: {'X-Guest-Token': guestToken}),
-        );
-      } catch (_) {
-        // Не критично — хост сможет удалить вручную из альбома.
-      }
+      await _deleteServerFrame(frameId);
     }
   }
 
@@ -1133,6 +1233,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
                 _preview = _PreviewData(
                   bytes: full,
                   ratio: s.ratio,
+                  rotation: s.rotation,
                   frameNum: s.frameNum,
                   status: _UploadStatus.ok,
                   thumbDataUrl: full == null ? s.thumbDataUrl : null,
@@ -1180,7 +1281,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
               data: _preview!,
               onShootMore: () => setState(() => _preview = null),
               onBack: () => setState(() => _preview = null),
-              onDelete: _discardPreview,
+              onDelete: _preview!.captureId != 0 ? _discardPreview : null,
+              onRotate: _preview!.captureId != 0 ? _rotatePreview : null,
               onSign: () async {
                 final p = _preview;
                 if (p == null) return;
@@ -1238,8 +1340,13 @@ class _PreviewData {
   final String? localFilePath;
   // Снэпшот _recentShots ДО добавления этого кадра — восстанавливаем при Delete.
   final List<_RecentShot>? previousRecentShots;
+  // 0 — превью открыто из стека последних кадров (не свежий снимок).
+  final int captureId;
+  final int rotation;
 
   const _PreviewData({
+    this.captureId = 0,
+    this.rotation = 0,
     this.bytes,
     this.thumbDataUrl,
     required this.ratio,
@@ -1266,8 +1373,11 @@ class _PreviewData {
     Completer<String>? uploadCompleter,
     String? localFilePath,
     List<_RecentShot>? previousRecentShots,
+    int? rotation,
   }) =>
       _PreviewData(
+        captureId: captureId,
+        rotation: rotation ?? this.rotation,
         bytes: bytes ?? this.bytes,
         thumbDataUrl: thumbDataUrl,
         ratio: ratio ?? this.ratio,
@@ -1843,10 +1953,13 @@ class _RecentStack extends StatelessWidget {
             child: ColoredBox(
               color: shot != null ? Colors.black : const Color(0x0FFFB347),
               child: shot != null
-                  ? Image.memory(
-                      _dataUrlToBytes(shot.thumbDataUrl),
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
+                  ? RotatedBox(
+                      quarterTurns: (shot.rotation ~/ 90) % 4,
+                      child: Image.memory(
+                        _dataUrlToBytes(shot.thumbDataUrl),
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      ),
                     )
                   : null,
             ),
@@ -1888,12 +2001,14 @@ class _FramePreview extends StatefulWidget {
   final VoidCallback onBack;
   final Future<void> Function() onSign;
   final Future<void> Function()? onDelete;
+  final Future<void> Function()? onRotate;
   const _FramePreview({
     required this.data,
     required this.onShootMore,
     required this.onBack,
     required this.onSign,
     this.onDelete,
+    this.onRotate,
   });
 
   @override
@@ -1978,7 +2093,9 @@ class _FramePreviewState extends State<_FramePreview> {
     final d = widget.data;
     final topPad = MediaQuery.of(context).padding.top;
     final botPad = MediaQuery.of(context).padding.bottom;
-    final isLandscape = d.ratio > 1;
+    final quarterTurns = (d.rotation ~/ 90) % 4;
+    final sideways = quarterTurns.isOdd;
+    final isLandscape = sideways ? d.ratio < 1 : d.ratio > 1;
     final cardWidth = isLandscape ? 300.0 : 240.0;
 
     Widget imageWidget;
@@ -1992,6 +2109,9 @@ class _FramePreviewState extends State<_FramePreview> {
       );
     } else {
       imageWidget = const ColoredBox(color: Colors.black);
+    }
+    if (quarterTurns != 0) {
+      imageWidget = RotatedBox(quarterTurns: quarterTurns, child: imageWidget);
     }
 
     return Material(
@@ -2242,29 +2362,26 @@ class _FramePreviewState extends State<_FramePreview> {
                     // Удалить кадр — доступно только если это только что снятый кадр
                     // (canSign + не идёт обработка). При открытии из recent-стека
                     // onDelete == null → кнопка не показывается.
-                    if (widget.onDelete != null && !d.isProcessing) ...[
+                    if ((widget.onDelete != null || widget.onRotate != null) && !d.isProcessing) ...[
                       const SizedBox(height: 6),
-                      TextButton.icon(
-                        onPressed: _confirmDelete,
-                        icon: Icon(
-                          Icons.delete_outline,
-                          size: 16,
-                          color: AppColors.drText.withValues(alpha: 0.55),
-                        ),
-                        label: Text(
-                          'Удалить кадр',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.drText.withValues(alpha: 0.55),
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.onRotate != null)
+                            _PreviewTextAction(
+                              icon: Icons.rotate_right,
+                              label: 'Повернуть',
+                              onTap: () => widget.onRotate!(),
+                            ),
+                          if (widget.onRotate != null && widget.onDelete != null)
+                            const SizedBox(width: 12),
+                          if (widget.onDelete != null)
+                            _PreviewTextAction(
+                              icon: Icons.delete_outline,
+                              label: 'Удалить кадр',
+                              onTap: _confirmDelete,
+                            ),
+                        ],
                       ),
                     ],
                   ],
@@ -2562,6 +2679,36 @@ class _BatchProgressOverlay extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PreviewTextAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _PreviewTextAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.drText.withValues(alpha: 0.55);
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16, color: color),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: color,
+          letterSpacing: 0.3,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
