@@ -743,6 +743,21 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
                 event.settings.max_guests = _PLAN_LIMITS[paid_plan]
                 event.status = EventStatus.ACTIVE
                 event.expires_at = default_expires_at(paid_plan)
+            else:
+                # Черновик успели активировать бесплатно до прихода вебхука —
+                # оплаченный тариф всё равно применяем, если он больше текущего.
+                from app.services.event_service import _PLAN_LIMITS
+                paid_plan_str = payment.meta.get("plan")
+                if paid_plan_str:
+                    paid_plan = Plan(paid_plan_str)
+                    if _PLAN_LIMITS[paid_plan] > event.settings.max_guests:
+                        event.settings.plan = paid_plan
+                        event.settings.max_guests = _PLAN_LIMITS[paid_plan]
+                        logger.info(
+                            "late_checkout_plan_applied",
+                            event_id=str(event.id),
+                            plan=paid_plan_str,
+                        )
 
         # Выдача реферальной награды при первом успешном платном платеже юзера.
         user = await user_repo.get_by_id(session, payment.user_id)
