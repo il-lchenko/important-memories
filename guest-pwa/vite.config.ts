@@ -4,6 +4,13 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import fs from 'node:fs'
 
+// HTTPS нужен для камеры на телефоне в локальной сети. VITE_HTTP=1 — обычный HTTP
+// (встроенный браузер, автотесты); без сертификатов тоже стартуем по HTTP.
+const httpsConfig =
+  process.env.VITE_HTTP !== '1' && fs.existsSync('./dev-key.pem') && fs.existsSync('./dev-cert.pem')
+    ? { key: fs.readFileSync('./dev-key.pem'), cert: fs.readFileSync('./dev-cert.pem') }
+    : undefined
+
 export default defineConfig({
   plugins: [
     react(),
@@ -81,11 +88,13 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    https: {
-      key: fs.readFileSync('./dev-key.pem'),
-      cert: fs.readFileSync('./dev-cert.pem'),
-    },
+    https: httpsConfig,
     proxy: {
+      // Раздел организатора ходит сразу в /api/v1 (как Flutter-приложение).
+      '/api/v1': {
+        target: 'http://127.0.0.1:8002',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://127.0.0.1:8002',
         changeOrigin: true,

@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import HomeScreen from './features/home/HomeScreen'
 import LandingScreen from './features/landing/LandingScreen'
 import CameraScreen from './features/camera/CameraScreen'
@@ -16,6 +16,18 @@ import VoiceScreen from './features/sign/VoiceScreen'
 import ProfileScreen from './features/profile/ProfileScreen'
 import InvitePage from './features/invite/InvitePage'
 import DevAlbumPreview from './features/album/DevAlbumPreview'
+
+// Раздел организатора — отдельный чанк, чтобы гостям не грузить лишнее.
+const HostApp = lazy(() => import('./app/HostApp'))
+
+function PaymentReturnRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={`/app/payment/return${search}`} replace />
+}
+
+function HostFallback() {
+  return <div style={{ minHeight: '100dvh', background: 'var(--paper-2)' }} />
+}
 
 export default function App() {
   useEffect(() => {
@@ -55,6 +67,8 @@ export default function App() {
         <Route path="/a/:token"                              element={<PublicAlbumScreen />} />
         <Route path="/a/:token/f/:frameIndex"                element={<FrameFullscreen />} />
         <Route path="/i/:token"                              element={<InvitePage />} />
+        <Route path="/app/*" element={<Suspense fallback={<HostFallback />}><HostApp /></Suspense>} />
+        <Route path="/payment/return" element={<PaymentReturnRedirect />} />
         {import.meta.env.DEV && (
           <Route path="/dev/album-preview"                   element={<DevAlbumPreview />} />
         )}

@@ -1,0 +1,167 @@
+/* Раздел организатора (/app/*). Токены — из src/index.css. */
+
+.host-root {
+  min-height: 100dvh;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+}
+
+.host-main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+.host-header {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--paper);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .05);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 12px;
+}
+.host-header-inner {
+  max-width: 720px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+}
+
+.host-kicker {
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--amber);
+}
+.host-title {
+  font-family: 'Playfair Display', 'Fraunces', serif; font-weight: 600;
+  font-size: 30px; line-height: 1.1; letter-spacing: -.02em; margin: 0;
+}
+.host-h2 {
+  font-family: 'Playfair Display', 'Fraunces', serif; font-weight: 600;
+  font-size: 22px; line-height: 1.2; margin: 0;
+}
+.host-muted { color: var(--ink-3); font-size: 14px; line-height: 1.5; }
+
+.host-icon-btn {
+  width: 36px; height: 36px; border-radius: 18px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--paper-2); border: none; color: var(--ink-2); cursor: pointer;
+}
+.host-icon-btn:active { transform: scale(.96); }
+
+.host-card {
+  background: var(--paper); border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(26, 23, 20, .04), 0 4px 14px -6px rgba(26, 23, 20, .08);
+}
+
+.host-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 14px 16px; background: none; border: none; cursor: pointer;
+  text-align: left; color: var(--ink); font-size: 15px; text-decoration: none;
+}
+.host-row + .host-row { border-top: 1px solid var(--line); }
+.host-row:active { background: rgba(26, 23, 20, .03); }
+
+.host-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--paper);
+  font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap;
+}
+.host-chip[data-active='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+.host-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.host-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.host-spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(201, 136, 30, .2); border-top-color: var(--amber);
+  animation: host-spin .8s linear infinite;
+}
+@keyframes host-spin { to { transform: rotate(360deg); } }
+
+/* ── Нижняя навигация (телефон) ── */
+.host-tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  display: flex; justify-content: space-around; align-items: flex-end;
+}
+.host-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 0 4px; color: var(--ink-4); text-decoration: none;
+  font-size: 11px; font-weight: 600; letter-spacing: .02em; position: relative;
+}
+.host-tab[aria-current='page'] { color: var(--ink); }
+.host-tab[aria-current='page']::before {
+  content: ''; position: absolute; top: 0; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--amber);
+}
+.host-fab {
+  width: 56px; height: 56px; border-radius: 28px; margin-top: -26px;
+  background: var(--amber); color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 20px -6px rgba(201, 136, 30, .6);
+}
+
+/* ── Боковое меню (десктоп) ── */
+.host-sidebar { display: none; }
+
+@media (min-width: 1024px) {
+  .host-tabbar { display: none; }
+  .host-sidebar {
+    display: flex; flex-direction: column; gap: 4px;
+    position: fixed; top: 0; bottom: 0; left: 0; width: 232px;
+    padding: 28px 16px; background: var(--paper); border-right: 1px solid var(--line);
+  }
+  .host-sidebar a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    color: var(--ink-3); text-decoration: none; font-size: 14px; font-weight: 600;
+  }
+  .host-sidebar a[aria-current='page'] { background: var(--paper-2); color: var(--ink); }
+  .host-with-sidebar { margin-left: 232px; }
+  .host-main { max-width: 960px; padding-bottom: 48px; }
+  .host-header-inner { max-width: 960px; }
+}
+
+/* ── Нижний лист ── */
+.host-sheet-backdrop {
+  position: fixed; inset: 0; z-index: 60; background: rgba(26, 23, 20, .45);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: host-fade .15s ease-out;
+}
+.host-sheet {
+  width: 100%; max-width: 560px; max-height: 88dvh; overflow-y: auto;
+  background: var(--paper); border-radius: 24px 24px 0 0;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+  animation: host-up .2s ease-out;
+}
+.host-sheet-handle { width: 40px; height: 4px; border-radius: 2px; background: var(--paper-3); margin: 0 auto 14px; }
+@media (min-width: 1024px) {
+  .host-sheet-backdrop { align-items: center; }
+  .host-sheet { border-radius: 24px; }
+}
+@keyframes host-fade { from { opacity: 0; } }
+@keyframes host-up { from { transform: translateY(24px); opacity: .6; } }
+
+.host-toast {
+  position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 80;
+  transform: translateX(-50%);
+  background: var(--ink); color: var(--paper);
+  padding: 10px 16px; border-radius: 12px; font-size: 14px;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .4); max-width: calc(100vw - 32px);
+}
+
+.host-cover {
+  position: relative; overflow: hidden; border-radius: 18px 18px 0 0;
+  aspect-ratio: 16 / 9; background: linear-gradient(135deg, #3A322B, #1A1714);
+}
+.host-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.host-grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .host-grid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1280px) { .host-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+.host-field-label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-3); margin: 0 0 6px 2px; }
