@@ -276,7 +276,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
       await prefs.setString('pending_sign_toast', 'Голос записан');
 
       if (!mounted) return;
-      context.pop();
+      context.pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _state = _RecordState.recorded);

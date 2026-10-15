@@ -512,19 +512,23 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       return;
     }
 
-    HapticFeedback.lightImpact();
-    SystemSound.play(SystemSoundType.click);
-    setState(() => _isCapturing = true);
-
+    _isCapturing = true;
     try {
+      // Съёмку запускаем первой, без ожидания ответов платформы: lock ориентации
+      // уходит в тот же канал раньше takePicture и применится до снимка.
+      // Раньше два await до затвора и щелчок «до» снимка давали задержку,
+      // за которую гость уже двигал телефон — кадр смазывался.
+      final ctrl = _ctrl!;
       final quarter = ref.read(deviceRotationProvider);
-      try {
-        await _ctrl!.lockCaptureOrientation(_orientationFor(quarter));
-      } catch (_) {}
-      final file = await _ctrl!.takePicture();
-      try {
-        await _ctrl!.unlockCaptureOrientation();
-      } catch (_) {}
+      unawaited(ctrl.lockCaptureOrientation(_orientationFor(quarter)).catchError((_) {}));
+      final pictureFuture = ctrl.takePicture();
+      HapticFeedback.lightImpact();
+      setState(() {});
+      final file = await pictureFuture;
+      // Щелчок — в момент, когда кадр реально снят: гость держит телефон до звука.
+      SystemSound.play(SystemSoundType.click);
+      HapticFeedback.mediumImpact();
+      unawaited(ctrl.unlockCaptureOrientation().catchError((_) {}));
       final rawBytes = await file.readAsBytes();
 
       // Оптимистично уменьшаем счётчик.

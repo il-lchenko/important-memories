@@ -403,7 +403,7 @@ class _DisplayMode extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
               child: Row(
                 children: [
-                  _RoundIconBtn(icon: Icons.arrow_back, onTap: () => context.pop()),
+                  _RoundIconBtn(icon: Icons.arrow_back, onTap: () => context.pop(true)),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -453,7 +453,7 @@ class _DisplayMode extends StatelessWidget {
                     width: double.infinity,
                     height: AppSizes.buttonHeight,
                     child: ElevatedButton(
-                      onPressed: () => context.pop(),
+                      onPressed: () => context.pop(true),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.amber, foregroundColor: Colors.white,
                         elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

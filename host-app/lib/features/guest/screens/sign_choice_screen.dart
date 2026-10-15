@@ -102,7 +102,7 @@ class SignChoiceScreen extends StatelessWidget {
                       title: 'Текстом',
                       subtitle: 'до 120 символов',
                       onTap: () async {
-                        await context.push(
+                        final saved = await context.push<bool>(
                           '/guest/caption/$frameId',
                           extra: {
                             'photoBytes': photoBytes,
@@ -112,7 +112,9 @@ class SignChoiceScreen extends StatelessWidget {
                             'uploadFuture': uploadFuture,
                           },
                         );
-                        if (context.mounted) context.pop();
+                        // «Назад» с экрана подписи возвращает сюда, к выбору;
+                        // к камере уходим только после сохранённой подписи.
+                        if (saved == true && context.mounted) context.pop();
                       },
                     ),
                   ),
@@ -123,7 +125,7 @@ class SignChoiceScreen extends StatelessWidget {
                       title: 'Голосом',
                       subtitle: 'до 20 секунд',
                       onTap: () async {
-                        await context.push(
+                        final saved = await context.push<bool>(
                           '/guest/voice/$frameId',
                           extra: {
                             'photoBytes': photoBytes,
@@ -133,7 +135,9 @@ class SignChoiceScreen extends StatelessWidget {
                             'uploadFuture': uploadFuture,
                           },
                         );
-                        if (context.mounted) context.pop();
+                        // «Назад» с экрана подписи возвращает сюда, к выбору;
+                        // к камере уходим только после сохранённой подписи.
+                        if (saved == true && context.mounted) context.pop();
                       },
                     ),
                   ),
