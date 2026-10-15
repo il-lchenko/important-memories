@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 import sentry_sdk
 from fastapi import FastAPI, Request
+from fastapi.routing import APIRoute
 
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -34,10 +35,15 @@ async def lifespan(_: FastAPI):
     logger.info("shutdown")
 
 
+def _operation_id(route: APIRoute) -> str:
+    return f"{route.tags[0]}_{route.name}" if route.tags else route.name
+
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     lifespan=lifespan,
+    generate_unique_id_function=_operation_id,
 )
 
 # CORS: in production require explicit origins list. "*" is only ok for local dev.

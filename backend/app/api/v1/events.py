@@ -14,6 +14,7 @@ from app.domain.schemas.events import (
     EventRenameIn,
     EventSettingsUpdateIn,
     EventUpdateIn,
+    PublicShareOut,
     UploadsWindowIn,
     UploadsWindowOut,
 )
@@ -307,26 +308,26 @@ async def get_join_stats(
     )
 
 
-@router.get("/{event_id}/public-share")
+@router.get("/{event_id}/public-share", response_model=PublicShareOut)
 async def get_public_share(
     event_id: UUID,
     user_id: CurrentUserId,
     session: SessionDep,
-) -> dict:
+) -> PublicShareOut:
     """Возвращает текущий токен открытой ссылки. NULL — Хост её не создавал."""
     token = await event_service.get_public_share(session, user_id, event_id)
-    return {"public_share_token": token}
+    return PublicShareOut(public_share_token=token)
 
 
-@router.post("/{event_id}/public-share/enable")
+@router.post("/{event_id}/public-share/enable", response_model=PublicShareOut)
 async def enable_public_share(
     event_id: UUID,
     user_id: CurrentUserId,
     session: SessionDep,
-) -> dict:
+) -> PublicShareOut:
     """Явная активация открытой ссылки Хостом (privacy v2.2 §10)."""
     token = await event_service.enable_public_share(session, user_id, event_id)
-    return {"public_share_token": token}
+    return PublicShareOut(public_share_token=token)
 
 
 @router.delete("/{event_id}/public-share", status_code=204)
@@ -340,14 +341,14 @@ async def disable_public_share(
     return Response(status_code=204)
 
 
-@router.post("/{event_id}/public-share/regenerate")
+@router.post("/{event_id}/public-share/regenerate", response_model=PublicShareOut)
 async def regenerate_public_share(
     event_id: UUID,
     user_id: CurrentUserId,
     session: SessionDep,
-) -> dict:
+) -> PublicShareOut:
     token = await event_service.regenerate_public_share(session, user_id, event_id)
-    return {"public_share_token": token}
+    return PublicShareOut(public_share_token=token)
 
 
 @router.post("/{event_id}/uploads-window", response_model=UploadsWindowOut)

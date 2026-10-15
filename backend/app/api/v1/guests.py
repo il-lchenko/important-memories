@@ -12,6 +12,7 @@ from app.domain.schemas.guests import (
     GuestNameUpdateIn,
     GuestProfileUpdateIn,
     GuestSessionOut,
+    InvitePreviewOut,
 )
 from app.repos import event_repo, join_attempt_repo
 from app.services import guest_service, invite_service
@@ -140,11 +141,11 @@ async def presign_avatar(
 
 
 # ── Personal invites ────────────────────────────────────────────────────────
-@router.get("/invites/{token}")
-async def preview_invite(token: str, session: SessionDep) -> dict:
+@router.get("/invites/{token}", response_model=InvitePreviewOut)
+async def preview_invite(token: str, session: SessionDep) -> InvitePreviewOut:
     """Preview приглашения — что за событие, для кого, ещё живо ли.
     Не создаёт сессию; фронт показывает подтверждение перед POST /join."""
-    return await invite_service.preview_invite(session, token)
+    return InvitePreviewOut(**await invite_service.preview_invite(session, token))
 
 
 @router.post("/invites/{token}/join", response_model=GuestSessionOut, status_code=201)

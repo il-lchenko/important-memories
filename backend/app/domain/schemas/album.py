@@ -34,3 +34,13 @@ class AlbumOut(BaseModel):
     total_frames: int
     is_admin_preview: bool = False
     title_font: str | None = None
+
+
+class PublicAlbumMetaOut(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    cover_url: str | None
+    total_frames: int
+    revealed: bool
+    title_font: str | None = None

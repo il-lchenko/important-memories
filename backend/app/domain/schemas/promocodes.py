@@ -84,3 +84,8 @@ class PromocodeRedemptionOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AdminToggleOut(BaseModel):
+    user_id: UUID
+    is_admin: bool

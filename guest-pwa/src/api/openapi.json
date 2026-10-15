@@ -1,0 +1,7126 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Important Memories API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Health",
+        "operationId": "meta_health",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Meta Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/request": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Email Otp",
+        "operationId": "auth_request_email_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/email/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Email Otp",
+        "operationId": "auth_verify_email_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailVerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh Token",
+        "operationId": "auth_refresh_token",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Me",
+        "operationId": "users_get_me",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete Me",
+        "description": "Полное удаление аккаунта. Требование сторов (RuStore / Google Play).\n\nСобытия, кадры, архивы, устройства удаляются каскадом (ondelete=CASCADE).\nГостевые записи и платежи — SET NULL (сохраняются как «удалённый юзер»\nдля отчётности НПД).\nS3-объекты остаются orphaned — их подчищает фоновый cron cleanup.",
+        "operationId": "users_delete_me",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Me",
+        "operationId": "users_update_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar/presign": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Presign Avatar",
+        "operationId": "users_presign_avatar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarPresignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvatarPresignOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/entitlements": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Get Entitlements",
+        "operationId": "me_get_entitlements",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Events",
+        "operationId": "events_list_events",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "type": "array",
+                  "title": "Response Events List Events"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Create Event",
+        "operationId": "events_create_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/invited": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Invited Events",
+        "description": "События где юзер был приглашён (invited guest), исключая собственные.",
+        "operationId": "events_list_invited_events",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitedEventOut"
+                  },
+                  "type": "array",
+                  "title": "Response Events List Invited Events"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Event",
+        "operationId": "events_get_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Update Event",
+        "operationId": "events_update_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete Event",
+        "operationId": "events_delete_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/settings": {
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Update Settings",
+        "operationId": "events_update_settings",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventSettingsUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/activate": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Activate Event",
+        "operationId": "events_activate_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/complete": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Complete Event",
+        "operationId": "events_complete_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/checkout": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Create Checkout",
+        "operationId": "events_create_checkout",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/extend": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Extend Storage",
+        "description": "Create a YooKassa checkout to extend album storage by 3m/6m/1y.\n\nexpires_at is updated only after webhook confirms the payment (see handle_webhook).",
+        "operationId": "events_extend_storage",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtendOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/upgrade": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Upgrade Event",
+        "description": "Create a YooKassa checkout to upgrade an event.\n\nkind=\"guests\" — bump to next-tier plan (P10→P25→P50→...).\nkind=\"frames\" — extend frames_per_guest from 30 to 45 (+5 ₽/guest).\nChanges applied after webhook confirms payment.",
+        "operationId": "events_upgrade_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpgradeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpgradeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/qr": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Qr",
+        "operationId": "events_get_qr",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "image/png": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/reveal": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Reveal Event",
+        "operationId": "events_reveal_event",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/pin": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Pin",
+        "description": "Возвращает pin_enabled + entry_pin (только владельцу).",
+        "operationId": "events_get_pin",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPinOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Set Pin",
+        "description": "Set/rotate/disable PIN. См. EventPinUpdateIn для сценариев.",
+        "operationId": "events_set_pin",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventPinUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPinOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/invites": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Invites",
+        "operationId": "events_list_invites",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InviteTokenOut"
+                  },
+                  "title": "Response Events List Invites"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Create Invite",
+        "operationId": "events_create_invite",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteTokenOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/invites/{invite_id}": {
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete Invite",
+        "operationId": "events_delete_invite",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "invite_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invite Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/join-stats": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Join Stats",
+        "description": "Агрегация попыток входа для хоста (по умолчанию за 24ч, макс 7 дней).",
+        "operationId": "events_get_join_stats",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 168,
+              "minimum": 1,
+              "default": 24,
+              "title": "Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinStatsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/public-share": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Public Share",
+        "description": "Возвращает текущий токен открытой ссылки. NULL — Хост её не создавал.",
+        "operationId": "events_get_public_share",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicShareOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Disable Public Share",
+        "description": "Отключение открытой ссылки — токен обнуляется, старая ссылка перестаёт работать.",
+        "operationId": "events_disable_public_share",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/public-share/enable": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Enable Public Share",
+        "description": "Явная активация открытой ссылки Хостом (privacy v2.2 §10).",
+        "operationId": "events_enable_public_share",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicShareOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/public-share/regenerate": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Regenerate Public Share",
+        "operationId": "events_regenerate_public_share",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicShareOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/uploads-window": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Open Uploads Window",
+        "description": "Хост открывает пост-event окно загрузки из галереи (2ч / 24ч / 7д).\nРаботает только на COMPLETED событиях.",
+        "operationId": "events_open_uploads_window",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadsWindowIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadsWindowOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Close Uploads Window",
+        "description": "Хост досрочно закрывает пост-event окно загрузки.",
+        "operationId": "events_close_uploads_window",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/album": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Album",
+        "operationId": "events_get_album",
+        "security": [
+          {
+            "HostBearer": []
+          },
+          {
+            "GuestToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/frames/{frame_id}": {
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete Frame",
+        "operationId": "events_delete_frame",
+        "security": [
+          {
+            "HostBearer": []
+          },
+          {
+            "GuestToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/frames/{frame_id}/rotation": {
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Update Frame Rotation",
+        "operationId": "events_update_frame_rotation",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameRotationIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/cover": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Upload Cover",
+        "operationId": "events_upload_cover",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_events_upload_cover"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/download": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Request Download",
+        "operationId": "events_request_download",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/{event_id}/download/{job_id}": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Download Status",
+        "operationId": "events_download_status",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          },
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pricing": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Get Pricing",
+        "operationId": "payments_get_pricing",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/promocodes/validate": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Validate Promocode",
+        "operationId": "payments_validate_promocode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidatePromocodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidatePromocodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/promocodes": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "My Promocodes",
+        "operationId": "payments_my_promocodes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PromocodeOut"
+                  },
+                  "type": "array",
+                  "title": "Response Payments My Promocodes"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/referrals": {
+      "get": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "My Referrals",
+        "operationId": "payments_my_referrals",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralStatsOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/promocodes": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Create Promocode",
+        "operationId": "admin_admin_create_promocode",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromocodeCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromocodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin List Promocodes",
+        "operationId": "admin_admin_list_promocodes",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/PromocodeKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromocodeOut"
+                  },
+                  "title": "Response Admin Admin List Promocodes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/promocodes/{promocode_id}": {
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Patch Promocode",
+        "operationId": "admin_admin_patch_promocode",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "promocode_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Promocode Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromocodePatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromocodeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Delete Promocode",
+        "description": "Soft-delete через expires_at=now — существующие redemptions сохраняются\nдля истории, но новые применения блокируются validate_promocode.",
+        "operationId": "admin_admin_delete_promocode",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "promocode_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Promocode Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/promocodes/{promocode_id}/redemptions": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin List Redemptions",
+        "operationId": "admin_admin_list_redemptions",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "promocode_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Promocode Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PromocodeRedemptionOut"
+                  },
+                  "title": "Response Admin Admin List Redemptions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{target_user_id}/toggle_admin": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Admin Toggle Admin",
+        "description": "Переключает флаг is_admin у другого юзера. Только для root-админа (Ильи).",
+        "operationId": "admin_admin_toggle_admin",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "target_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Target User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminToggleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/events/{short_code}": {
+      "get": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Get Event Preview",
+        "operationId": "guest_get_event_preview",
+        "parameters": [
+          {
+            "name": "short_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Short Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/sessions": {
+      "post": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Join Event",
+        "operationId": "guest_join_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestJoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/sessions/me": {
+      "get": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Get My Session",
+        "operationId": "guest_get_my_session",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Update My Guest Name",
+        "operationId": "guest_update_my_guest_name",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestNameUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/profile": {
+      "patch": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Update My Guest Profile",
+        "operationId": "guest_update_my_guest_profile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestProfileUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/avatar/presign": {
+      "post": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Presign Avatar",
+        "operationId": "guest_presign_avatar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestAvatarPresignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestAvatarPresignOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/invites/{token}": {
+      "get": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Preview Invite",
+        "description": "Preview приглашения — что за событие, для кого, ещё живо ли.\nНе создаёт сессию; фронт показывает подтверждение перед POST /join.",
+        "operationId": "guest_preview_invite",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/invites/{token}/join": {
+      "post": {
+        "tags": [
+          "guest"
+        ],
+        "summary": "Join By Invite",
+        "description": "Использовать invite: обходит PIN и лимит альбомов; помечает токен used.",
+        "operationId": "guest_join_by_invite",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteJoinIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestSessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/frames/presign": {
+      "post": {
+        "tags": [
+          "frames"
+        ],
+        "summary": "Presign Frame",
+        "operationId": "frames_presign_frame",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FramePresignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FramePresignOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/frames/": {
+      "post": {
+        "tags": [
+          "frames"
+        ],
+        "summary": "Register Frame",
+        "operationId": "frames_register_frame",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameRegisterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameRegisterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/guest/frames/{frame_id}/voice-presign": {
+      "post": {
+        "tags": [
+          "frames"
+        ],
+        "summary": "Presign Voice",
+        "operationId": "frames_presign_voice",
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameVoicePresignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameVoicePresignOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/frames/{frame_id}": {
+      "patch": {
+        "tags": [
+          "frames"
+        ],
+        "summary": "Update Frame",
+        "operationId": "frames_update_frame",
+        "security": [
+          {
+            "GuestToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/devices/": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "summary": "Register Device",
+        "operationId": "devices_register_device",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceRegisterIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/memories/": {
+      "get": {
+        "tags": [
+          "memories"
+        ],
+        "summary": "Get Memories",
+        "description": "Ленту раздела «Кадры» — блоки с типами: tilted, collage_a..e, grid_6.",
+        "operationId": "memories_get_memories",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoriesOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Create Report",
+        "operationId": "reports_create_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          },
+          {
+            "GuestToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/webhooks/yookassa": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Yookassa Webhook",
+        "operationId": "webhooks_yookassa_webhook",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "type": "object",
+                  "title": "Response Webhooks Yookassa Webhook"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/albums/{token}": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Get Public Album Meta",
+        "operationId": "public_get_public_album_meta",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicAlbumMetaOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/public/albums/{token}/frames": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "List Public Album Frames",
+        "operationId": "public_list_public_album_frames",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/consent/status": {
+      "get": {
+        "tags": [
+          "consent"
+        ],
+        "summary": "Consent Status User",
+        "description": "Возвращает список типов документов текущей версии, которые Хост ещё\nне принял. Клиент, обнаружив непустой список, показывает ConsentScreen.",
+        "operationId": "consent_consent_status_user",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentStatusOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/consent": {
+      "post": {
+        "tags": [
+          "consent"
+        ],
+        "summary": "Accept Consent User",
+        "description": "Хост принимает документ (offer / privacy / consent / content_rules).\nТребуется bearer-токен, чтобы связать запись с user_id.",
+        "operationId": "consent_accept_consent_user",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/guest/consent": {
+      "post": {
+        "tags": [
+          "consent"
+        ],
+        "summary": "Accept Consent Guest",
+        "description": "Гость принимает документ ДО создания Guest-записи. Передаёт\nfingerprint устройства — по нему потом свяжется с guest_id при join.",
+        "operationId": "consent_accept_consent_guest",
+        "parameters": [
+          {
+            "name": "User-Agent",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestConsentAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdminToggleOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "is_admin": {
+            "type": "boolean",
+            "title": "Is Admin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "is_admin"
+        ],
+        "title": "AdminToggleOut"
+      },
+      "AlbumFrameOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "guest_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Id"
+          },
+          "guest_name": {
+            "type": "string",
+            "title": "Guest Name"
+          },
+          "guest_avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guest Avatar Url"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "full_url": {
+            "type": "string",
+            "title": "Full Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "is_mine": {
+            "type": "boolean",
+            "title": "Is Mine",
+            "default": false
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "voice_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Url"
+          },
+          "voice_duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Duration Ms"
+          },
+          "voice_peaks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Peaks"
+          },
+          "rotation": {
+            "type": "integer",
+            "title": "Rotation",
+            "default": 0
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "camera"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "guest_id",
+          "guest_name",
+          "captured_at",
+          "thumbnail_url",
+          "preview_url",
+          "full_url",
+          "width",
+          "height"
+        ],
+        "title": "AlbumFrameOut"
+      },
+      "AlbumOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AlbumFrameOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "revealed": {
+            "type": "boolean",
+            "title": "Revealed"
+          },
+          "total_frames": {
+            "type": "integer",
+            "title": "Total Frames"
+          },
+          "is_admin_preview": {
+            "type": "boolean",
+            "title": "Is Admin Preview",
+            "default": false
+          },
+          "title_font": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Font"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor",
+          "revealed",
+          "total_frames"
+        ],
+        "title": "AlbumOut"
+      },
+      "ArchiveJobOut": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "empty",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "download_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Url"
+          },
+          "frame_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "ArchiveJobOut"
+      },
+      "AvatarPresignIn": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 2097152.0,
+            "minimum": 1.0,
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "AvatarPresignIn"
+      },
+      "AvatarPresignOut": {
+        "properties": {
+          "avatar_key": {
+            "type": "string",
+            "title": "Avatar Key"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avatar_key",
+          "upload_url",
+          "expires_in"
+        ],
+        "title": "AvatarPresignOut"
+      },
+      "Body_events_upload_cover": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_events_upload_cover"
+      },
+      "CheckoutIn": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sbp",
+                  "bank_card",
+                  "yoo_money",
+                  "sberbank"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          },
+          "promocode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promocode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan"
+        ],
+        "title": "CheckoutIn"
+      },
+      "CheckoutOut": {
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "yookassa_id": {
+            "type": "string",
+            "title": "Yookassa Id"
+          },
+          "confirmation_url": {
+            "type": "string",
+            "title": "Confirmation Url"
+          },
+          "amount_kopecks": {
+            "type": "integer",
+            "title": "Amount Kopecks"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "RUB"
+          },
+          "original_amount_kopecks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount Kopecks"
+          },
+          "discount_kopecks": {
+            "type": "integer",
+            "title": "Discount Kopecks",
+            "default": 0
+          },
+          "admin_bypass": {
+            "type": "boolean",
+            "title": "Admin Bypass",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_id",
+          "yookassa_id",
+          "confirmation_url",
+          "amount_kopecks"
+        ],
+        "title": "CheckoutOut"
+      },
+      "ConsentAcceptIn": {
+        "properties": {
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "offer",
+              "privacy",
+              "consent",
+              "content_rules",
+              "age_confirmation"
+            ],
+            "title": "Doc Type"
+          },
+          "doc_version": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "pattern": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+            "title": "Doc Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_type",
+          "doc_version"
+        ],
+        "title": "ConsentAcceptIn"
+      },
+      "ConsentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "offer",
+              "privacy",
+              "consent",
+              "content_rules",
+              "age_confirmation"
+            ],
+            "title": "Doc Type"
+          },
+          "doc_version": {
+            "type": "string",
+            "title": "Doc Version"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "doc_type",
+          "doc_version",
+          "accepted_at"
+        ],
+        "title": "ConsentOut"
+      },
+      "ConsentStatusOut": {
+        "properties": {
+          "current_version": {
+            "type": "string",
+            "title": "Current Version"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "needs_accept": {
+            "type": "boolean",
+            "title": "Needs Accept"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_version",
+          "missing",
+          "needs_accept"
+        ],
+        "title": "ConsentStatusOut"
+      },
+      "DeviceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "platform"
+        ],
+        "title": "DeviceOut"
+      },
+      "DeviceRegisterIn": {
+        "properties": {
+          "platform": {
+            "$ref": "#/components/schemas/Platform"
+          },
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 8,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "token"
+        ],
+        "title": "DeviceRegisterIn"
+      },
+      "EmailRequestIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailRequestIn"
+      },
+      "EmailRequestOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expires_in"
+        ],
+        "title": "EmailRequestOut"
+      },
+      "EmailVerifyIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "pattern": "^\\d{6}$",
+            "title": "Code"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "ref_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "EmailVerifyIn"
+      },
+      "EntitlementFeaturesOut": {
+        "properties": {
+          "solo_album": {
+            "type": "boolean",
+            "title": "Solo Album"
+          },
+          "mini_albums": {
+            "type": "boolean",
+            "title": "Mini Albums"
+          }
+        },
+        "type": "object",
+        "required": [
+          "solo_album",
+          "mini_albums"
+        ],
+        "title": "EntitlementFeaturesOut"
+      },
+      "EntitlementsOut": {
+        "properties": {
+          "tier": {
+            "type": "string",
+            "enum": [
+              "free",
+              "subscription",
+              "admin"
+            ],
+            "title": "Tier"
+          },
+          "is_admin": {
+            "type": "boolean",
+            "title": "Is Admin"
+          },
+          "subscription_enabled": {
+            "type": "boolean",
+            "title": "Subscription Enabled"
+          },
+          "free_events_per_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Events Per Month"
+          },
+          "free_events_used": {
+            "type": "integer",
+            "title": "Free Events Used"
+          },
+          "free_events_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Events Left"
+          },
+          "features": {
+            "$ref": "#/components/schemas/EntitlementFeaturesOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tier",
+          "is_admin",
+          "subscription_enabled",
+          "free_events_per_month",
+          "free_events_used",
+          "free_events_left",
+          "features"
+        ],
+        "title": "EntitlementsOut"
+      },
+      "EventCreateIn": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "end_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End At"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType",
+            "default": "other"
+          },
+          "frames_per_guest": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Frames Per Guest",
+            "default": 24
+          },
+          "reveal_mode": {
+            "$ref": "#/components/schemas/RevealMode",
+            "default": "instant"
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          },
+          "film": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LutPreset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lut_preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LutPreset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "$ref": "#/components/schemas/Plan",
+            "default": "free"
+          },
+          "photo_format": {
+            "$ref": "#/components/schemas/PhotoFormat",
+            "default": "portrait_34"
+          },
+          "uploads_enabled": {
+            "type": "boolean",
+            "title": "Uploads Enabled",
+            "default": false
+          },
+          "storage_extension": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "3m",
+                  "6m",
+                  "1y"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Extension"
+          }
+        },
+        "type": "object",
+        "title": "EventCreateIn"
+      },
+      "EventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "short_code": {
+            "type": "string",
+            "title": "Short Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "start_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/EventSettingsOut"
+          },
+          "guests_count": {
+            "type": "integer",
+            "title": "Guests Count",
+            "default": 0
+          },
+          "frames_count": {
+            "type": "integer",
+            "title": "Frames Count",
+            "default": 0
+          },
+          "pin_enabled": {
+            "type": "boolean",
+            "title": "Pin Enabled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "short_code",
+          "title",
+          "start_at",
+          "end_at",
+          "event_type",
+          "status",
+          "cover_url",
+          "created_at",
+          "updated_at",
+          "settings"
+        ],
+        "title": "EventOut"
+      },
+      "EventPinOut": {
+        "properties": {
+          "pin_enabled": {
+            "type": "boolean",
+            "title": "Pin Enabled"
+          },
+          "entry_pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pin_enabled",
+          "entry_pin"
+        ],
+        "title": "EventPinOut",
+        "description": "Возвращается хосту после set/rotate. Гостям pin никогда не отдаём."
+      },
+      "EventPinUpdateIn": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4,
+                "minLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "EventPinUpdateIn",
+        "description": "Управление PIN события. Три состояния:\n- enabled=True, pin=\"1234\" — установить PIN\n- enabled=True, pin=None   — сгенерировать новый случайный PIN\n- enabled=False            — отключить PIN (pin в БД очищается)"
+      },
+      "EventPreviewOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "frames_per_guest": {
+            "type": "integer",
+            "title": "Frames Per Guest"
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "lut_preset": {
+            "type": "string",
+            "title": "Lut Preset"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "active"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "pin_required": {
+            "type": "boolean",
+            "title": "Pin Required",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "frames_per_guest",
+          "reveal_at",
+          "lut_preset"
+        ],
+        "title": "EventPreviewOut"
+      },
+      "EventSettingsOut": {
+        "properties": {
+          "frames_per_guest": {
+            "type": "integer",
+            "title": "Frames Per Guest"
+          },
+          "max_guests": {
+            "type": "integer",
+            "title": "Max Guests"
+          },
+          "reveal_mode": {
+            "$ref": "#/components/schemas/RevealMode"
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          },
+          "lut_preset": {
+            "$ref": "#/components/schemas/LutPreset"
+          },
+          "sound_enabled": {
+            "type": "boolean",
+            "title": "Sound Enabled"
+          },
+          "photo_format": {
+            "$ref": "#/components/schemas/PhotoFormat"
+          },
+          "uploads_enabled": {
+            "type": "boolean",
+            "title": "Uploads Enabled",
+            "default": false
+          },
+          "uploads_window_ends_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploads Window Ends At"
+          },
+          "qr_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "classic",
+                  "dark",
+                  "warm",
+                  "mono"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Style"
+          },
+          "title_font": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "playfair",
+                  "fraunces",
+                  "caveat",
+                  "manrope"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Font"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frames_per_guest",
+          "max_guests",
+          "reveal_mode",
+          "reveal_at",
+          "plan",
+          "lut_preset",
+          "sound_enabled",
+          "photo_format"
+        ],
+        "title": "EventSettingsOut"
+      },
+      "EventSettingsUpdateIn": {
+        "properties": {
+          "frames_per_guest": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frames Per Guest"
+          },
+          "reveal_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevealMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Plan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lut_preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LutPreset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sound_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sound Enabled"
+          },
+          "photo_format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PhotoFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "uploads_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploads Enabled"
+          },
+          "qr_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "classic",
+                  "dark",
+                  "warm",
+                  "mono"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Style"
+          },
+          "title_font": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "playfair",
+                  "fraunces",
+                  "caveat",
+                  "manrope"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Font"
+          }
+        },
+        "type": "object",
+        "title": "EventSettingsUpdateIn"
+      },
+      "EventStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "active",
+          "completed",
+          "cancelled"
+        ],
+        "title": "EventStatus"
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "wedding",
+          "birthday",
+          "corporate",
+          "party",
+          "graduation",
+          "travel",
+          "vacation",
+          "concert",
+          "other"
+        ],
+        "title": "EventType"
+      },
+      "EventUpdateIn": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "reveal_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevealMode"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reveal_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reveal At"
+          }
+        },
+        "type": "object",
+        "title": "EventUpdateIn"
+      },
+      "ExtendIn": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "3m",
+              "6m",
+              "1y"
+            ],
+            "title": "Period"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sbp",
+                  "bank_card",
+                  "yoo_money",
+                  "sberbank"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          },
+          "promocode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promocode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period"
+        ],
+        "title": "ExtendIn"
+      },
+      "ExtendOut": {
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "yookassa_id": {
+            "type": "string",
+            "title": "Yookassa Id"
+          },
+          "confirmation_url": {
+            "type": "string",
+            "title": "Confirmation Url"
+          },
+          "amount_kopecks": {
+            "type": "integer",
+            "title": "Amount Kopecks"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "RUB"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "3m",
+              "6m",
+              "1y"
+            ],
+            "title": "Period"
+          },
+          "new_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "New Expires At"
+          },
+          "days_added": {
+            "type": "integer",
+            "title": "Days Added"
+          },
+          "original_amount_kopecks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount Kopecks"
+          },
+          "discount_kopecks": {
+            "type": "integer",
+            "title": "Discount Kopecks",
+            "default": 0
+          },
+          "admin_bypass": {
+            "type": "boolean",
+            "title": "Admin Bypass",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_id",
+          "yookassa_id",
+          "confirmation_url",
+          "amount_kopecks",
+          "period",
+          "new_expires_at",
+          "days_added"
+        ],
+        "title": "ExtendOut"
+      },
+      "FramePresignIn": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "pattern": "^image/(jpeg|png|webp|heic|heif)$",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 20971520.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "camera",
+              "upload"
+            ],
+            "title": "Source",
+            "default": "camera"
+          },
+          "upload_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upload Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "FramePresignIn"
+      },
+      "FramePresignOut": {
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Frame Id"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "deduplicated": {
+            "type": "boolean",
+            "title": "Deduplicated",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_id",
+          "upload_url",
+          "expires_in"
+        ],
+        "title": "FramePresignOut"
+      },
+      "FrameRegisterIn": {
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Frame Id"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "width": {
+            "type": "integer",
+            "maximum": 20000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "maximum": 20000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Height"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "camera",
+              "upload"
+            ],
+            "title": "Source",
+            "default": "camera"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_id",
+          "captured_at",
+          "width",
+          "height"
+        ],
+        "title": "FrameRegisterIn"
+      },
+      "FrameRegisterOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "frames_remaining": {
+            "type": "integer",
+            "title": "Frames Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "frames_remaining"
+        ],
+        "title": "FrameRegisterOut"
+      },
+      "FrameRotationIn": {
+        "properties": {
+          "rotation": {
+            "type": "integer",
+            "title": "Rotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rotation"
+        ],
+        "title": "FrameRotationIn"
+      },
+      "FrameUpdateIn": {
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "voice_s3_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice S3 Key"
+          },
+          "voice_duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 25000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Duration Ms"
+          },
+          "voice_peaks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice Peaks"
+          },
+          "rotation": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rotation"
+          },
+          "clear_caption": {
+            "type": "boolean",
+            "title": "Clear Caption",
+            "default": false
+          },
+          "clear_voice": {
+            "type": "boolean",
+            "title": "Clear Voice",
+            "default": false
+          },
+          "clear_note": {
+            "type": "boolean",
+            "title": "Clear Note",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "FrameUpdateIn",
+        "description": "Guest updates caption, voice, note or rotation for their own frame."
+      },
+      "FrameVoicePresignIn": {
+        "properties": {
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 2097152.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes"
+          },
+          "content_type": {
+            "type": "string",
+            "pattern": "^audio/(webm|ogg|mp4|wav|wave|mpeg)$",
+            "title": "Content Type",
+            "default": "audio/webm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size_bytes"
+        ],
+        "title": "FrameVoicePresignIn"
+      },
+      "FrameVoicePresignOut": {
+        "properties": {
+          "voice_s3_key": {
+            "type": "string",
+            "title": "Voice S3 Key"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "voice_s3_key",
+          "upload_url",
+          "expires_in"
+        ],
+        "title": "FrameVoicePresignOut"
+      },
+      "GuestAvatarPresignIn": {
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Content Type",
+            "default": "image/jpeg"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 2097152.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size_bytes"
+        ],
+        "title": "GuestAvatarPresignIn"
+      },
+      "GuestAvatarPresignOut": {
+        "properties": {
+          "avatar_key": {
+            "type": "string",
+            "title": "Avatar Key"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avatar_key",
+          "upload_url",
+          "expires_in"
+        ],
+        "title": "GuestAvatarPresignOut"
+      },
+      "GuestConsentAcceptIn": {
+        "properties": {
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "offer",
+              "privacy",
+              "consent",
+              "content_rules",
+              "age_confirmation"
+            ],
+            "title": "Doc Type"
+          },
+          "doc_version": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "pattern": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+            "title": "Doc Version"
+          },
+          "fingerprint": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[a-fA-F0-9\\-]{8,128}$",
+            "title": "Fingerprint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "doc_type",
+          "doc_version",
+          "fingerprint"
+        ],
+        "title": "GuestConsentAcceptIn",
+        "description": "Гость принимает согласие ДО создания Guest-записи — передаёт\nfingerprint. Позднее, при join, fingerprint связывается с guest_id."
+      },
+      "GuestEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/EventSettingsOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "end_at",
+          "settings"
+        ],
+        "title": "GuestEventOut"
+      },
+      "GuestJoinIn": {
+        "properties": {
+          "short_code": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 4,
+            "title": "Short Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "fingerprint": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Fingerprint"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4,
+                "minLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "short_code",
+          "fingerprint"
+        ],
+        "title": "GuestJoinIn"
+      },
+      "GuestNameUpdateIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "GuestNameUpdateIn"
+      },
+      "GuestProfileUpdateIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "avatar_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Key"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          }
+        },
+        "type": "object",
+        "title": "GuestProfileUpdateIn",
+        "description": "Обновление публичного профиля гостя: имя, аватар, био.\nВсе поля опциональные — можно менять по одному."
+      },
+      "GuestSessionOut": {
+        "properties": {
+          "guest_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Guest Id"
+          },
+          "guest_token": {
+            "type": "string",
+            "title": "Guest Token"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "bio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bio"
+          },
+          "event": {
+            "$ref": "#/components/schemas/GuestEventOut"
+          },
+          "frames_used": {
+            "type": "integer",
+            "title": "Frames Used"
+          },
+          "frames_remaining": {
+            "type": "integer",
+            "title": "Frames Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "guest_id",
+          "guest_token",
+          "name",
+          "event",
+          "frames_used",
+          "frames_remaining"
+        ],
+        "title": "GuestSessionOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InviteCreateIn": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "ttl_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 90.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ttl Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name"
+        ],
+        "title": "InviteCreateIn",
+        "description": "Хост создаёт персональное приглашение — «для Анны», «для Ивана»."
+      },
+      "InviteJoinIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "fingerprint": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 8,
+            "title": "Fingerprint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fingerprint"
+        ],
+        "title": "InviteJoinIn",
+        "description": "Payload для POST /guest/invites/{token}/join."
+      },
+      "InvitePreviewOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "event_title": {
+            "type": "string",
+            "title": "Event Title"
+          },
+          "event_short_code": {
+            "type": "string",
+            "title": "Event Short Code"
+          },
+          "event_status": {
+            "type": "string",
+            "title": "Event Status"
+          },
+          "public_share_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Share Token"
+          },
+          "used": {
+            "type": "boolean",
+            "title": "Used"
+          },
+          "expired": {
+            "type": "boolean",
+            "title": "Expired"
+          },
+          "event_closed": {
+            "type": "boolean",
+            "title": "Event Closed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name",
+          "event_title",
+          "event_short_code",
+          "event_status",
+          "public_share_token",
+          "used",
+          "expired",
+          "event_closed"
+        ],
+        "title": "InvitePreviewOut"
+      },
+      "InviteTokenOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "invite_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invite Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "display_name",
+          "created_at"
+        ],
+        "title": "InviteTokenOut"
+      },
+      "InvitedEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "short_code": {
+            "type": "string",
+            "title": "Short Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "start_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start At"
+          },
+          "end_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End At"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "my_frames_count": {
+            "type": "integer",
+            "title": "My Frames Count"
+          },
+          "total_frames": {
+            "type": "integer",
+            "title": "Total Frames"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "short_code",
+          "title",
+          "status",
+          "end_at",
+          "my_frames_count",
+          "total_frames"
+        ],
+        "title": "InvitedEventOut"
+      },
+      "JoinStatsOut": {
+        "properties": {
+          "window_hours": {
+            "type": "integer",
+            "title": "Window Hours",
+            "default": 24
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "ok": {
+            "type": "integer",
+            "title": "Ok",
+            "default": 0
+          },
+          "bad_code": {
+            "type": "integer",
+            "title": "Bad Code",
+            "default": 0
+          },
+          "bad_pin": {
+            "type": "integer",
+            "title": "Bad Pin",
+            "default": 0
+          },
+          "pin_required": {
+            "type": "integer",
+            "title": "Pin Required",
+            "default": 0
+          },
+          "rate_limited": {
+            "type": "integer",
+            "title": "Rate Limited",
+            "default": 0
+          },
+          "other": {
+            "type": "integer",
+            "title": "Other",
+            "default": 0
+          },
+          "unique_ips": {
+            "type": "integer",
+            "title": "Unique Ips",
+            "default": 0
+          },
+          "unique_fingerprints": {
+            "type": "integer",
+            "title": "Unique Fingerprints",
+            "default": 0
+          },
+          "suspicious": {
+            "type": "boolean",
+            "title": "Suspicious",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "JoinStatsOut",
+        "description": "Агрегация JoinAttempt для хоста за последние 24 часа."
+      },
+      "LutPreset": {
+        "type": "string",
+        "enum": [
+          "original",
+          "portra400",
+          "fuji400h",
+          "cinestill",
+          "ilford"
+        ],
+        "title": "LutPreset"
+      },
+      "MemoriesOut": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryBlock"
+            },
+            "type": "array",
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocks"
+        ],
+        "title": "MemoriesOut"
+      },
+      "MemoryBlock": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "tilted",
+              "collage_a",
+              "collage_b",
+              "collage_c",
+              "collage_d",
+              "collage_e",
+              "grid_6"
+            ],
+            "title": "Type"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "single",
+              "collection"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date_iso": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Iso"
+          },
+          "albums_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Albums Count"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "event_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Event Ids",
+            "default": []
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type"
+          },
+          "thumbs": {
+            "items": {
+              "$ref": "#/components/schemas/MemoryThumb"
+            },
+            "type": "array",
+            "title": "Thumbs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "kind",
+          "title",
+          "thumbs"
+        ],
+        "title": "MemoryBlock"
+      },
+      "MemoryThumb": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "frame_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Frame Id"
+          },
+          "rotation": {
+            "type": "integer",
+            "title": "Rotation",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "event_id",
+          "frame_id"
+        ],
+        "title": "MemoryThumb",
+        "description": "Одно фото в блоке. Тап открывает его в оригинальном альбоме."
+      },
+      "PhotoFormat": {
+        "type": "string",
+        "enum": [
+          "portrait_34",
+          "landscape_43"
+        ],
+        "title": "PhotoFormat"
+      },
+      "Plan": {
+        "type": "string",
+        "enum": [
+          "free",
+          "p10",
+          "p25",
+          "p50",
+          "p75",
+          "p100",
+          "p150",
+          "p175",
+          "p200",
+          "p250",
+          "custom",
+          "unlimited"
+        ],
+        "title": "Plan"
+      },
+      "Platform": {
+        "type": "string",
+        "enum": [
+          "ios",
+          "android",
+          "web",
+          "huawei"
+        ],
+        "title": "Platform"
+      },
+      "PricingCustomOut": {
+        "properties": {
+          "from_guests": {
+            "type": "integer",
+            "title": "From Guests"
+          },
+          "max_guests": {
+            "type": "integer",
+            "title": "Max Guests"
+          },
+          "base_price_kopecks": {
+            "type": "integer",
+            "title": "Base Price Kopecks"
+          },
+          "per_guest_kopecks": {
+            "type": "integer",
+            "title": "Per Guest Kopecks"
+          },
+          "retention_days": {
+            "type": "integer",
+            "title": "Retention Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_guests",
+          "max_guests",
+          "base_price_kopecks",
+          "per_guest_kopecks",
+          "retention_days"
+        ],
+        "title": "PricingCustomOut"
+      },
+      "PricingExtendOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "3m",
+              "6m",
+              "1y"
+            ],
+            "title": "Period"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "price_kopecks": {
+            "type": "integer",
+            "title": "Price Kopecks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "days",
+          "price_kopecks"
+        ],
+        "title": "PricingExtendOut"
+      },
+      "PricingFramesOut": {
+        "properties": {
+          "base_per_guest": {
+            "type": "integer",
+            "title": "Base Per Guest"
+          },
+          "extended_per_guest": {
+            "type": "integer",
+            "title": "Extended Per Guest"
+          },
+          "price_per_guest_kopecks": {
+            "type": "integer",
+            "title": "Price Per Guest Kopecks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_per_guest",
+          "extended_per_guest",
+          "price_per_guest_kopecks"
+        ],
+        "title": "PricingFramesOut"
+      },
+      "PricingOut": {
+        "properties": {
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "RUB"
+          },
+          "tiers": {
+            "items": {
+              "$ref": "#/components/schemas/PricingTierOut"
+            },
+            "type": "array",
+            "title": "Tiers"
+          },
+          "custom": {
+            "$ref": "#/components/schemas/PricingCustomOut"
+          },
+          "frames": {
+            "$ref": "#/components/schemas/PricingFramesOut"
+          },
+          "extend": {
+            "items": {
+              "$ref": "#/components/schemas/PricingExtendOut"
+            },
+            "type": "array",
+            "title": "Extend"
+          },
+          "upgrade_premium": {
+            "type": "number",
+            "title": "Upgrade Premium"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tiers",
+          "custom",
+          "frames",
+          "extend",
+          "upgrade_premium"
+        ],
+        "title": "PricingOut"
+      },
+      "PricingTierOut": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/Plan"
+          },
+          "max_guests": {
+            "type": "integer",
+            "title": "Max Guests"
+          },
+          "price_kopecks": {
+            "type": "integer",
+            "title": "Price Kopecks"
+          },
+          "retention_days": {
+            "type": "integer",
+            "title": "Retention Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "plan",
+          "max_guests",
+          "price_kopecks",
+          "retention_days"
+        ],
+        "title": "PricingTierOut"
+      },
+      "PromocodeAppliesTo": {
+        "type": "string",
+        "enum": [
+          "all",
+          "checkout",
+          "extend",
+          "upgrade"
+        ],
+        "title": "PromocodeAppliesTo"
+      },
+      "PromocodeCreateIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Code"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PromocodeKind",
+            "default": "manual"
+          },
+          "discount_type": {
+            "$ref": "#/components/schemas/PromocodeDiscountType",
+            "default": "percent"
+          },
+          "discount_value": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Discount Value"
+          },
+          "max_redemptions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Redemptions"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "applies_to": {
+            "$ref": "#/components/schemas/PromocodeAppliesTo",
+            "default": "all"
+          },
+          "min_amount_kopecks": {
+            "type": "integer",
+            "title": "Min Amount Kopecks",
+            "default": 0
+          },
+          "single_use_per_user": {
+            "type": "boolean",
+            "title": "Single Use Per User",
+            "default": true
+          },
+          "owner_user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "discount_value"
+        ],
+        "title": "PromocodeCreateIn"
+      },
+      "PromocodeDiscountType": {
+        "type": "string",
+        "enum": [
+          "percent",
+          "fixed"
+        ],
+        "title": "PromocodeDiscountType"
+      },
+      "PromocodeKind": {
+        "type": "string",
+        "enum": [
+          "admin_bypass",
+          "referral",
+          "manual"
+        ],
+        "title": "PromocodeKind"
+      },
+      "PromocodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PromocodeKind"
+          },
+          "discount_type": {
+            "$ref": "#/components/schemas/PromocodeDiscountType"
+          },
+          "discount_value": {
+            "type": "integer",
+            "title": "Discount Value"
+          },
+          "max_redemptions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Redemptions"
+          },
+          "redemptions_count": {
+            "type": "integer",
+            "title": "Redemptions Count"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "applies_to": {
+            "$ref": "#/components/schemas/PromocodeAppliesTo"
+          },
+          "min_amount_kopecks": {
+            "type": "integer",
+            "title": "Min Amount Kopecks"
+          },
+          "single_use_per_user": {
+            "type": "boolean",
+            "title": "Single Use Per User"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "kind",
+          "discount_type",
+          "discount_value",
+          "max_redemptions",
+          "redemptions_count",
+          "expires_at",
+          "applies_to",
+          "min_amount_kopecks",
+          "single_use_per_user",
+          "owner_user_id",
+          "created_at"
+        ],
+        "title": "PromocodeOut"
+      },
+      "PromocodePatchIn": {
+        "properties": {
+          "max_redemptions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Redemptions"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "discount_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Value"
+          }
+        },
+        "type": "object",
+        "title": "PromocodePatchIn"
+      },
+      "PromocodeRedemptionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Id"
+          },
+          "discount_applied_kopecks": {
+            "type": "integer",
+            "title": "Discount Applied Kopecks"
+          },
+          "redeemed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Redeemed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "payment_id",
+          "discount_applied_kopecks",
+          "redeemed_at"
+        ],
+        "title": "PromocodeRedemptionOut"
+      },
+      "PublicAlbumMetaOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
+          "total_frames": {
+            "type": "integer",
+            "title": "Total Frames"
+          },
+          "revealed": {
+            "type": "boolean",
+            "title": "Revealed"
+          },
+          "title_font": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Font"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status",
+          "cover_url",
+          "total_frames",
+          "revealed"
+        ],
+        "title": "PublicAlbumMetaOut"
+      },
+      "PublicShareOut": {
+        "properties": {
+          "public_share_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Share Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_share_token"
+        ],
+        "title": "PublicShareOut"
+      },
+      "ReferralStatsOut": {
+        "properties": {
+          "referral_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Code"
+          },
+          "referrals_count": {
+            "type": "integer",
+            "title": "Referrals Count"
+          },
+          "total_earned_kopecks": {
+            "type": "integer",
+            "title": "Total Earned Kopecks"
+          },
+          "pending_promocodes_count": {
+            "type": "integer",
+            "title": "Pending Promocodes Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "referral_code",
+          "referrals_count",
+          "total_earned_kopecks",
+          "pending_promocodes_count"
+        ],
+        "title": "ReferralStatsOut"
+      },
+      "RefreshIn": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshIn"
+      },
+      "ReportCategory": {
+        "type": "string",
+        "enum": [
+          "nudity",
+          "violence",
+          "spam",
+          "other"
+        ],
+        "title": "ReportCategory"
+      },
+      "ReportCreateIn": {
+        "properties": {
+          "frame_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame Id"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ReportCategory"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category"
+        ],
+        "title": "ReportCreateIn"
+      },
+      "ReportOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "ReportOut"
+      },
+      "RevealMode": {
+        "type": "string",
+        "enum": [
+          "instant",
+          "delayed"
+        ],
+        "title": "RevealMode"
+      },
+      "TokenOut": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "user_id"
+        ],
+        "title": "TokenOut"
+      },
+      "UpgradeIn": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "guests",
+              "frames"
+            ],
+            "title": "Kind"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sbp",
+                  "bank_card",
+                  "yoo_money",
+                  "sberbank"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          },
+          "promocode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promocode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "UpgradeIn"
+      },
+      "UpgradeOut": {
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "yookassa_id": {
+            "type": "string",
+            "title": "Yookassa Id"
+          },
+          "confirmation_url": {
+            "type": "string",
+            "title": "Confirmation Url"
+          },
+          "amount_kopecks": {
+            "type": "integer",
+            "title": "Amount Kopecks"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "RUB"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "guests",
+              "frames"
+            ],
+            "title": "Kind"
+          },
+          "new_plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Plan"
+          },
+          "new_max_guests": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Max Guests"
+          },
+          "new_frames_per_guest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Frames Per Guest"
+          },
+          "original_amount_kopecks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount Kopecks"
+          },
+          "discount_kopecks": {
+            "type": "integer",
+            "title": "Discount Kopecks",
+            "default": 0
+          },
+          "admin_bypass": {
+            "type": "boolean",
+            "title": "Admin Bypass",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_id",
+          "yookassa_id",
+          "confirmation_url",
+          "amount_kopecks",
+          "kind"
+        ],
+        "title": "UpgradeOut"
+      },
+      "UploadsWindowIn": {
+        "properties": {
+          "duration": {
+            "type": "string",
+            "enum": [
+              "2h",
+              "24h",
+              "7d"
+            ],
+            "title": "Duration"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duration"
+        ],
+        "title": "UploadsWindowIn",
+        "description": "Пресеты длительности пост-event окна загрузки из галереи."
+      },
+      "UploadsWindowOut": {
+        "properties": {
+          "uploads_window_ends_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uploads Window Ends At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uploads_window_ends_at"
+        ],
+        "title": "UploadsWindowOut"
+      },
+      "UserOut": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "is_admin": {
+            "type": "boolean",
+            "title": "Is Admin",
+            "default": false
+          },
+          "referral_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referral Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "display_name"
+        ],
+        "title": "UserOut"
+      },
+      "UserUpdateIn": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "avatar_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Key"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdateIn"
+      },
+      "ValidatePromocodeIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "checkout",
+              "extend",
+              "upgrade"
+            ],
+            "title": "Kind",
+            "default": "checkout"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "upgrade_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "guests",
+                  "frames"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upgrade Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ValidatePromocodeIn"
+      },
+      "ValidatePromocodeOut": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "discount_kopecks": {
+            "type": "integer",
+            "title": "Discount Kopecks",
+            "default": 0
+          },
+          "final_amount_kopecks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Amount Kopecks"
+          },
+          "original_amount_kopecks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Amount Kopecks"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid"
+        ],
+        "title": "ValidatePromocodeOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HostBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "GuestToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Guest-Token"
+      }
+    }
+  }
+}

@@ -177,3 +177,7 @@ class QRCodeOut(BaseModel):
     short_code: str
     short_url: str
     png_base64: str
+
+
+class PublicShareOut(BaseModel):
+    public_share_token: str | None

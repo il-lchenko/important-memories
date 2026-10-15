@@ -2,16 +2,16 @@
 from fastapi import APIRouter, Query
 
 from app.api.deps import SessionDep
-from app.domain.schemas.album import AlbumOut
+from app.domain.schemas.album import AlbumOut, PublicAlbumMetaOut
 from app.services import album_service
 
 
 router = APIRouter()
 
 
-@router.get("/albums/{token}")
-async def get_public_album_meta(token: str, session: SessionDep) -> dict:
-    return await album_service.get_public_meta(session, token)
+@router.get("/albums/{token}", response_model=PublicAlbumMetaOut)
+async def get_public_album_meta(token: str, session: SessionDep) -> PublicAlbumMetaOut:
+    return PublicAlbumMetaOut(**await album_service.get_public_meta(session, token))
 
 
 @router.get("/albums/{token}/frames", response_model=AlbumOut)

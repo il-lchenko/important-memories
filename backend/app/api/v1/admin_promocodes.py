@@ -7,6 +7,7 @@ from app.api.deps import AdminUser, SessionDep
 from app.core.errors import ConflictError, NotFoundError
 from app.domain.models import Promocode, PromocodeKind
 from app.domain.schemas.promocodes import (
+    AdminToggleOut,
     PromocodeCreateIn,
     PromocodeOut,
     PromocodePatchIn,
@@ -111,12 +112,12 @@ async def admin_list_redemptions(
     return [PromocodeRedemptionOut.model_validate(r) for r in redemptions]
 
 
-@router.post("/users/{target_user_id}/toggle_admin", response_model=dict)
+@router.post("/users/{target_user_id}/toggle_admin", response_model=AdminToggleOut)
 async def admin_toggle_admin(
     target_user_id: UUID,
     admin: AdminUser,
     session: SessionDep,
-) -> dict:
+) -> AdminToggleOut:
     """Переключает флаг is_admin у другого юзера. Только для root-админа (Ильи)."""
     target = await user_repo.get_by_id(session, target_user_id)
     if target is None:
@@ -125,4 +126,4 @@ async def admin_toggle_admin(
         raise ConflictError("Нельзя изменить свой собственный флаг is_admin")
     target.is_admin = not target.is_admin
     await session.commit()
-    return {"user_id": str(target.id), "is_admin": target.is_admin}
+    return AdminToggleOut(user_id=target.id, is_admin=target.is_admin)

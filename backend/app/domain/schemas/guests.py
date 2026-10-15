@@ -228,3 +228,14 @@ class GuestSessionOut(BaseModel):
     event: GuestEventOut
     frames_used: int
     frames_remaining: int
+
+
+class InvitePreviewOut(BaseModel):
+    display_name: str | None
+    event_title: str
+    event_short_code: str
+    event_status: str
+    public_share_token: str | None
+    used: bool
+    expired: bool
+    event_closed: bool

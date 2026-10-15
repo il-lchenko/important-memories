@@ -2,25 +2,37 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header
+from fastapi import Depends
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_session
-from app.core.errors import AuthError
+from app.core.errors import AuthError, PermissionDeniedError
 from app.core.security import TokenDecodeError, decode_token
-from app.core.errors import PermissionDeniedError
 from app.domain.models import Guest, User
 from app.repos import guest_repo, user_repo
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
+# Схемы безопасности нужны для OpenAPI; ошибки отдаём сами (AuthError), как раньше.
+_bearer_scheme = HTTPBearer(auto_error=False, scheme_name="HostBearer")
+_guest_token_scheme = APIKeyHeader(
+    name="X-Guest-Token", auto_error=False, scheme_name="GuestToken"
+)
+BearerCredentials = Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)]
+GuestTokenHeader = Annotated[str | None, Depends(_guest_token_scheme)]
 
-async def get_current_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> UUID:
-    if not authorization or not authorization.lower().startswith("bearer "):
+
+def _bearer_token(credentials: HTTPAuthorizationCredentials | None) -> str | None:
+    if credentials is None:
+        return None
+    return credentials.credentials.strip() or None
+
+
+async def get_current_user_id(credentials: BearerCredentials) -> UUID:
+    token = _bearer_token(credentials)
+    if token is None:
         raise AuthError("Missing bearer token")
-    token = authorization.split(" ", 1)[1].strip()
     try:
         return decode_token(token, expected_type="access")
     except TokenDecodeError as exc:
@@ -32,7 +44,7 @@ CurrentUserId = Annotated[UUID, Depends(get_current_user_id)]
 
 async def get_current_guest(
     session: SessionDep,
-    x_guest_token: Annotated[str | None, Header()] = None,
+    x_guest_token: GuestTokenHeader,
 ) -> Guest:
     if not x_guest_token:
         raise AuthError("Missing X-Guest-Token header")
@@ -53,11 +65,11 @@ class Actor:
 
 async def get_current_actor(
     session: SessionDep,
-    authorization: Annotated[str | None, Header()] = None,
-    x_guest_token: Annotated[str | None, Header()] = None,
+    credentials: BearerCredentials,
+    x_guest_token: GuestTokenHeader,
 ) -> Actor:
-    if authorization and authorization.lower().startswith("bearer "):
-        token = authorization.split(" ", 1)[1].strip()
+    token = _bearer_token(credentials)
+    if token is not None:
         try:
             user_id = decode_token(token, expected_type="access")
             return Actor(user_id=user_id, guest=None)
@@ -74,14 +86,12 @@ async def get_current_actor(
 CurrentActor = Annotated[Actor, Depends(get_current_actor)]
 
 
-async def get_optional_user_id(
-    authorization: Annotated[str | None, Header()] = None,
-) -> UUID | None:
+async def get_optional_user_id(credentials: BearerCredentials) -> UUID | None:
     """Возвращает user_id если передан валидный Bearer токен, иначе None.
     Не бросает 401 — для эндпоинтов которые работают и для гостей, и для авторизованных."""
-    if not authorization or not authorization.lower().startswith("bearer "):
+    token = _bearer_token(credentials)
+    if token is None:
         return None
-    token = authorization.split(" ", 1)[1].strip()
     try:
         return decode_token(token, expected_type="access")
     except TokenDecodeError:

@@ -26,3 +26,9 @@ class ConsentOut(BaseModel):
     doc_type: DocType
     doc_version: str
     accepted_at: datetime
+
+
+class ConsentStatusOut(BaseModel):
+    current_version: str
+    missing: list[str]
+    needs_accept: bool

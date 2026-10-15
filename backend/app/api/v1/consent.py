@@ -13,6 +13,7 @@ from app.core.client_ctx import client_ip, hash_fingerprint, hash_ip
 from app.domain.schemas.consent import (
     ConsentAcceptIn,
     ConsentOut,
+    ConsentStatusOut,
     GuestConsentAcceptIn,
 )
 from app.repos import consent_repo
@@ -26,11 +27,11 @@ CURRENT_DOC_VERSION = "2.3"
 ALL_DOC_TYPES = ("offer", "privacy", "consent", "content_rules", "age_confirmation")
 
 
-@router.get("/consent/status")
+@router.get("/consent/status", response_model=ConsentStatusOut)
 async def consent_status_user(
     user_id: CurrentUserId,
     session: SessionDep,
-) -> dict:
+) -> ConsentStatusOut:
     """Возвращает список типов документов текущей версии, которые Хост ещё
     не принял. Клиент, обнаружив непустой список, показывает ConsentScreen."""
     missing = []
@@ -39,11 +40,11 @@ async def consent_status_user(
             session, user_id, doc_type, CURRENT_DOC_VERSION
         ):
             missing.append(doc_type)
-    return {
-        "current_version": CURRENT_DOC_VERSION,
-        "missing": missing,
-        "needs_accept": bool(missing),
-    }
+    return ConsentStatusOut(
+        current_version=CURRENT_DOC_VERSION,
+        missing=missing,
+        needs_accept=bool(missing),
+    )
 
 
 @router.post("/consent", response_model=ConsentOut, status_code=201)
