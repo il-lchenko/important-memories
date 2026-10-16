@@ -27,6 +27,9 @@ import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/screens/referrals_screen.dart';
 import '../features/profile/screens/my_promocodes_screen.dart';
 import '../features/admin/screens/admin_promocodes_screen.dart';
+import '../features/plus/collections_screens.dart';
+import '../features/plus/plus_screen.dart';
+import '../features/plus/solo_screens.dart';
 import 'widgets/main_shell.dart';
 import '../features/guest/screens/role_selection_screen.dart';
 import '../features/guest/screens/guest_entry_screen.dart';
@@ -105,6 +108,17 @@ GoRouter appRouter(Ref ref) {
         ],
       ),
 
+      GoRoute(path: '/solo/create', builder: (c, s) => const SoloCreateScreen()),
+      GoRoute(path: '/solo/:id', builder: (c, s) => SoloDetailScreen(eventId: s.pathParameters['id']!)),
+      GoRoute(path: '/collections/create', builder: (c, s) => const CollectionCreateScreen()),
+      GoRoute(
+        path: '/collections/:id',
+        builder: (c, s) => CollectionDetailScreen(id: s.pathParameters['id']!),
+        routes: [
+          GoRoute(path: 'add', builder: (c, s) => CollectionPickerScreen(id: s.pathParameters['id']!)),
+        ],
+      ),
+      GoRoute(path: '/plus', builder: (c, s) => const PlusScreen()),
       GoRoute(path: '/events/create', builder: (c, s) => const CreateEventScreen()),
       GoRoute(
         path: '/events/create/checkout',

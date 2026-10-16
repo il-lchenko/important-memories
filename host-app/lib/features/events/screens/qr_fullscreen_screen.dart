@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -54,12 +55,14 @@ class _QrFullscreenScreenState extends ConsumerState<QrFullscreenScreen> {
       try {
         await saveQrPreset(ref.read(dioProvider), widget.eventId, selected);
         ref.invalidate(eventDetailProvider(widget.eventId));
-      } catch (_) {
+      } catch (e) {
         if (!mounted) return;
         setState(() => _preset = previous);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Не удалось сохранить стиль QR'),
+        final plusNeeded = e is DioException && e.response?.statusCode == 403;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(plusNeeded ? 'Этот стиль QR доступен с подпиской «Плюс»' : 'Не удалось сохранить стиль QR'),
           behavior: SnackBarBehavior.floating,
+          action: plusNeeded ? SnackBarAction(label: 'Плюс', onPressed: () => context.push('/plus')) : null,
         ));
       }
     }

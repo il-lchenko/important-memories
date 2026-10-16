@@ -104,12 +104,14 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
       try {
         await saveTitleFont(ref.read(dioProvider), widget.eventId, selected);
         ref.invalidate(eventDetailProvider(widget.eventId));
-      } catch (_) {
+      } catch (e) {
         if (!mounted) return;
         setState(() => _titleFont = previous);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Не удалось сохранить шрифт'),
+        final plusNeeded = e is DioException && e.response?.statusCode == 403;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(plusNeeded ? 'Этот шрифт доступен с подпиской «Плюс»' : 'Не удалось сохранить шрифт'),
           behavior: SnackBarBehavior.floating,
+          action: plusNeeded ? SnackBarAction(label: 'Плюс', onPressed: () => context.push('/plus')) : null,
         ));
       }
     }
@@ -338,7 +340,10 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
     final status = (event?['status'] as String?) ?? '';
     final settings = event?['settings'] as Map?;
     final uploadsEnabled = settings?['uploads_enabled'] == true;
-    final windowEndsRaw = event?['uploads_window_ends_at'] as String?;
+    final windowEndsRaw = (settings?['uploads_window_ends_at'] ?? event?['uploads_window_ends_at']) as String?;
+    // Подробности события (GET /events/{id}) доступны только владельцу: он может
+    // добавлять фото в свой альбом всегда, в том числе после проявки.
+    final isOwner = event != null;
     final windowActive = windowEndsRaw != null &&
         (DateTime.tryParse(windowEndsRaw)?.isAfter(DateTime.now()) ?? false);
 
@@ -351,7 +356,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
     // Событие завершено. Разрешаем только если хост включил post-event окно
     // загрузки (uploads_enabled + uploads_window_ends_at в будущем).
     if (status == 'completed') {
-      if (uploadsEnabled && windowActive) {
+      if (isOwner || (uploadsEnabled && windowActive)) {
         await _openCamera(shortCode);
         return;
       }

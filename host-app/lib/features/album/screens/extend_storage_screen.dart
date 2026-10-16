@@ -35,11 +35,12 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
 
   // Цена продления зависит от размера альбома — считается по /pricing.
   int _maxGuests = 5;
+  bool _solo = false;
 
   List<_ExtendOption> get _options {
     final pricing = pricingOf(ref);
     return [
-      for (final e in pricing.extend)
+      for (final e in (_solo && pricing.soloExtend.isNotEmpty ? pricing.soloExtend : pricing.extend))
         _ExtendOption(
           id: e.period,
           label: _labels[e.period]?.$1 ?? e.period,
@@ -91,6 +92,7 @@ class _ExtendStorageScreenState extends ConsumerState<ExtendStorageScreen> {
         ),
         data: (event) {
           _maxGuests = ((event['settings'] as Map?)?['max_guests'] as int?) ?? 5;
+          _solo = event['kind'] == 'solo';
           return Column(
           children: [
             Expanded(child: _buildBody(event)),

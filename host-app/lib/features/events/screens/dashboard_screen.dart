@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/tokens.dart';
 import '../../auth/auth_provider.dart';
 import '../events_provider.dart';
+import '../../plus/new_album_sheet.dart';
+import '../../plus/solo_screens.dart' show routeForEvent;
 import 'package:intl/intl.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -433,7 +435,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                               physics: const AlwaysScrollableScrollPhysics(),
                               child: SizedBox(
                                 height: constraints.maxHeight,
-                                child: _EmptyState(onTap: () => context.push('/events/create')),
+                                child: _EmptyState(onTap: () => showNewAlbumSheet(context)),
                               ),
                             ),
                           )
@@ -949,7 +951,9 @@ class _EventCard extends StatelessWidget {
             ? const Color(0xFF5BAA72)
             : AppColors.ink3;
     final dotGlow = status == 'active' || status == 'completed';
-    final badgeLabel = status == 'active' ? 'ЗАПИСЬ'
+    final isSolo = event['kind'] == 'solo';
+    final badgeLabel = isSolo && status == 'active' ? 'СОЛО'
+        : status == 'active' ? 'ЗАПИСЬ'
         : status == 'completed' ? 'ПРОЯВЛЕНО'
         : status == 'draft' ? 'ЧЕРНОВИК'
         : status.toUpperCase();
@@ -965,7 +969,7 @@ class _EventCard extends StatelessWidget {
       child: ClipRRect(
       borderRadius: BorderRadius.circular(11.5),
       child: GestureDetector(
-      onTap: () => context.push('/events/${event['id']}'),
+      onTap: () => context.push(routeForEvent(event)),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -1364,7 +1368,7 @@ class _CreateAlbumFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/events/create'),
+      onTap: () => showNewAlbumSheet(context),
       child: Container(
         width: 60, height: 60,
         decoration: BoxDecoration(

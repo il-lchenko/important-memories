@@ -217,7 +217,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       final status = event?['status'] as String?;
       final settings = event?['settings'] as Map?;
       final uploadsEnabled = settings?['uploads_enabled'] == true;
-      final windowRaw = event?['uploads_window_ends_at'] as String?;
+      final isOwner = resp.data['is_owner'] == true;
+      final windowRaw = (settings?['uploads_window_ends_at'] ?? event?['uploads_window_ends_at']) as String?;
       final windowActive = windowRaw != null &&
           (DateTime.tryParse(windowRaw)?.isAfter(DateTime.now()) ?? false);
 
@@ -234,7 +235,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 
       // Завершено + окно догрузки открыто → остаёмся, но только галерея
       // (камеру не показываем).
-      if (status == 'completed' && uploadsEnabled && windowActive) {
+      if (status == 'completed' && uploadsEnabled && (windowActive || isOwner)) {
         if (mounted && !_galleryOnlyMode) {
           setState(() => _galleryOnlyMode = true);
         }
@@ -275,7 +276,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       if (token.isNotEmpty) {
         try {
           final resp = await ref.read(dioProvider).get(
-            'guest/session',
+            'guest/sessions/me',
             options: Options(headers: {'X-Guest-Token': token}),
           );
           final remaining = resp.data['frames_remaining'] as int? ?? 0;
@@ -1283,10 +1284,11 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
                       textStyle: const TextStyle(
                         fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500,
                       ),
-                      backgroundColor: Colors.transparent,
+                      // Тёмная подложка: на светлой сцене белый текст без неё не виден.
+                      backgroundColor: Colors.black.withValues(alpha: 0.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(999),
-                        side: BorderSide(color: AppColors.drAmber.withValues(alpha: 0.3)),
+                        side: BorderSide(color: AppColors.drAmber.withValues(alpha: 0.55)),
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),

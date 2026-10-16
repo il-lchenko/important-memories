@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/tokens.dart';
 import '../memories_provider.dart';
 import '../widgets/memory_blocks.dart';
+import '../../plus/collections_screens.dart';
 
 /// Раздел «Кадры» — авто-подборки из альбомов юзера.
 /// Поддерживает поиск по названию + фильтр по типу события.
@@ -122,6 +123,7 @@ class _MemoriesScreenState extends ConsumerState<MemoriesScreen> {
                       ],
                     ),
             ),
+            const MiniAlbumsStrip(),
             Expanded(
               child: blocksAsync.when(
                 loading: () => const Center(

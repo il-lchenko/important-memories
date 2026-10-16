@@ -93,6 +93,13 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => _openAlbumSettingsPicker(context, ref),
             ),
 
+            const _SectionTitle('Подписка'),
+            _NavRow(
+              label: 'ImpoMento Плюс',
+              desc: 'Соло-альбомы, подборки, больше возможностей',
+              onTap: () => context.push('/plus'),
+            ),
+
             const _SectionTitle('Друзья и промокоды'),
             _NavRow(
               label: 'Приглашай друзей',

@@ -33,6 +33,7 @@ class Pricing {
   final int framesExtended;
   final int framesPricePerGuestRub;
   final List<ExtendPrice> extend;
+  final List<ExtendPrice> soloExtend;
   final double upgradePremium;
   final int? freeActiveEvents;
   final int? freeEventsPerMonth;
@@ -45,6 +46,7 @@ class Pricing {
     required this.framesExtended,
     required this.framesPricePerGuestRub,
     required this.extend,
+    this.soloExtend = const [],
     required this.upgradePremium,
     this.freeActiveEvents,
     this.freeEventsPerMonth,
@@ -106,6 +108,10 @@ class Pricing {
             _rub(e['price_kopecks']),
             _rub(e['per_guest_kopecks']),
           ),
+      ],
+      soloExtend: [
+        for (final e in ((j['solo_extend'] as List?) ?? const []))
+          ExtendPrice(e['period'] as String, e['days'] as int, _rub(e['price_kopecks']), 0),
       ],
       upgradePremium: (j['upgrade_premium'] as num?)?.toDouble() ?? 1.15,
       freeActiveEvents: j['free_active_events'] as int?,
