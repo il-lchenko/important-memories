@@ -208,7 +208,7 @@ export default function FrameFullscreen() {
   if (!frame) {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--dark)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 20, color: 'var(--dr-text)' }}>
+        <p style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--dr-text)' }}>
           Кадр не найден
         </p>
         <button className="btn-ghost-dark btn-sm" onClick={back} style={{ padding: '0 24px', width: 'auto' }}>
@@ -319,8 +319,7 @@ export default function FrameFullscreen() {
       {frame.caption && (
         <div style={{ flexShrink: 0, padding: '22px 26px 10px', textAlign: 'center' }}>
           <div style={{
-            fontFamily: 'Caveat, cursive', fontStyle: 'italic',
-            fontSize: 26, lineHeight: 1.28, color: 'rgba(255,179,71,.95)',
+            fontFamily: 'Caveat, cursive',             fontSize: 26, lineHeight: 1.28, color: 'rgba(255,179,71,.95)',
             wordBreak: 'break-word', overflowWrap: 'anywhere',
           }}>
             {frame.caption}

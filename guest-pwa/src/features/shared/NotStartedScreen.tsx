@@ -90,7 +90,7 @@ export default function NotStartedScreen() {
           {isSoon ? 'Почти начинаем' : 'Скоро мероприятие'}
         </div>
 
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 300 }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 300 }}>
           {isSoon
             ? 'Совсем скоро начнём!'
             : 'Мероприятие ещё не началось.'}
@@ -134,8 +134,7 @@ export default function NotStartedScreen() {
           padding: 20, borderRadius: 16,
           background: 'rgba(255,179,71,.06)',
           borderLeft: '2px solid var(--dr-amber)',
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-          fontSize: 17, lineHeight: 1.4, color: 'var(--dr-text)',
+          fontFamily: 'Fraunces, serif',           fontSize: 17, lineHeight: 1.4, color: 'var(--dr-text)',
         }}>
           <span style={{ fontSize: 36, lineHeight: 0, color: 'var(--dr-amber)', marginRight: 4, verticalAlign: -16 }}>"</span>
           Лучшие кадры рождаются в неожиданный момент. Будьте готовы.

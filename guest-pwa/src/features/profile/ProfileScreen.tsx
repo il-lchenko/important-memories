@@ -261,8 +261,7 @@ export default function ProfileScreen() {
             {/* Name */}
             <div style={{ marginTop: 22 }}>
               <h2 style={{
-                fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-                fontSize: 32, fontWeight: 500, letterSpacing: '-.02em',
+                fontFamily: 'Fraunces, serif',                 fontSize: 32, fontWeight: 500, letterSpacing: '-.02em',
                 margin: 0, color: 'var(--ink)', lineHeight: 1.05,
                 wordBreak: 'break-word',
               }}>

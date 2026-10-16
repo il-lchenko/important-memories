@@ -96,7 +96,7 @@ function LandingStep({ preview, onNext }: { preview: EventPreview | null; onNext
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           {isCompleted ? 'Мероприятие завершено' : 'Вас пригласили'}
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 38, lineHeight: 1, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 38, lineHeight: 1, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           {preview?.title ?? '...'}
         </h1>
         {preview?.reveal_at && !isCompleted && (
@@ -183,7 +183,7 @@ function NameStep({
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           Шаг 1 из 2
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 36, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 36, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           Как вас<br />подписать?
         </h1>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 20px' }}>
@@ -236,7 +236,7 @@ function ConsentStep({
       </button>
 
       <div style={{ flex: 1, padding: '32px 24px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0 }}>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.1, letterSpacing: '-.02em', margin: '0 0 16px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.1, letterSpacing: '-.02em', margin: '0 0 16px' }}>
           Почти всё готово
         </h1>
         <p style={{ fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.55, margin: '0 0 12px' }}>
@@ -319,7 +319,7 @@ function PinStep({
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           PIN события
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px' }}>
           Введите PIN
         </h1>
         <p style={{ fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, margin: '0 0 20px' }}>
@@ -382,7 +382,7 @@ function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--amber)', textTransform: 'uppercase' }}>
           Шаг 2 из 2
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 18px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 18px' }}>
           Откройте<br />доступ к&nbsp;камере
         </h1>
 
@@ -393,7 +393,7 @@ function PermissionStep({ eventTitle, guestName, onBack, onAllow }: {
               <path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/>
             </svg>
           </div>
-          <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 22, margin: '0 0 10px', letterSpacing: '-.01em' }}>
+          <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 22, margin: '0 0 10px', letterSpacing: '-.01em' }}>
             Только для этого мероприятия
           </h3>
           <p style={{ margin: '0 0 14px', fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5 }}>

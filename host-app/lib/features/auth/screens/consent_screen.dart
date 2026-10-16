@@ -74,8 +74,7 @@ class _ConsentScreenState extends ConsumerState<ConsentScreen> {
                     Text(
                       'Почти всё готово',
                       style: GoogleFonts.playfairDisplay(
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w500,
+                                                fontWeight: FontWeight.w500,
                         fontSize: 32,
                         height: 1.1,
                         letterSpacing: -0.64,

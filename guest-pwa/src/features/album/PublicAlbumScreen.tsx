@@ -133,7 +133,7 @@ export default function PublicAlbumScreen() {
         <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.16em', color: 'var(--ink-3)', textTransform: 'uppercase', marginBottom: 8 }}>
           АЛЬБОМ НЕ НАЙДЕН
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: isDesktop ? 36 : 26, letterSpacing: '-.02em', margin: 0, color: 'var(--ink)' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: isDesktop ? 36 : 26, letterSpacing: '-.02em', margin: 0, color: 'var(--ink)' }}>
           Ссылка неверная или устарела
         </h1>
         <p style={{ marginTop: 12, fontSize: 14, color: 'var(--ink-3)', lineHeight: 1.5, maxWidth: 360 }}>
@@ -191,8 +191,7 @@ export default function PublicAlbumScreen() {
       {/* Header */}
       <div style={{ padding: '14px 24px 8px' }}>
         <h1 style={{
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-          fontSize: 26, fontWeight: 500, margin: 0,
+          fontFamily: 'Fraunces, serif',           fontSize: 26, fontWeight: 500, margin: 0,
           letterSpacing: '-.02em', lineHeight: 1.05, color: 'var(--ink)',
         }}>
           {meta?.title ?? '...'}
@@ -231,7 +230,7 @@ export default function PublicAlbumScreen() {
         </div>
       ) : frames.length === 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 24px', textAlign: 'center' }}>
-          <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 18, color: 'var(--ink-3)', margin: 0 }}>
+          <p style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--ink-3)', margin: 0 }}>
             Кадров пока нет
           </p>
         </div>
@@ -316,8 +315,7 @@ export function DesktopAlbum({
         {/* Hero header */}
         <div style={{ marginBottom: 24 }}>
           <h1 style={{
-            fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-            fontSize: 'clamp(42px, 5vw, 64px)', fontWeight: 500, margin: 0,
+            fontFamily: 'Fraunces, serif',             fontSize: 'clamp(42px, 5vw, 64px)', fontWeight: 500, margin: 0,
             letterSpacing: '-.03em', lineHeight: 1.02, color: 'var(--ink)',
           }}>
             {meta?.title ?? '...'}
@@ -342,7 +340,7 @@ export function DesktopAlbum({
           </div>
         ) : frames.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '96px 24px', textAlign: 'center' }}>
-            <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 22, color: 'var(--ink-3)', margin: 0 }}>
+            <p style={{ fontFamily: 'Fraunces, serif', fontSize: 22, color: 'var(--ink-3)', margin: 0 }}>
               Кадров пока нет
             </p>
           </div>
@@ -463,8 +461,7 @@ function DesktopMagazineCard({ frame, onClick }: {
         </div>
         <div style={{
           fontFamily: 'Caveat, cursive',
-          fontStyle: caption ? 'italic' : 'normal',
-          fontSize: caption ? 20 : 18,
+                    fontSize: caption ? 20 : 18,
           color: '#fff',
           lineHeight: 1.2,
           textShadow: '0 1px 4px rgba(0,0,0,.65)',

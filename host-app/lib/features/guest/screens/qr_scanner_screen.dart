@@ -119,8 +119,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 15,
-                    fontStyle: FontStyle.italic,
-                    color: AppColors.drText.withValues(alpha: 0.8),
+                                        color: AppColors.drText.withValues(alpha: 0.8),
                   ),
                 ),
               ],

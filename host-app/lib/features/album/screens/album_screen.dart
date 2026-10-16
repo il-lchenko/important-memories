@@ -954,8 +954,7 @@ class _MagazineGrid extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.caveat(
                               fontSize: isCaption ? 18 : 19,
-                              fontStyle: isCaption ? FontStyle.italic : FontStyle.normal,
-                              height: 1.15,
+                                                            height: 1.15,
                               color: Colors.white,
                               shadows: const [Shadow(color: Color(0xCC000000), blurRadius: 4, offset: Offset(0, 1))],
                             ),
@@ -1173,8 +1172,7 @@ class _RetroCard extends StatelessWidget {
                       textAlign: TextAlign.right,
                       style: GoogleFonts.caveat(
                         fontSize: hwItalic ? 15 : 18,
-                        fontStyle: hwItalic ? FontStyle.italic : FontStyle.normal,
-                        height: 1.15,
+                                                height: 1.15,
                         color: Colors.white,
                         shadows: const [Shadow(color: Color(0x99000000), blurRadius: 4)],
                       ),
@@ -1325,8 +1323,7 @@ class _PolaroidFeed extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: GoogleFonts.caveat(
                             fontSize: 22,
-                            fontStyle: FontStyle.italic,
-                            height: 1.22,
+                                                        height: 1.22,
                             color: AppColors.ink2,
                           ),
                         )

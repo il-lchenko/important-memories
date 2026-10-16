@@ -136,7 +136,7 @@ export default function WaitingScreen() {
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
               Альбом открыт
             </div>
-            <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 40px', maxWidth: 280 }}>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 40px', maxWidth: 280 }}>
               Плёнка проявилась!
             </h1>
             <div style={{ flex: 1 }} />
@@ -150,7 +150,7 @@ export default function WaitingScreen() {
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, letterSpacing: '.18em', color: 'var(--dr-amber)', textTransform: 'uppercase' }}>
               {revealAt ? 'Скоро открытие' : 'Альбом ещё закрыт'}
             </div>
-            <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 280 }}>
+            <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 32px', maxWidth: 280 }}>
               {revealAt ? <>Подождите —<br />осталось немного.</> : <>Альбом откроет<br />организатор.</>}
             </h1>
 
@@ -191,8 +191,7 @@ export default function WaitingScreen() {
               padding: 20, borderRadius: 16,
               background: 'rgba(255,179,71,.06)',
               borderLeft: '2px solid var(--dr-amber)',
-              fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-              fontSize: 17, lineHeight: 1.4, color: 'var(--dr-text)',
+              fontFamily: 'Fraunces, serif',               fontSize: 17, lineHeight: 1.4, color: 'var(--dr-text)',
             }}>
               <span style={{ fontSize: 36, lineHeight: 0, color: 'var(--dr-amber)', marginRight: 4, verticalAlign: -16 }}>"</span>
               Классные плёнки смотрят на следующее утро. Вашу — уже скоро.

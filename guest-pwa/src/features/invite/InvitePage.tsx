@@ -123,7 +123,7 @@ export default function InvitePage() {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🔗</div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24, margin: '0 0 12px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, margin: '0 0 12px' }}>
           Ссылка не работает
         </h1>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>{error}</p>
@@ -140,7 +140,7 @@ export default function InvitePage() {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24, margin: '0 0 12px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, margin: '0 0 12px' }}>
           Приглашение использовано
         </h1>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
@@ -157,7 +157,7 @@ export default function InvitePage() {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>⌛</div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24, margin: '0 0 12px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, margin: '0 0 12px' }}>
           Ссылка истекла
         </h1>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
@@ -175,7 +175,7 @@ export default function InvitePage() {
     return (
       <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🎞️</div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24, margin: '0 0 12px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 24, margin: '0 0 12px' }}>
           Событие завершилось
         </h1>
         <p style={{ color: 'var(--ink-3)', fontSize: 14, lineHeight: 1.5, margin: 0 }}>
@@ -215,7 +215,7 @@ export default function InvitePage() {
       </div>
       <div style={{ padding: '18px 24px', flex: 1 }}>
         <h1 style={{
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500,
+          fontFamily: 'Fraunces, serif', fontWeight: 500,
           fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em', margin: '0 0 12px',
         }}>
           Вас ждут на<br />«{preview.event_title}»

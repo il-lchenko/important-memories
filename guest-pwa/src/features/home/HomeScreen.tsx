@@ -66,7 +66,7 @@ export default function HomeScreen() {
           IMPORTANT MEMORIES
         </div>
         <h1 style={{
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500,
+          fontFamily: 'Fraunces, serif', fontWeight: 500,
           fontSize: 34, lineHeight: 1.05, letterSpacing: '-.02em', margin: '8px 0 6px',
         }}>
           Ваши плёнки
@@ -106,8 +106,7 @@ export default function HomeScreen() {
                     display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   }}>
                     <div style={{
-                      fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-                      fontWeight: 500, fontSize: 18, color: 'var(--ink)',
+                      fontFamily: 'Fraunces, serif',                       fontWeight: 500, fontSize: 18, color: 'var(--ink)',
                       letterSpacing: '-.01em', overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
@@ -165,8 +164,7 @@ export default function HomeScreen() {
               </svg>
             </div>
             <div style={{
-              fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-              fontSize: 20, color: 'var(--ink)', marginBottom: 6,
+              fontFamily: 'Fraunces, serif',               fontSize: 20, color: 'var(--ink)', marginBottom: 6,
             }}>
               Здесь будут ваши плёнки
             </div>

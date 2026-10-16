@@ -42,7 +42,7 @@ export default function DoneScreen() {
           {framesTotal}
         </div>
         <h1 style={{
-          fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500,
+          fontFamily: 'Fraunces, serif', fontWeight: 500,
           fontSize: 32, lineHeight: 1.05, letterSpacing: '-.02em',
           margin: 0, textAlign: 'center', color: 'var(--dr-text)',
         }}>

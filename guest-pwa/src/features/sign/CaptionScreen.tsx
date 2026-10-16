@@ -87,7 +87,7 @@ export default function CaptionScreen() {
       ctx.drawImage(img, padX, padTop, photoW, photoH)
       // Caption
       ctx.fillStyle = '#2F2A24'
-      ctx.font = 'italic 64px "Caveat", cursive'
+      ctx.font = '64px "Caveat", cursive'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       // word wrap
@@ -166,8 +166,7 @@ export default function CaptionScreen() {
             <div style={{
               minHeight: 44, padding: '8px 12px 12px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'Caveat, cursive', fontStyle: 'italic',
-              fontSize: 18, lineHeight: 1.22, color: 'var(--ink-2)',
+              fontFamily: 'Caveat, cursive',               fontSize: 18, lineHeight: 1.22, color: 'var(--ink-2)',
               wordBreak: 'break-word', overflowWrap: 'anywhere',
               textAlign: 'center',
             }}>

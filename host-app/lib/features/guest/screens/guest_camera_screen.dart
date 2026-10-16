@@ -2036,8 +2036,7 @@ class _FramePreviewState extends State<_FramePreview> {
         title: Text(
           'Удалить этот кадр?',
           style: GoogleFonts.fraunces(
-            fontStyle: FontStyle.italic,
-            fontSize: 20,
+                        fontSize: 20,
             fontWeight: FontWeight.w500,
             color: AppColors.drText,
           ),
@@ -2222,8 +2221,7 @@ class _FramePreviewState extends State<_FramePreview> {
               child: Text(
                 'Снимок не отменить, как и сам момент',
                 style: GoogleFonts.fraunces(
-                  fontStyle: FontStyle.italic,
-                  fontSize: 16,
+                                    fontSize: 16,
                   height: 1.4,
                   color: AppColors.drText,
                 ),

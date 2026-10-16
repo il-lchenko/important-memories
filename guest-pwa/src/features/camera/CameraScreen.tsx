@@ -174,7 +174,7 @@ function ShotConfirm({ blobUrl, captureRatio, onKeep, onDiscard }: {
           </>
         ) : (
           <>
-            <div style={{ textAlign: 'center', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 15, color: 'var(--dr-text)', lineHeight: 1.4, padding: '0 12px 4px' }}>
+            <div style={{ textAlign: 'center', fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--dr-text)', lineHeight: 1.4, padding: '0 12px 4px' }}>
               Удалить этот кадр? Он не загрузится в альбом.
             </div>
             <button
@@ -270,7 +270,7 @@ function FramePreview({ blobUrl, frameNum, onShootMore, onSign, onRetryUpload, o
         </div>
       </div>
 
-      <div style={{ padding: '10px 28px 6px', fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 400, fontSize: 16, lineHeight: 1.4, color: 'var(--dr-text)', textAlign: 'center' }}>
+      <div style={{ padding: '10px 28px 6px', fontFamily: 'Fraunces, serif', fontWeight: 400, fontSize: 16, lineHeight: 1.4, color: 'var(--dr-text)', textAlign: 'center' }}>
         Снимок не отменить, как и сам момент.
       </div>
 
@@ -346,7 +346,7 @@ function OfflineScreen({ queue, onRetry, onContinue }: {
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--shutter)', display: 'inline-block' }} />
           Связь потеряна
         </div>
-        <h1 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 28, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 2px' }}>
+        <h1 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 28, lineHeight: 1.05, letterSpacing: '-.02em', margin: '6px 0 2px' }}>
           Не торопитесь —<br />кадры в кармане.
         </h1>
       </div>
@@ -360,7 +360,7 @@ function OfflineScreen({ queue, onRetry, onContinue }: {
                 <line x1="3" y1="3" x2="21" y2="21" stroke="var(--shutter)"/>
               </svg>
             </div>
-            <h3 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 19, letterSpacing: '-.01em' }}>Wi-Fi уехал</h3>
+            <h3 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 19, letterSpacing: '-.01em' }}>Wi-Fi уехал</h3>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>Снимайте дальше — кадры отправятся, как только связь вернётся.</p>
         </div>

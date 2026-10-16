@@ -351,8 +351,7 @@ export function MagazineGrid({ frames, columns, onOpenFrame, onColumnsChange }: 
               <div style={{
                 position: 'absolute', bottom: 8, left: 10, right: 10,
                 fontFamily: 'Caveat, cursive',
-                fontStyle: (frame.caption ?? '').trim() ? 'italic' : 'normal',
-                fontSize: (frame.caption ?? '').trim() ? 18 : 19,
+                                fontSize: (frame.caption ?? '').trim() ? 18 : 19,
                 color: '#fff', lineHeight: 1.15,
                 textShadow: '0 1px 4px rgba(0,0,0,.65)',
                 display: '-webkit-box', WebkitBoxOrient: 'vertical' as const,
@@ -528,8 +527,7 @@ function RetroCard({ w, h, deg, index, frame, tape, hw, onTap }: {
         <div style={{
           position: 'absolute', bottom: 6, left: 10, right: 10,
           transform: 'rotate(-2deg)',
-          fontFamily: 'Caveat, cursive', fontStyle: 'italic',
-          fontSize: 16, color: '#fff', lineHeight: 1.15,
+          fontFamily: 'Caveat, cursive',           fontSize: 16, color: '#fff', lineHeight: 1.15,
           textShadow: '0 1px 4px rgba(0,0,0,.65)',
           display: '-webkit-box', WebkitBoxOrient: 'vertical' as const,
           WebkitLineClamp: 3, overflow: 'hidden',
@@ -573,8 +571,7 @@ export function PolaroidCaption({ caption, capturedAt, compact = false }: {
     }}>
       {hasCaption ? (
         <div style={{
-          fontFamily: 'Caveat, cursive', fontStyle: 'italic',
-          fontSize: (compact ? 17 : 22),
+          fontFamily: 'Caveat, cursive',           fontSize: (compact ? 17 : 22),
           lineHeight: 1.22,
           color: 'var(--ink-2)',
           textAlign: 'center',
@@ -858,8 +855,7 @@ export default function AlbumScreen() {
             {kicker}
           </div>
           <h1 style={{
-            fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-            fontSize: 26, fontWeight: 500, margin: 0,
+            fontFamily: 'Fraunces, serif',             fontSize: 26, fontWeight: 500, margin: 0,
             letterSpacing: '-.02em', lineHeight: 1.05, color: 'var(--ink)',
           }}>
             {eventName}
@@ -933,7 +929,7 @@ export default function AlbumScreen() {
               <path d="M3 7h4l2-3h6l2 3h4v13H3z" /><circle cx="12" cy="13" r="4" />
             </svg>
           </div>
-          <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 18, color: 'var(--ink-3)', margin: 0 }}>
+          <p style={{ fontFamily: 'Fraunces, serif', fontSize: 18, color: 'var(--ink-3)', margin: 0 }}>
             Кадров пока нет
           </p>
         </div>

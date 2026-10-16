@@ -384,7 +384,7 @@ class _VoiceRecordScreenState extends ConsumerState<VoiceRecordScreen> {
               ),
               const SizedBox(height: 12),
               Text('Расскажи о моменте',
-                  style: GoogleFonts.fraunces(fontStyle: FontStyle.italic, fontSize: 16, color: AppColors.ink2)),
+                  style: GoogleFonts.fraunces(fontSize: 16, color: AppColors.ink2)),
               const SizedBox(height: 4),
               Text('ДО 20 СЕКУНД',
                   style: GoogleFonts.inter(fontSize: 10, letterSpacing: 1.4, color: const Color(0xFF9C9082))),

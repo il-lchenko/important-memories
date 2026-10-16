@@ -48,13 +48,13 @@ export default function ReportModal({ frameId, onClose }: Props) {
         {done ? (
           <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
             <div style={{ fontSize: 36, marginBottom: 12 }}>✓</div>
-            <p style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 20, color: 'var(--ink)', margin: '0 0 8px' }}>Жалоба отправлена</p>
+            <p style={{ fontFamily: 'Fraunces, serif', fontSize: 20, color: 'var(--ink)', margin: '0 0 8px' }}>Жалоба отправлена</p>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: 'var(--ink-3)', margin: '0 0 24px' }}>Мы рассмотрим её в течение 24 часов</p>
             <button className="btn-ghost btn-sm" style={{ width: 'auto', padding: '0 32px' }} onClick={onClose}>Закрыть</button>
           </div>
         ) : (
           <>
-            <h2 style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500, fontSize: 24, margin: '0 0 6px', letterSpacing: '-.01em' }}>
+            <h2 style={{ fontFamily: 'Fraunces, serif', fontWeight: 500, fontSize: 24, margin: '0 0 6px', letterSpacing: '-.01em' }}>
               Сообщить о кадре
             </h2>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'var(--ink-3)', margin: '0 0 16px', lineHeight: 1.5 }}>

@@ -587,8 +587,7 @@ class _Polaroid extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.caveat(
                       fontSize: 18,
-                      fontStyle: FontStyle.italic,
-                      height: 1.24,
+                                            height: 1.24,
                       color: AppColors.ink2,
                     ),
                   )

@@ -30,8 +30,7 @@ export default function OfflineScreen({ onRetry }: Props) {
       </div>
 
       <h2 style={{
-        fontFamily: 'Fraunces, serif', fontStyle: 'italic',
-        fontSize: 24, fontWeight: 500, color: 'var(--ink)',
+        fontFamily: 'Fraunces, serif',         fontSize: 24, fontWeight: 500, color: 'var(--ink)',
         margin: '0 0 8px',
       }}>
         Нет подключения

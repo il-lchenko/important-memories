@@ -1243,7 +1243,7 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
         const SizedBox(height: 6),
         const Text(
           'Создавая ссылку, вы подтверждаете, что имеете право распространять эти фото.',
-          style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, fontStyle: FontStyle.italic, height: 1.4),
+          style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: AppColors.ink3, height: 1.4),
         ),
         const SizedBox(height: 14),
         SizedBox(
@@ -1345,7 +1345,7 @@ class _PublicShareBlockState extends ConsumerState<_PublicShareBlock> {
         const SizedBox(height: 2),
         const Text(
           'При обновлении или отключении старая ссылка перестанет работать.',
-          style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, fontStyle: FontStyle.italic),
+          style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: AppColors.ink3, ),
         ),
       ],
     );

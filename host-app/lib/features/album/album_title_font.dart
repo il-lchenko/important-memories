@@ -39,8 +39,7 @@ final Map<TitleFont, TitleFontStyle> kTitleFonts = {
     build: (size) => GoogleFonts.fraunces(
       fontSize: size,
       fontWeight: FontWeight.w500,
-      fontStyle: FontStyle.italic,
-      letterSpacing: -0.6,
+            letterSpacing: -0.6,
       height: 1.05,
       color: AppColors.ink,
     ),

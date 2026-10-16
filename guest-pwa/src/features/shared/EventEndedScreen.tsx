@@ -37,7 +37,7 @@ export default function EventEndedScreen() {
       </div>
 
       <h1 style={{
-        fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontWeight: 500,
+        fontFamily: 'Fraunces, serif', fontWeight: 500,
         fontSize: 32, letterSpacing: '-.02em', lineHeight: 1.05,
       }}>
         Мероприятие уже закончилось

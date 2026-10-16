@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 
 <script>
   if (location.pathname === '/about.html') history.replaceState(null, '', '/' + location.hash);
@@ -66,7 +66,7 @@
   h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:500; letter-spacing:-0.015em; margin:0; hyphens:manual}
   h1{font-variation-settings:"opsz" 144}
   h2{font-variation-settings:"opsz" 72}
-  em.italic{font-style:italic; color:var(--amber); font-weight:500}
+  em.italic{font-style:normal; color:var(--amber); font-weight:500}
   .section.dark em.italic{color:var(--amber-warm)}
   :focus-visible{outline:2px solid var(--amber-2); outline-offset:3px; border-radius:4px}
 
@@ -201,7 +201,7 @@
   .hero-content .label{color:rgba(246,242,232,0.85); margin-bottom:24px; display:inline-block; font-size:14px; letter-spacing:0.2em}
   .hero-content .label b{color:var(--amber-warm); font-weight:700}
   h1.hero-title{font-size:var(--f-h1); line-height:1.15; font-weight:400; margin:0 auto 20px; color:var(--paper); letter-spacing:-0.005em; word-spacing:0.05em; max-width:720px; text-shadow:0 2px 20px rgba(0,0,0,0.5)}
-  h1.hero-title em{font-style:italic; color:var(--amber-warm); font-weight:500}
+  h1.hero-title em{font-style:normal; color:var(--amber-warm); font-weight:500}
   .hero-lead{font-size:clamp(14px, 1vw, 17px); color:rgba(246,242,232,0.75); line-height:1.5; margin:0 auto; max-width:520px; text-shadow:0 1px 12px rgba(0,0,0,0.4)}
   .hero-cta{display:flex; gap:14px; flex-wrap:wrap; justify-content:center}
 
@@ -328,7 +328,7 @@
   .v-album .cell{background:var(--paper-3); border-radius:4px; overflow:hidden; box-shadow:0 4px 8px rgba(0,0,0,0.25)}
   .v-album .cell img{width:100%; height:100%; object-fit:cover; filter:sepia(0.15) saturate(0.9) contrast(1.05)}
 
-  .step .idx-label{position:absolute; top:12px; left:14px; z-index:5; font-family:'Fraunces',serif; font-style:italic; font-size:14px; color:var(--amber-warm); font-weight:500; background:rgba(22,16,12,0.7); padding:4px 10px; border-radius:99px; border:1px solid rgba(255,184,74,0.3); backdrop-filter:blur(6px)}
+  .step .idx-label{position:absolute; top:12px; left:14px; z-index:5; font-family:'Fraunces',serif; font-style:normal; font-size:14px; color:var(--amber-warm); font-weight:500; background:rgba(22,16,12,0.7); padding:4px 10px; border-radius:99px; border:1px solid rgba(255,184,74,0.3); backdrop-filter:blur(6px)}
 
   /* ═══ APP PREVIEW — sphere coverflow ═══ */
   .preview-slider{position:relative; margin-top:8px; user-select:none; width:100vw; margin-left:calc(50% - 50vw); margin-right:calc(50% - 50vw)}
@@ -350,7 +350,7 @@
   .slider-slide img{width:100%; height:100%; object-fit:cover; display:block; image-rendering:auto}
   .slider-slide .cap{position:absolute; left:50%; bottom:-52px; transform:translateX(-50%); text-align:center; font-family:'Fraunces',serif; font-size:16px; color:rgba(246,242,232,0.6); font-weight:500; transition:color .3s, opacity .3s; opacity:0; width:280px; white-space:nowrap}
   .slider-slide.active .cap{color:var(--paper); font-size:19px; opacity:1}
-  .slider-slide .cap em{font-style:italic; color:var(--amber-warm)}
+  .slider-slide .cap em{font-style:normal; color:var(--amber-warm)}
 
   .slider-arrows{display:flex; justify-content:space-between; position:absolute; top:calc(50% - 40px); left:0; right:0; z-index:3; pointer-events:none; padding:0 12px}
   .slider-arrows button{
@@ -467,7 +467,7 @@
   .cta-grid{display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:clamp(28px,4vw,44px); align-items:center; position:relative; z-index:1; text-align:left}
   .cta-inner .label{color:var(--amber-warm); margin-bottom:14px; display:inline-block; font-size:14px}
   .cta-inner h2{font-family:'Fraunces',serif; font-size:clamp(28px,3vw,38px); line-height:1.15; font-weight:500; margin:0 0 14px; color:var(--paper); text-align:left}
-  .cta-inner h2 em{font-style:italic; color:var(--amber-warm); font-weight:500}
+  .cta-inner h2 em{font-style:normal; color:var(--amber-warm); font-weight:500}
   .cta-inner .lead{color:rgba(246,242,232,0.8); font-size:15.5px; line-height:1.55; margin:0 0 24px; max-width:460px; text-align:left}
   .cta-inner .hero-cta{justify-content:flex-start; text-align:left}
   .cta-inner .meta{margin-top:18px; font-size:13px; color:rgba(246,242,232,0.55); text-align:left}
@@ -509,6 +509,7 @@
   .reveal.in{opacity:1; transform:none}
   @media (prefers-reduced-motion:reduce){ .reveal{opacity:1; transform:none} }
 </style>
+<style>em,i,cite,address{font-style:normal !important}</style>
 </head>
 <body>
 
@@ -724,7 +725,7 @@
         <img src="/wall/p-concert-sunset.jpg" alt="">
         <div class="why-fade"></div>
         <div class="why-content">
-          <div class="why-num" style="font-style:italic">потом</div>
+          <div class="why-num" style="font-style:normal">потом</div>
           <div class="why-title">Проявка после события</div>
           <div class="why-desc">Гости не видят общий альбом во время события — только свои кадры. Все снимки открываются одновременно.</div>
         </div>
@@ -733,7 +734,7 @@
         <img src="/wall/p-crowd-confetti.jpg" alt="">
         <div class="why-fade"></div>
         <div class="why-content">
-          <div class="why-num" style="font-style:italic">один</div>
+          <div class="why-num" style="font-style:normal">один</div>
           <div class="why-title">Общий альбом</div>
           <div class="why-desc">После события — открытая ссылка на альбом. И для гостей, и для тех, кто не был на месте.</div>
         </div>

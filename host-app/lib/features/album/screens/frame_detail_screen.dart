@@ -460,8 +460,7 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                       caption,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.caveat(
-                        fontStyle: FontStyle.italic,
-                        fontSize: 26,
+                                                fontSize: 26,
                         height: 1.28,
                         color: AppColors.ink2,
                       ),
@@ -840,8 +839,7 @@ class _PolaroidBig extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.caveat(
                         fontSize: 22,
-                        fontStyle: FontStyle.italic,
-                        height: 1.26,
+                                                height: 1.26,
                         color: AppColors.ink2,
                       ),
                     )
