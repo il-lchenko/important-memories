@@ -13,13 +13,14 @@ function safeNext(raw: string | null): string {
 
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--paper)', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 440, padding: 'calc(48px + env(safe-area-inset-top)) 24px 32px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 40 }}>
-          <img src="/brand/im-mark-F-light.svg" alt="" width={36} height={36} style={{ borderRadius: 10 }}
+    <div className="host-auth">
+      <div className="host-auth-inner">
+        <div className="host-auth-strip" aria-hidden="true" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
+          <img src="/brand/im-mark-F-light.svg" alt="" width={36} height={36}
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-          <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 20 }}>
-            Impo<span style={{ color: 'var(--amber)' }}>Mento</span>
+          <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 22, letterSpacing: '-.01em' }}>
+            Impo<span style={{ color: 'var(--amber-2)' }}>Mento</span>
           </span>
         </div>
         {children}
@@ -196,8 +197,8 @@ export function CodeScreen() {
             style={{
               width: '100%', maxWidth: 52, height: 60, textAlign: 'center',
               fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 600,
-              borderRadius: 14, border: `1px solid ${d ? 'var(--amber)' : 'var(--line)'}`,
-              background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none',
+              borderRadius: 2, border: `1px solid var(--ink)`, boxShadow: d ? '3px 3px 0 var(--amber)' : 'none',
+              background: 'var(--paper)', color: 'var(--ink)', outline: 'none',
             }}
           />
         ))}

@@ -2,7 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CodeScreen, ConsentScreen, LoginScreen } from './auth/AuthScreens'
 import { PlainShell, RequireHost, TabsShell } from './HostShell'
+import CreateEventScreen from './screens/CreateEventScreen'
 import DashboardScreen from './screens/DashboardScreen'
+import EventScreen from './screens/EventScreen'
+import HostAlbumScreen from './screens/AlbumScreen'
+import PayScreen from './screens/PayScreen'
+import PaymentReturnScreen from './screens/PaymentReturnScreen'
+import QrScreen from './screens/QrScreen'
 import { TopBar } from './ui'
 import './host.css'
 
@@ -46,10 +52,15 @@ export default function HostApp() {
           </Route>
 
           <Route element={<RequireHost><PlainShell /></RequireHost>}>
-            <Route path="events/new" element={<ComingSoon title="Новый альбом" />} />
-            <Route path="events/:id" element={<ComingSoon title="Событие" />} />
+            <Route path="events/new" element={<CreateEventScreen />} />
+            <Route path="events/:id" element={<EventScreen />} />
+            <Route path="events/:id/pay" element={<PayScreen />} />
+            <Route path="events/:id/qr" element={<QrScreen />} />
+            <Route path="events/:id/album" element={<HostAlbumScreen />} />
             <Route path="events/:id/*" element={<ComingSoon title="Событие" />} />
           </Route>
+
+          <Route path="payment/return" element={<RequireHost><PaymentReturnScreen /></RequireHost>} />
 
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>

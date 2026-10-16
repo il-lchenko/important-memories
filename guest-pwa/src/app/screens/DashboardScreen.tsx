@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { EventOut, InvitedEventOut } from '../api/hostClient'
 import { apiErrorMessage } from '../api/hostClient'
-import { EVENT_TYPE_LABELS, STATUS_META, formatShortDate, pluralize } from '../format'
+import { EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, formatShortDate } from '../format'
 import { useEvents, useInvitedEvents, useMe } from '../queries'
 import { CenterSpinner, ErrorBox, Icon, icons, TopBar } from '../ui'
 
@@ -13,48 +13,36 @@ type Card =
   | { kind: 'mine'; event: EventOut }
   | { kind: 'invited'; event: InvitedEventOut }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusStamp({ status }: { status: string }) {
   const meta = STATUS_META[status] ?? STATUS_META.draft
-  return (
-    <span className="host-badge" style={{ color: meta.color, background: meta.bg }}>
-      <span className="host-badge-dot" /> {meta.label}
-    </span>
-  )
+  return <span className="host-badge" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
 }
 
-function EventCard({ card }: { card: Card }) {
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function EventCard({ card, no }: { card: Card; no: number }) {
   const e = card.event
   const href = card.kind === 'mine' ? `/app/events/${e.id}` : `/app/events/${e.id}/album`
-  const coverUrl = e.cover_url ?? null
+  const film = card.kind === 'mine' ? (FILM_LABELS[card.event.settings.lut_preset]?.short ?? 'RAW') : 'ALB'
   return (
     <Link to={href} className="host-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
       <div className="host-cover">
-        {coverUrl && <img src={coverUrl} alt="" loading="lazy" />}
-        <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6 }}>
-          <StatusBadge status={e.status} />
-          {card.kind === 'invited' && (
-            <span className="host-badge" style={{ color: 'var(--ink)', background: 'var(--paper)' }}>Гость</span>
-          )}
+        {e.cover_url && <img src={e.cover_url} alt="" loading="lazy" />}
+        <span className="host-frameno" aria-label={`Кадр ${no}`}>{pad(no)}</span>
+        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
+          {card.kind === 'invited' && <span className="host-badge" style={{ color: 'var(--ink)' }}>Гость</span>}
+          <StatusStamp status={e.status} />
         </div>
       </div>
-      <div style={{ padding: '14px 16px 16px' }}>
-        <div style={{ fontFamily: 'Playfair Display, serif', fontWeight: 600, fontSize: 20, lineHeight: 1.2, marginBottom: 6 }}>
-          {e.title}
+      <div style={{ padding: '12px 16px 16px' }}>
+        <div className="host-edge">
+          {card.kind === 'mine'
+            ? `${film} ▸ ${card.event.guests_count ?? 0}/${card.event.settings.max_guests} гост. ▸ ${card.event.frames_count ?? 0} кадр.`
+            : `мои ${card.event.my_frames_count} из ${card.event.total_frames} кадр.`}
         </div>
-        <div className="host-muted" style={{ fontSize: 13, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {card.kind === 'mine' ? (
-            <>
-              <span>{EVENT_TYPE_LABELS[card.event.event_type] ?? 'Событие'}</span>
-              <span>· {formatShortDate(card.event.start_at)}</span>
-              <span>· {card.event.guests_count ?? 0} {pluralize(card.event.guests_count ?? 0, 'гость', 'гостя', 'гостей')}</span>
-              <span>· {card.event.frames_count ?? 0} {pluralize(card.event.frames_count ?? 0, 'кадр', 'кадра', 'кадров')}</span>
-            </>
-          ) : (
-            <>
-              <span>{formatShortDate(card.event.start_at)}</span>
-              <span>· мои кадры {card.event.my_frames_count} из {card.event.total_frames}</span>
-            </>
-          )}
+        <div className="host-frame-title">{e.title}</div>
+        <div className="host-muted" style={{ fontSize: 13 }}>
+          {card.kind === 'mine' ? `${EVENT_TYPE_LABELS[card.event.event_type] ?? 'Событие'} · ` : ''}{formatShortDate(e.start_at)}
         </div>
       </div>
     </Link>
@@ -87,9 +75,9 @@ export default function DashboardScreen() {
 
   return (
     <>
-      <TopBar title="Альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : undefined} />
+      <TopBar title="Альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : `Контактный лист · ${cards.length}`} />
       <main className="host-main">
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '16px 0 10px' }}>
+        <div className="host-scroll-x" style={{ padding: '16px 0 10px' }}>
           {([['mine', 'Мои'], ['invited', 'Другие события'], ['all', 'Все']] as const).map(([k, label]) => (
             <button key={k} className="host-chip" data-active={scope === k} onClick={() => setScope(k)}>{label}</button>
           ))}
@@ -129,7 +117,7 @@ export default function DashboardScreen() {
         )}
 
         <div className="host-grid">
-          {cards.map((c) => <EventCard key={`${c.kind}-${c.event.id}`} card={c} />)}
+          {cards.map((c, i) => <EventCard key={`${c.kind}-${c.event.id}`} card={c} no={i + 1} />)}
         </div>
       </main>
     </>

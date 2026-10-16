@@ -1,0 +1,265 @@
+import { useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiErrorMessage, hostApi, type EventOut, type Schemas } from '../api/hostClient'
+import {
+  EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, albumOpenable, formatDate, formatDateTime, formatShortDate, guestLink,
+} from '../format'
+import { qk, useEvent } from '../queries'
+import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, toast, TopBar } from '../ui'
+
+function Metric({ value, label }: { value: string | number; label: string }) {
+  return (
+    <div style={{ flex: 1, textAlign: 'center', padding: '12px 4px' }}>
+      <div className="host-mono" style={{ fontSize: 24 }}>{value}</div>
+      <div className="host-edge" style={{ fontSize: 11, marginTop: 2 }}>{label}</div>
+    </div>
+  )
+}
+
+function Row({ icon, label, hint, to, onClick, danger }: {
+  icon: string; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean
+}) {
+  const inner = (
+    <>
+      <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex' }}><Icon d={icon} size={20} /></span>
+      <span style={{ flex: 1, color: danger ? 'var(--shutter)' : 'inherit' }}>
+        {label}
+        {hint && <span className="host-muted" style={{ display: 'block', fontSize: 12, marginTop: 1 }}>{hint}</span>}
+      </span>
+      <span style={{ color: 'var(--ink-4)', display: 'flex' }}><Icon d={icons.chevron} size={18} /></span>
+    </>
+  )
+  return to
+    ? <Link to={to} className="host-row">{inner}</Link>
+    : <button className="host-row" onClick={onClick}>{inner}</button>
+}
+
+function PinCard({ eventId }: { eventId: string }) {
+  const qc = useQueryClient()
+  const [shown, setShown] = useState(false)
+  const pin = useQuery({
+    queryKey: ['pin', eventId],
+    queryFn: async () => (await hostApi.get<Schemas['EventPinOut']>(`/events/${eventId}/pin`)).data,
+  })
+  const update = useMutation({
+    mutationFn: async (body: { enabled: boolean; pin?: string | null }) =>
+      (await hostApi.patch<Schemas['EventPinOut']>(`/events/${eventId}/pin`, body)).data,
+    onSuccess: (data) => { qc.setQueryData(['pin', eventId], data); void qc.invalidateQueries({ queryKey: qk.event(eventId) }) },
+    onError: (e) => toast(apiErrorMessage(e)),
+  })
+  const enabled = pin.data?.pin_enabled ?? false
+  return (
+    <div className="host-card" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ color: 'var(--amber)', display: 'flex' }}><Icon d={icons.lock} size={20} /></span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600 }}>PIN-код на вход</div>
+          <div className="host-muted" style={{ fontSize: 12 }}>{enabled ? 'Гости вводят код после сканирования' : 'Выключен: войти может любой, у кого есть ссылка'}</div>
+        </div>
+        <label style={{ display: 'inline-flex', cursor: 'pointer' }}>
+          <input type="checkbox" role="switch" aria-label="PIN-код" checked={enabled} disabled={update.isPending || pin.isLoading}
+            onChange={(e) => update.mutate({ enabled: e.target.checked })}
+            style={{ width: 44, height: 26, accentColor: 'var(--amber)' }} />
+        </label>
+      </div>
+      {enabled && pin.data?.entry_pin && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14 }}>
+          <div style={{ flex: 1, fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 700, letterSpacing: '.3em', fontVariantNumeric: 'tabular-nums' }}>
+            {shown ? pin.data.entry_pin : '• • • •'}
+          </div>
+          <button className="host-chip" onClick={() => setShown((v) => !v)}>{shown ? 'Скрыть' : 'Показать'}</button>
+          <button className="host-chip" onClick={() => void copyText(pin.data!.entry_pin!, 'PIN скопирован')}>Копировать</button>
+          <button className="host-chip" disabled={update.isPending} onClick={() => update.mutate({ enabled: true, pin: null })}>Новый</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function JoinStats({ eventId }: { eventId: string }) {
+  const stats = useQuery({
+    queryKey: ['join-stats', eventId],
+    queryFn: async () => (await hostApi.get<Schemas['JoinStatsOut']>(`/events/${eventId}/join-stats`)).data,
+  })
+  const d = stats.data
+  if (!d || d.total === 0) return null
+  return (
+    <div className="host-card" style={{ padding: 16, borderLeft: d.suspicious ? '3px solid var(--shutter)' : undefined }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+        Входы за {d.window_hours} ч{d.suspicious && <span style={{ color: 'var(--shutter)' }}> · подозрительная активность</span>}
+      </div>
+      <div className="host-muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
+        Всего {d.total}, успешно {d.ok}. Неверный код: {d.bad_code}, неверный PIN: {d.bad_pin}, ограничено: {d.rate_limited}. Уникальных устройств: {d.unique_fingerprints}.
+      </div>
+    </div>
+  )
+}
+
+export default function EventScreen() {
+  const { id = '' } = useParams()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+  const event = useEvent(id)
+  const [revealSheet, setRevealSheet] = useState(false)
+  const [deleteSheet, setDeleteSheet] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const refresh = () => { void qc.invalidateQueries({ queryKey: qk.event(id) }); void qc.invalidateQueries({ queryKey: qk.events }) }
+  const reveal = useMutation({
+    mutationFn: async () => (await hostApi.post<EventOut>(`/events/${id}/reveal`)).data,
+    onSuccess: () => { refresh(); setRevealSheet(false); toast('Альбом открыт') },
+    onError: (e) => toast(apiErrorMessage(e)),
+  })
+  const activate = useMutation({
+    mutationFn: async () => (await hostApi.post<EventOut>(`/events/${id}/activate`)).data,
+    onSuccess: () => { refresh(); toast('Событие запущено') },
+    onError: (e) => toast(apiErrorMessage(e)),
+  })
+  const remove = useMutation({
+    mutationFn: async () => { await hostApi.delete(`/events/${id}`) },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: qk.events }); navigate('/app', { replace: true }) },
+    onError: (e) => { setDeleteSheet(false); toast(apiErrorMessage(e)) },
+  })
+  const cover = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return (await hostApi.post<EventOut>(`/events/${id}/cover`, form)).data
+    },
+    onSuccess: (data) => { qc.setQueryData(qk.event(id), data); void qc.invalidateQueries({ queryKey: qk.events }); toast('Обложка обновлена') },
+    onError: (e) => toast(apiErrorMessage(e)),
+  })
+
+  const downloadAll = async () => {
+    setDownloading(true)
+    try {
+      const { data: job } = await hostApi.post<Schemas['ArchiveJobOut']>(`/events/${id}/download`)
+      for (let i = 0; i < 90; i++) {
+        await new Promise((r) => setTimeout(r, 2000))
+        const { data } = await hostApi.get<Schemas['ArchiveJobOut']>(`/events/${id}/download/${job.job_id}`)
+        if (data.status === 'ready' && data.download_url) { window.location.assign(data.download_url); return }
+        if (data.status === 'empty') { toast('В альбоме пока нет фото'); return }
+        if (data.status === 'failed') { toast('Не удалось собрать архив'); return }
+      }
+      toast('Архив собирается слишком долго, попробуйте позже')
+    } catch (e) {
+      toast(apiErrorMessage(e))
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  if (event.isLoading) return (<><TopBar back="/app" title="Событие" /><CenterSpinner /></>)
+  if (event.error || !event.data) {
+    return (<><TopBar back="/app" title="Событие" /><main className="host-main"><ErrorBox message={apiErrorMessage(event.error, 'Событие не найдено')} onRetry={() => void event.refetch()} /></main></>)
+  }
+
+  const e = event.data
+  const s = e.settings
+  const meta = STATUS_META[e.status] ?? STATUS_META.draft
+  const openable = albumOpenable(e)
+  const link = guestLink(e.short_code)
+  const film = FILM_LABELS[s.lut_preset] ?? FILM_LABELS.original
+  const isFreePlan = s.plan === 'free'
+
+  const openAlbum = () => (openable ? navigate(`/app/events/${id}/album`) : setRevealSheet(true))
+  const payNow = () => navigate(`/app/events/${id}/pay`)
+
+  return (
+    <>
+      <TopBar back="/app" title={e.title} right={
+        <button className="host-icon-btn" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
+      } />
+      <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="host-card" style={{ overflow: 'hidden' }}>
+          <div className="host-cover">
+            {e.cover_url && <img src={e.cover_url} alt="" />}
+            <div style={{ position: 'absolute', top: 12, right: 12 }}>
+              <span className="host-badge" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
+            </div>
+            <button className="host-chip" style={{ position: 'absolute', right: 12, bottom: 12 }} disabled={cover.isPending}
+              onClick={() => fileRef.current?.click()}>
+              {cover.isPending ? 'Загрузка…' : e.cover_url ? 'Сменить обложку' : 'Добавить обложку'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden
+              onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ''; if (f) cover.mutate(f) }} />
+          </div>
+          <div style={{ padding: '14px 16px 4px' }}>
+            <div className="host-muted" style={{ fontSize: 13 }}>
+              {EVENT_TYPE_LABELS[e.event_type] ?? 'Событие'} · {formatDate(e.start_at)}
+              {e.expires_at && <> · хранится до {formatShortDate(e.expires_at)}</>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', borderTop: '1px solid var(--ink)', margin: '10px 0 0' }}>
+            <Metric value={`${e.guests_count ?? 0}/${s.max_guests}`} label="гостей" />
+            <Metric value={e.frames_count ?? 0} label="кадров" />
+            <Metric value={s.frames_per_guest} label="на гостя" />
+            <Metric value={film.short} label="плёнка" />
+          </div>
+        </div>
+
+        {e.status === 'draft' && (
+          <div className="host-card" style={{ padding: 16, borderLeft: '3px solid var(--amber)' }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Событие ещё не запущено</div>
+            <p className="host-muted" style={{ marginBottom: 14 }}>
+              {isFreePlan ? 'Запустите событие, чтобы получить QR-код для гостей.' : 'Оплатите выбранный тариф, и событие запустится.'}
+            </p>
+            {isFreePlan
+              ? <button className="btn" disabled={activate.isPending} onClick={() => activate.mutate()}>Запустить бесплатно</button>
+              : <button className="btn" onClick={payNow}>Оплатить и запустить</button>}
+          </div>
+        )}
+
+        {e.status !== 'draft' && e.status !== 'cancelled' && (
+          <div className="host-card">
+            <Row icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
+            <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />
+            {e.status === 'active' && <Row icon={icons.users} label="Гости и ход съёмки" to={`/app/events/${id}/progress`} />}
+            {e.status === 'active' && <Row icon={icons.camera} label="Открыть альбом сейчас" hint="Завершить съёмку и проявить кадры" onClick={() => setRevealSheet(true)} />}
+            <Row icon={icons.mail} label="Пригласить лично" hint="Персональная ссылка для гостя" to={`/app/events/${id}/invites`} />
+            <Row icon={icons.download} label={downloading ? 'Собираем архив…' : 'Скачать все фото'} hint="ZIP со всеми кадрами" onClick={() => { if (!downloading) void downloadAll() }} />
+          </div>
+        )}
+
+        {e.status !== 'draft' && e.status !== 'cancelled' && (
+          <div className="host-card" style={{ padding: 16 }}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>Ссылка для гостей</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, wordBreak: 'break-all', color: 'var(--ink-2)', marginBottom: 12 }}>{link}</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-ghost btn-sm" onClick={() => void copyText(link, 'Ссылка скопирована')}><Icon d={icons.copy} size={16} /> Копировать</button>
+              <button className="btn-ghost btn-sm" onClick={() => void shareLink(link, e.title)}><Icon d={icons.share} size={16} /> Поделиться</button>
+            </div>
+          </div>
+        )}
+
+        {(e.status === 'active' || e.status === 'completed') && <PinCard eventId={id} />}
+        {e.status === 'active' && <JoinStats eventId={id} />}
+
+        {e.status !== 'cancelled' && (
+          <div className="host-card">
+            <Row icon={icons.settings} label="Настройки альбома" hint="Тариф, ссылка для просмотра, загрузка из галереи" to={`/app/events/${id}/settings`} />
+            {e.status !== 'active' && <Row icon={icons.trash} label="Удалить событие" danger onClick={() => setDeleteSheet(true)} />}
+          </div>
+        )}
+      </main>
+
+      <Sheet open={revealSheet} onClose={() => setRevealSheet(false)} title="Открыть альбом сейчас?">
+        <p className="host-muted" style={{ marginBottom: 18 }}>
+          {e.status === 'active'
+            ? 'Съёмка завершится, кадры проявятся, и гости увидят альбом.'
+            : s.reveal_at ? `Альбом откроется ${formatDateTime(s.reveal_at)}. Можно открыть сразу.` : 'Альбом пока закрыт для просмотра.'}
+        </p>
+        <button className="btn" disabled={reveal.isPending} onClick={() => reveal.mutate()} style={{ marginBottom: 10 }}>Открыть сейчас</button>
+        <button className="btn-ghost" onClick={() => setRevealSheet(false)}>Отмена</button>
+      </Sheet>
+      <Sheet open={deleteSheet} onClose={() => setDeleteSheet(false)} title="Удалить событие?">
+        <p className="host-muted" style={{ marginBottom: 18 }}>Событие пропадёт из списка. Это действие нельзя отменить.</p>
+        <button className="btn-danger" disabled={remove.isPending} onClick={() => remove.mutate()} style={{ marginBottom: 10 }}>Удалить</button>
+        <button className="btn-ghost" onClick={() => setDeleteSheet(false)}>Отмена</button>
+      </Sheet>
+    </>
+  )
+}
+
