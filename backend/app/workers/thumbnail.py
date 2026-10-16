@@ -188,11 +188,12 @@ def _preview_key(s3_key: str) -> str:
     return s3_key + ".preview.webp"
 
 
-# Preview: max side 1280px (HD+), WebP q=85 (~150-250 KB). В 2-3× меньше JPEG
-# при том же visual quality — критично для мобильного 3G/4G. Оригинал 4000px q=93
-# остаётся в s3_key для скачивания в полном качестве.
-_PREVIEW_MAX_SIDE = 1280
-_PREVIEW_QUALITY = 85
+# Preview: max side 2560px, WebP q=90 (~400-700 KB). 1280px на современных экранах
+# (DPR 3) заметно мягче оригинала; при увеличении клиент подгружает сам оригинал
+# из s3_key (4000px q=93), он же скачивается в полном качестве.
+_PREVIEW_MAX_SIDE = 2560
+_PREVIEW_QUALITY = 90
+_UPLOAD_ORIGINAL_QUALITY = 93
 
 
 def _center_crop(img: Image.Image, ratio: float) -> Image.Image:
@@ -282,7 +283,7 @@ async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> N
                 if is_upload:
                     filtered = apply_film_filter(raw, lut_preset.value)
                     fbuf = BytesIO()
-                    filtered.save(fbuf, format="JPEG", quality=_PREVIEW_QUALITY, optimize=True)
+                    filtered.save(fbuf, format="JPEG", quality=_UPLOAD_ORIGINAL_QUALITY, optimize=True)
                     filtered_bytes = fbuf.getvalue()
                     # Если ключ .heic — переименовываем в .jpg (клиент/архив ожидает jpeg).
                     new_key = frame.s3_key
