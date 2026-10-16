@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import select
@@ -8,6 +9,7 @@ from app.core.logging import logger
 from app.domain.models import Event, EventStatus
 from app.infra import fcm_client
 from app.repos import device_repo
+from app.services.event_lifecycle import reveal_is_due
 
 
 async def execute_reveal(ctx: dict, event_id: str) -> None:
@@ -26,6 +28,9 @@ async def execute_reveal(ctx: dict, event_id: str) -> None:
             logger.info(
                 "reveal_skip", event_id=event_id, reason="not_active", status=event.status.value
             )
+            return
+        if not reveal_is_due(event, datetime.now(timezone.utc) + timedelta(seconds=5)):
+            logger.info("reveal_skip", event_id=event_id, reason="stale_job")
             return
         event.status = EventStatus.COMPLETED
         await session.commit()

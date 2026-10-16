@@ -28,6 +28,7 @@ from app.domain.schemas.events import (
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, user_repo
 from app.services import entitlement_service
+from app.services.event_lifecycle import completion_due
 from app.services.payment_service import (
     CUSTOM_MAX_GUESTS,
     custom_per_guest_kopecks,
@@ -216,11 +217,8 @@ async def create_event(
 
 async def _auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
     """Self-healing для host-app списка: тот же принцип, что в guest_service."""
-    if event.status != EventStatus.ACTIVE:
-        return
-    if event.end_at is None or event.end_at > datetime.now(timezone.utc):
-        return
-    event.status = EventStatus.COMPLETED
+    if completion_due(event, datetime.now(timezone.utc)):
+        event.status = EventStatus.COMPLETED
 
 
 async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
@@ -232,8 +230,9 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
         return []
     # Batch self-heal: закроем все истёкшие ACTIVE события за один коммит.
     changed = False
+    now = datetime.now(timezone.utc)
     for e in events:
-        if e.status == EventStatus.ACTIVE and e.end_at is not None and e.end_at <= datetime.now(timezone.utc):
+        if completion_due(e, now):
             e.status = EventStatus.COMPLETED
             changed = True
     if changed:

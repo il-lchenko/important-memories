@@ -16,6 +16,7 @@ from app.core.errors import (
 )
 from app.core.logging import logger
 from app.domain.models import Event, EventStatus, Guest, JoinAttemptOutcome
+from app.services.event_lifecycle import completion_due
 from app.domain.schemas.events import EventSettingsOut
 from app.domain.schemas.guests import GuestEventOut, GuestSessionOut
 from app.core.config import settings
@@ -62,13 +63,11 @@ async def auto_complete_if_expired(session: AsyncSession, event: Event) -> None:
     public_share_token НЕ создаётся автоматически — это отдельное явное действие
     Хоста через POST /events/{id}/public-share/enable.
     Идемпотентно, никаких side-эффектов если event уже COMPLETED/CANCELLED."""
-    if event.status != EventStatus.ACTIVE:
-        return
-    if event.end_at is None or event.end_at > datetime.now(timezone.utc):
+    if not completion_due(event, datetime.now(timezone.utc)):
         return
     event.status = EventStatus.COMPLETED
     await session.commit()
-    logger.info("event_auto_completed", event_id=str(event.id), reason="end_at_passed")
+    logger.info("event_auto_completed", event_id=str(event.id), reason="end_at_or_reveal_at_passed")
 
 
 async def _delay() -> None:
