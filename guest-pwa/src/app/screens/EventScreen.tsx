@@ -6,7 +6,8 @@ import {
   EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, albumOpenable, formatDate, formatDateTime, formatShortDate, guestLink,
 } from '../format'
 import { Row } from '../components/Row'
-import { qk, useEvent } from '../queries'
+import { startOwnerCamera } from '../ownerCamera'
+import { qk, useEvent, useMe } from '../queries'
 import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, toast, TopBar } from '../ui'
 
 function Metric({ value, label }: { value: string | number; label: string }) {
@@ -147,6 +148,15 @@ export default function EventScreen() {
   const film = FILM_LABELS[s.lut_preset] ?? FILM_LABELS.original
   const isFreePlan = s.plan === 'free'
 
+  const me = useMe()
+  const shoot = async () => {
+    try {
+      const to = await startOwnerCamera(e.short_code, me.data?.display_name ?? '')
+      window.location.assign(to)
+    } catch (err) {
+      toast(apiErrorMessage(err))
+    }
+  }
   const openAlbum = () => (openable ? navigate(`/app/events/${id}/album`) : setRevealSheet(true))
   const payNow = () => navigate(`/app/events/${id}/pay`)
 
@@ -198,6 +208,7 @@ export default function EventScreen() {
         {e.status !== 'draft' && e.status !== 'cancelled' && (
           <div className="host-card">
             <Row icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
+            {e.status === 'active' && <Row icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
             <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />
             {e.status === 'active' && <Row icon={icons.users} label="Гости и ход съёмки" to={`/app/events/${id}/progress`} />}
             {e.status === 'active' && <Row icon={icons.camera} label="Открыть альбом сейчас" hint="Завершить съёмку и проявить кадры" onClick={() => setRevealSheet(true)} />}
