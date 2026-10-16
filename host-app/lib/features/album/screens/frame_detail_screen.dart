@@ -412,11 +412,13 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                 // Photo area + nav arrows
                 Expanded(
                   child: GestureDetector(
-                    onHorizontalDragEnd: (d) {
-                      final v = d.primaryVelocity ?? 0;
-                      if (v < -200) _next(total);
-                      if (v > 200) _prev();
-                    },
+                    onHorizontalDragEnd: _isPolaroid
+                        ? (d) {
+                            final v = d.primaryVelocity ?? 0;
+                            if (v < -200) _next(total);
+                            if (v > 200) _prev();
+                          }
+                        : null,
                     child: SizedBox.expand(
                       child: Stack(
                         alignment: Alignment.center,
@@ -432,6 +434,8 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                                   key: ValueKey('f$safeIdx'),
                                   frame: frame,
                                   rotationDeg: effectiveRotation,
+                                  onSwipeNext: () => _next(total),
+                                  onSwipePrev: _prev,
                                 ),
                           Positioned(
                             left: 0, top: 0, bottom: 0,
@@ -852,39 +856,134 @@ class _PolaroidBig extends StatelessWidget {
   }
 }
 
-class _FullFrame extends StatelessWidget {
+class _FullFrame extends StatefulWidget {
   final Map<String, dynamic> frame;
   final int rotationDeg;
-  const _FullFrame({super.key, required this.frame, this.rotationDeg = 0});
+  final VoidCallback? onSwipeNext;
+  final VoidCallback? onSwipePrev;
+  const _FullFrame({
+    super.key,
+    required this.frame,
+    this.rotationDeg = 0,
+    this.onSwipeNext,
+    this.onSwipePrev,
+  });
 
+  @override
+  State<_FullFrame> createState() => _FullFrameState();
+}
+
+class _FullFrameState extends State<_FullFrame> {
   static const _fallback = [
     Color(0xFFF3CDA0), Color(0xFFC97E4A), Color(0xFF6A3520), Color(0xFF1F1208),
   ];
+  static const _maxScale = 8.0;
+
+  double _scale = 1.0;
+  Offset _offset = Offset.zero;
+  double _startScale = 1.0;
+  Offset _startOffset = Offset.zero;
+  Offset _startFocal = Offset.zero;
+  int _maxPointers = 1;
+  double _swipeDx = 0;
+  Offset _doubleTapAt = Offset.zero;
+  bool _wantFull = false;
+
+  Size get _box => (context.size ?? const Size(1, 1));
+
+  Offset _clamp(Offset o, double s) {
+    final b = _box;
+    final mx = b.width * (s - 1) / 2;
+    final my = b.height * (s - 1) / 2;
+    return Offset(o.dx.clamp(-mx, mx), o.dy.clamp(-my, my));
+  }
+
+  void _zoomTo(double ns, Offset focalLocal) {
+    final b = _box;
+    final f = focalLocal - Offset(b.width / 2, b.height / 2);
+    final k = ns / _scale;
+    final o = f - (f - _offset) * k;
+    setState(() {
+      _scale = ns;
+      _offset = ns <= 1.001 ? Offset.zero : _clamp(o, ns);
+      if (_scale > 1.05) _wantFull = true;
+    });
+  }
+
+  void _onScaleStart(ScaleStartDetails d) {
+    _startScale = _scale;
+    _startOffset = _offset;
+    _startFocal = d.localFocalPoint;
+    _maxPointers = d.pointerCount;
+    _swipeDx = 0;
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails d) {
+    if (d.pointerCount > _maxPointers) _maxPointers = d.pointerCount;
+    if (d.pointerCount >= 2 || _scale > 1.001) {
+      final b = _box;
+      final ns = (_startScale * d.scale).clamp(1.0, _maxScale);
+      final f0 = _startFocal - Offset(b.width / 2, b.height / 2);
+      final f = d.localFocalPoint - Offset(b.width / 2, b.height / 2);
+      final o = f - (f0 - _startOffset) * (ns / _startScale);
+      setState(() {
+        _scale = ns;
+        _offset = ns <= 1.001 ? Offset.zero : _clamp(o, ns);
+        if (_scale > 1.05) _wantFull = true;
+      });
+    } else {
+      _swipeDx = d.localFocalPoint.dx - _startFocal.dx;
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails d) {
+    if (_scale <= 1.001 && _maxPointers == 1) {
+      final v = d.velocity.pixelsPerSecond.dx;
+      if (_swipeDx < -60 || v < -300) {
+        widget.onSwipeNext?.call();
+      } else if (_swipeDx > 60 || v > 300) {
+        widget.onSwipePrev?.call();
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final frame = widget.frame;
     final url = (frame['preview_url'] as String?) ?? (frame['full_url'] as String?);
+    final fullUrl = frame['full_url'] as String?;
     final w = (frame['width'] as num?)?.toDouble() ?? 3.0;
     final h = (frame['height'] as num?)?.toDouble() ?? 4.0;
 
+    Widget image(String u, {bool full = false}) => CachedNetworkImage(
+          imageUrl: u,
+          cacheKey: Uri.parse(u).path,
+          fit: BoxFit.cover,
+          fadeInDuration: full ? const Duration(milliseconds: 200) : Duration.zero,
+          placeholder: full ? (_, __) => const SizedBox.shrink() : null,
+          errorWidget: full ? (_, __, ___) => const SizedBox.shrink() : null,
+        );
+
     // RotatedBox changes the layout box (unlike Transform.rotate which is paint-only).
     // This prevents ClipRect from clipping pre-rotation content at the wrong axis.
-    return FractionallySizedBox(
+    final photo = FractionallySizedBox(
       widthFactor: 0.95,
       heightFactor: 0.95,
       child: Center(
         child: RotatedBox(
-          quarterTurns: rotationDeg ~/ 90,
+          quarterTurns: widget.rotationDeg ~/ 90,
           child: AspectRatio(
             aspectRatio: w / h,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: url != null
-                  ? CachedNetworkImage(
-                      imageUrl: url,
-                      cacheKey: Uri.parse(url).path,
-                      fit: BoxFit.cover,
-                      fadeInDuration: Duration.zero,
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        image(url),
+                        // При увеличении поверх превью подгружается оригинал.
+                        if (_wantFull && fullUrl != null && fullUrl != url) image(fullUrl, full: true),
+                      ],
                     )
                   : Container(
                       decoration: const BoxDecoration(
@@ -897,6 +996,26 @@ class _FullFrame extends StatelessWidget {
                       ),
                     ),
             ),
+          ),
+        ),
+      ),
+    );
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onScaleStart: _onScaleStart,
+      onScaleUpdate: _onScaleUpdate,
+      onScaleEnd: _onScaleEnd,
+      onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
+      onDoubleTap: () => _zoomTo(_scale > 1.05 ? 1.0 : 3.0, _doubleTapAt),
+      child: ClipRect(
+        child: SizedBox.expand(
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..translate(_offset.dx, _offset.dy)
+              ..scale(_scale),
+            child: photo,
           ),
         ),
       ),
