@@ -417,6 +417,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/guests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Event Guests
+         * @description Гости события и их кадры: экран «Ход съёмки» организатора.
+         */
+        get: operations["events_list_event_guests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/join-stats": {
         parameters: {
             query?: never;
@@ -1800,6 +1820,11 @@ export interface components {
              * @default false
              */
             pin_enabled: boolean;
+            /**
+             * Settings Locked
+             * @default false
+             */
+            settings_locked: boolean;
         };
         /**
          * EventPinOut
@@ -2179,6 +2204,35 @@ export interface components {
             avatar_key?: string | null;
             /** Bio */
             bio?: string | null;
+        };
+        /**
+         * GuestProgressOut
+         * @description Гость события и сколько кадров он уже снял (для экрана «Ход съёмки»).
+         */
+        GuestProgressOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Avatar Url */
+            avatar_url?: string | null;
+            /** Frames Count */
+            frames_count: number;
+            /** Frames Per Guest */
+            frames_per_guest: number;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /**
+             * Is Owner
+             * @default false
+             */
+            is_owner: boolean;
         };
         /** GuestSessionOut */
         GuestSessionOut: {
@@ -3849,6 +3903,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    events_list_event_guests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuestProgressOut"][];
+                };
             };
             /** @description Validation Error */
             422: {

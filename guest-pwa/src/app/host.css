@@ -239,7 +239,7 @@
 .host-root .input-display { font-family: 'Playfair Display', serif; font-weight: 500; font-size: 24px; letter-spacing: -.01em; }
 .host-root .input-field:focus, .host-root .input-display:focus { border-color: var(--amber); outline: none; box-shadow: none; background: var(--paper); }
 .host-root input[type='range'] { accent-color: var(--amber); }
-.host-root p a, .host-root .host-muted a { color: var(--amber-2); text-underline-offset: 3px; }
+.host-root a:not([class]) { color: var(--amber-2); text-underline-offset: 3px; }
 
 /* Страница входа */
 .host-auth { min-height: 100dvh; background: var(--paper); display: flex; justify-content: center; }

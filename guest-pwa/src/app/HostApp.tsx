@@ -7,6 +7,7 @@ import DashboardScreen from './screens/DashboardScreen'
 import EventRoute from './screens/EventRoute'
 import HostAlbumScreen from './screens/AlbumScreen'
 import { CollectionPickerScreen, CollectionScreen, CreateCollectionScreen } from './screens/CollectionScreens'
+import AdminPromocodesScreen from './screens/AdminPromocodesScreen'
 import CreateSoloScreen from './screens/CreateSoloScreen'
 import ExtendScreen from './screens/ExtendScreen'
 import InvitesScreen from './screens/InvitesScreen'
@@ -65,6 +66,7 @@ export default function HostApp() {
             <Route path="new" element={<NewScreen />} />
             <Route path="solo/new" element={<CreateSoloScreen />} />
             <Route path="plus" element={<PlusScreen />} />
+            <Route path="admin/promocodes" element={<AdminPromocodesScreen />} />
             <Route path="collections/new" element={<CreateCollectionScreen />} />
             <Route path="collections/:id" element={<CollectionScreen />} />
             <Route path="collections/:id/add" element={<CollectionPickerScreen />} />

@@ -21,6 +21,11 @@ export default function ProgressScreen() {
   const potential = Math.max(1, e.guests_count * s.frames_per_guest)
   const pct = Math.min(100, Math.round((e.frames_count / potential) * 100))
   const frames = album.data?.items ?? []
+  const guests = useQuery({
+    queryKey: ['event-guests', id],
+    refetchInterval: 20_000,
+    queryFn: async () => (await hostApi.get<Schemas['GuestProgressOut'][]>(`/events/${id}/guests`)).data,
+  })
 
   return (
     <>
@@ -43,6 +48,33 @@ export default function ProgressScreen() {
               <div style={{ width: `${pct}%`, height: '100%', background: 'var(--amber)' }} />
             </div>
           </div>
+        </div>
+
+        <div>
+          <div className="host-field-label" style={{ margin: '0 2px 8px' }}>Гости</div>
+          {guests.isLoading && <CenterSpinner />}
+          {guests.data && guests.data.length === 0 && <p className="host-muted">Пока никто не вошёл. Покажите гостям QR-код.</p>}
+          {guests.data && guests.data.length > 0 && (
+            <div className="host-card">
+              {guests.data.map((g) => {
+                const pct = Math.min(100, Math.round((g.frames_count / Math.max(1, g.frames_per_guest)) * 100))
+                return (
+                  <div key={g.id} className="host-row" style={{ cursor: 'default' }}>
+                    <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--paper-2)', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'var(--ink-3)' }}>
+                      {g.avatar_url ? <img src={g.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : g.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontWeight: 600 }}>{g.name}{g.is_owner ? ' (вы)' : ''}</span>
+                      <span style={{ display: 'block', height: 6, borderRadius: 3, background: 'var(--paper-3)', marginTop: 6, overflow: 'hidden' }}>
+                        <span style={{ display: 'block', width: `${pct}%`, height: '100%', background: 'var(--amber)' }} />
+                      </span>
+                    </span>
+                    <span className="host-mono" style={{ fontSize: 14 }}>{g.frames_count}/{g.frames_per_guest}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <div>

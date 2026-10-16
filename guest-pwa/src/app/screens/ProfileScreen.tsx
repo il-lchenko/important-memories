@@ -173,6 +173,7 @@ export default function ProfileScreen() {
         <Section title="Прочее">
           <Row icon={icons.albums} label="Как это работает" hint="Вопросы и ответы" onClick={() => window.open('/about.html', '_blank', 'noopener')} />
           <Row icon={icons.lock} label="Оферта и политика" onClick={() => window.open('/offer.html', '_blank', 'noopener')} />
+          {u.is_admin && <Row icon={icons.lock} label="Промокоды" hint="Создание и удаление, только для администраторов" onClick={() => navigate('/app/admin/promocodes')} />}
           <Row icon={icons.logout} label="Выйти" onClick={() => goToLogin()} />
           <Row icon={icons.trash} label="Удалить аккаунт" danger onClick={() => { setConfirmText(''); setDeleteSheet(true) }} />
         </Section>

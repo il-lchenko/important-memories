@@ -56,9 +56,9 @@ export default function PlusScreen() {
 
   return (
     <>
-      <TopBar back="/app/profile" title="ImpoMento Плюс" kicker={s.plus ? 'Подписка активна' : 'Подписка'} />
+      <TopBar back="/app/profile" title="ImpoMento Плюс" kicker={s.plus && s.status ? 'Подписка активна' : 'Подписка'} />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {s.plus && (
+        {s.plus && s.status && (
           <div className="host-card" style={{ padding: 16, borderLeft: '3px solid var(--success)' }}>
             <div className="host-edge">Статус</div>
             <div style={{ fontWeight: 600, marginTop: 4 }}>

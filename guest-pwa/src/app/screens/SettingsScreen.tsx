@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
+import { EventEdit } from '../components/EventEdit'
 import { PayButtons } from '../components/PayBlock'
 import { Row } from '../components/Row'
 import { formatDate, formatDateTime, guestLink, rubles } from '../format'
@@ -121,7 +122,9 @@ export default function SettingsScreen() {
       <TopBar back={`/app/events/${id}`} title="Настройки" kicker={e.title} />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
         <Section title="Событие">
-          <Row icon={icons.settings} label="Название" hint={e.title} onClick={() => { setTitle(e.title); setRenameOpen(true) }} />
+          {solo
+            ? <Row icon={icons.settings} label="Название" hint={e.title} onClick={() => { setTitle(e.title); setRenameOpen(true) }} />
+            : <EventEdit e={e} />}
         </Section>
 
         {solo && (

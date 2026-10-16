@@ -257,6 +257,7 @@ export default function EventScreen() {
             : s.reveal_at ? `Альбом откроется ${formatDateTime(s.reveal_at)}. Можно открыть сразу.` : 'Альбом пока закрыт для просмотра.'}
         </p>
         <button className="btn" disabled={reveal.isPending} onClick={() => reveal.mutate()} style={{ marginBottom: 10 }}>Открыть сейчас</button>
+        {e.status === 'active' && <button className="btn-ghost" onClick={() => navigate(`/app/events/${id}/settings`)} style={{ marginBottom: 10 }}>Назначить время проявки</button>}
         <button className="btn-ghost" onClick={() => setRevealSheet(false)}>Отмена</button>
       </Sheet>
       <Sheet open={deleteSheet} onClose={() => setDeleteSheet(false)} title="Удалить событие?">

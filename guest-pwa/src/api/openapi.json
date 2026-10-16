@@ -1346,6 +1346,59 @@
         }
       }
     },
+    "/api/v1/events/{event_id}/guests": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Event Guests",
+        "description": "Гости события и их кадры: экран «Ход съёмки» организатора.",
+        "operationId": "events_list_event_guests",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GuestProgressOut"
+                  },
+                  "title": "Response Events List Event Guests"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events/{event_id}/join-stats": {
       "get": {
         "tags": [
@@ -5154,6 +5207,11 @@
             "type": "boolean",
             "title": "Pin Enabled",
             "default": false
+          },
+          "settings_locked": {
+            "type": "boolean",
+            "title": "Settings Locked",
+            "default": false
           }
         },
         "type": "object",
@@ -6269,6 +6327,58 @@
         "title": "GuestProfileUpdateIn",
         "description": "Обновление публичного профиля гостя: имя, аватар, био.\nВсе поля опциональные — можно менять по одному."
       },
+      "GuestProgressOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "frames_count": {
+            "type": "integer",
+            "title": "Frames Count"
+          },
+          "frames_per_guest": {
+            "type": "integer",
+            "title": "Frames Per Guest"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Joined At"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "frames_count",
+          "frames_per_guest",
+          "joined_at"
+        ],
+        "title": "GuestProgressOut",
+        "description": "Гость события и сколько кадров он уже снял (для экрана «Ход съёмки»)."
+      },
       "GuestSessionOut": {
         "properties": {
           "guest_id": {
@@ -6316,6 +6426,11 @@
           "frames_remaining": {
             "type": "integer",
             "title": "Frames Remaining"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "title": "Is Owner",
+            "default": false
           }
         },
         "type": "object",

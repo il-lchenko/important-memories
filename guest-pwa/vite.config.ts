@@ -11,6 +11,10 @@ const httpsConfig =
     ? { key: fs.readFileSync('./dev-key.pem'), cert: fs.readFileSync('./dev-cert.pem') }
     : undefined
 
+// Куда проксировать /api: по умолчанию фиктивный сервер dev-mock (8002); для проверки на
+// настоящем бэкенде задайте VITE_API_TARGET (например, через SSH-туннель к тестовому контуру).
+const API_TARGET = process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8002'
+
 export default defineConfig({
   plugins: [
     react(),
@@ -92,11 +96,11 @@ export default defineConfig({
     proxy: {
       // Раздел организатора ходит сразу в /api/v1 (как Flutter-приложение).
       '/api/v1': {
-        target: 'http://127.0.0.1:8002',
+        target: API_TARGET,
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://127.0.0.1:8002',
+        target: API_TARGET,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
       },

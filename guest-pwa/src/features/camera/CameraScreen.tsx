@@ -511,10 +511,10 @@ export default function CameraScreen() {
   const galleryInputRef = useRef<HTMLInputElement | null>(null)
   const [batch, setBatch] = useState<{ total: number; done: number; failed: number } | null>(null)
   // Читаем uploads_enabled из event settings (обновляется при getSession).
-  const uploadsEnabled = useMemo(() => {
+  const [uploadsEnabled, setUploadsEnabled] = useState<boolean>(() => {
     const meta = getEventMeta() as { settings?: { uploads_enabled?: boolean } }
     return meta?.settings?.uploads_enabled === true
-  }, [])
+  })
   const [flashOn, setFlashOn] = useState(false)
   const [screenFlashing, setScreenFlashing] = useState(false)
   const [recentShots, setRecentShots] = useState<RecentShot[]>(() => loadRecentShots(shortCode))
@@ -542,6 +542,9 @@ export default function CameraScreen() {
         setFramesLeft(data.frames_remaining)
         setFramesTotal(data.event.settings.frames_per_guest)
         const ev = data.event
+        // Хост мог включить или выключить загрузку из галереи уже после входа гостя.
+        setUploadsEnabled(ev.settings?.uploads_enabled === true)
+        try { sessionStorage.setItem('event', JSON.stringify(ev)) } catch { /* ignore */ }
         const now = Date.now()
         const revealAtStr = ev.settings?.reveal_at ?? null
         const revealPassed = revealAtStr ? new Date(revealAtStr).getTime() <= now : false
