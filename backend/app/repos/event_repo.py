@@ -46,10 +46,14 @@ async def list_for_user(session: AsyncSession, user_id: UUID) -> list[Event]:
     return list((await session.execute(stmt)).scalars().all())
 
 
-async def count_guests(session: AsyncSession, event_id: UUID) -> int:
-    from sqlalchemy import func
+async def count_guests(session: AsyncSession, event_id: UUID, exclude_user_id: UUID | None = None) -> int:
+    """Сколько гостей вошло в событие. exclude_user_id: не считать самого владельца (его вход для съёмки
+    в собственном альбоме не должен блокировать настройки)."""
+    from sqlalchemy import func, or_
 
     from app.domain.models import Guest
 
     stmt = select(func.count(Guest.id)).where(Guest.event_id == event_id)
+    if exclude_user_id is not None:
+        stmt = stmt.where(or_(Guest.user_id.is_(None), Guest.user_id != exclude_user_id))
     return int((await session.execute(stmt)).scalar_one())

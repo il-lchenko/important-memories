@@ -69,6 +69,8 @@ class EventOut(BaseModel):
     frames_count: int = 0
     # Флаг «PIN включён». Само значение PIN — только через GET /events/{id}/pin.
     pin_enabled: bool = False
+    # Плёнку и число кадров нельзя менять после входа первого гостя (кроме самого владельца).
+    settings_locked: bool = False
 
 
 class EventCreateIn(BaseModel):

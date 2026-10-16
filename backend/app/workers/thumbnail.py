@@ -306,6 +306,9 @@ async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> N
                         s3_client.upload_bytes(new_key, filtered_bytes, "image/jpeg")
                     # Работаем дальше с filtered для thumb/preview.
                     raw = filtered
+                    # Размеры и вес в БД должны описывать сохранённый файл, а не загруженный.
+                    frame.width, frame.height = filtered.size
+                    frame.size_bytes = len(filtered_bytes)
 
                 # Плёночный фильтр применяет КЛИЕНТ (Flutter guest-camera / PWA useCamera)
                 # ДО загрузки на S3. Повторно применять здесь нельзя — это удваивает

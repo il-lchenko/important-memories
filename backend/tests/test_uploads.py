@@ -322,6 +322,7 @@ async def test_owner_can_upload_from_gallery_even_when_disabled_and_not_rate_lim
     event = await _create_and_activate(client, token, uploads_enabled=False)
     session = await _owner_session(client, token, event)
     assert session["event"]["settings"]["uploads_enabled"] is True
+    assert session["is_owner"] is True
     headers = {"X-Guest-Token": session["guest_token"]}
     for i in range(3):
         resp = await client.post(
@@ -345,3 +346,26 @@ async def test_owner_can_upload_to_completed_album(client: AsyncClient) -> None:
         headers={"X-Guest-Token": session["guest_token"]},
     )
     assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.asyncio
+async def test_guest_session_reports_uploads_enabled_flag(client: AsyncClient) -> None:
+    """Регрессия: сервер не отдавал uploads_enabled в сессии гостя, и кнопка «из галереи» не появлялась."""
+    token = await authenticate(client)
+    event = await _create_and_activate(client, token, uploads_enabled=True)
+    join = await client.post(
+        "/api/v1/guest/sessions",
+        json={"short_code": event["short_code"], "name": "Гость", "fingerprint": "aabbccdd"},
+    )
+    assert join.status_code == 201, join.text
+    assert join.json()["event"]["settings"]["uploads_enabled"] is True
+
+    me = await client.get("/api/v1/guest/sessions/me", headers={"X-Guest-Token": join.json()["guest_token"]})
+    assert me.json()["event"]["settings"]["uploads_enabled"] is True
+
+    off = await client.patch(
+        f"/api/v1/events/{event['id']}/settings", json={"uploads_enabled": False}, headers=auth_headers(token)
+    )
+    assert off.status_code == 200
+    me2 = await client.get("/api/v1/guest/sessions/me", headers={"X-Guest-Token": join.json()["guest_token"]})
+    assert me2.json()["event"]["settings"]["uploads_enabled"] is False

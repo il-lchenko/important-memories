@@ -27,6 +27,7 @@ from app.domain.schemas.events import (
     EventUpdateIn,
     SoloCreateIn,
 )
+from app.domain.schemas.guests import GuestProgressOut
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, user_repo
 from app.services import entitlement_service
@@ -177,9 +178,27 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
     )
 
 
+_BASE_FRAMES = 30
+
+
+async def _ensure_frames_allowed(session: AsyncSession, user_id: UUID, frames: int | None, current: int = 0) -> None:
+    """Больше 30 кадров на гостя даёт только платное повышение (45): напрямую выставить нельзя.
+    Админ может всё; уже оплаченное значение остаётся допустимым."""
+    if frames is None or frames <= _BASE_FRAMES or frames == current:
+        return
+    user = await user_repo.get_by_id(session, user_id)
+    if user is not None and entitlement_service.has_payment_bypass(user):
+        return
+    raise ConflictError(
+        "Больше 30 кадров на гостя добавляется платным повышением в настройках альбома",
+        details={"reason": "frames_over_base", "base": _BASE_FRAMES},
+    )
+
+
 async def create_event(
     session: AsyncSession, user_id: UUID, payload: EventCreateIn
 ) -> EventOut:
+    await _ensure_frames_allowed(session, user_id, payload.frames_per_guest)
     await rate_limiter.check_and_incr(
         f"events:create:user:{user_id}", limit=5, window_sec=3600
     )
@@ -298,6 +317,35 @@ async def list_events(session: AsyncSession, user_id: UUID) -> list[EventOut]:
     return [_to_out(e, guests_map.get(e.id, 0), frames_map.get(e.id, 0)) for e in events]
 
 
+async def list_guest_progress(session: AsyncSession, user_id: UUID, event_id: UUID) -> list[GuestProgressOut]:
+    """Гости события с числом загруженных кадров: для «Хода съёмки» хоста."""
+    from sqlalchemy import func, select
+    from app.domain.models import Frame, FrameStatus, Guest
+
+    event = await _load_owned(session, event_id, user_id)
+    rows = (
+        await session.execute(
+            select(Guest, func.count(Frame.id))
+            .outerjoin(Frame, (Frame.guest_id == Guest.id) & (Frame.status == FrameStatus.UPLOADED))
+            .where(Guest.event_id == event_id)
+            .group_by(Guest.id)
+            .order_by(func.count(Frame.id).desc(), Guest.joined_at)
+        )
+    ).all()
+    per_guest = event.settings.frames_per_guest
+    out: list[GuestProgressOut] = []
+    for guest, count in rows:
+        avatar = s3_client.presign_get(guest.avatar_key, expires_in=86400) if guest.avatar_key else None
+        out.append(
+            GuestProgressOut(
+                id=guest.id, name=guest.name, avatar_url=avatar, frames_count=int(count),
+                frames_per_guest=per_guest, joined_at=guest.joined_at,
+                is_owner=guest.user_id is not None and guest.user_id == event.user_id,
+            )
+        )
+    return out
+
+
 async def get_event(session: AsyncSession, user_id: UUID, event_id: UUID) -> EventOut:
     from sqlalchemy import func, select
     from app.domain.models import Frame, FrameStatus
@@ -314,7 +362,9 @@ async def get_event(session: AsyncSession, user_id: UUID, event_id: UUID) -> Eve
         select(func.count(Frame.id))
         .where(Frame.event_id == event_id, Frame.status == FrameStatus.UPLOADED)
     )).scalar_one()
-    return _to_out(event, int(g), int(f))
+    out = _to_out(event, int(g), int(f))
+    out.settings_locked = await event_repo.count_guests(session, event_id, exclude_user_id=event.user_id) > 0
+    return out
 
 
 async def update_settings(
@@ -324,12 +374,13 @@ async def update_settings(
     payload: EventSettingsUpdateIn,
 ) -> EventOut:
     event = await _load_owned(session, event_id, user_id)
+    await _ensure_frames_allowed(session, user_id, payload.frames_per_guest, event.settings.frames_per_guest)
     if payload.plan is not None and event.status != EventStatus.DRAFT:
         raise ConflictError(
             "Тариф меняется только через оплату",
             details={"status": event.status.value},
         )
-    guests_count = await event_repo.count_guests(session, event_id)
+    guests_count = await event_repo.count_guests(session, event_id, exclude_user_id=event.user_id)
     if guests_count > 0 and any([
         payload.frames_per_guest is not None,
         payload.plan is not None,

@@ -74,14 +74,14 @@ async def test_update_settings_changes_plan_and_limits(client: AsyncClient) -> N
     event_id = create.json()["id"]
     resp = await client.patch(
         f"/api/v1/events/{event_id}/settings",
-        json={"plan": "p50", "frames_per_guest": 36, "lut_preset": "fuji400h"},
+        json={"plan": "p50", "frames_per_guest": 24, "lut_preset": "fuji400h"},
         headers=auth_headers(token),
     )
     assert resp.status_code == 200, resp.text
     settings = resp.json()["settings"]
     assert settings["plan"] == "p50"
     assert settings["max_guests"] == 50
-    assert settings["frames_per_guest"] == 36
+    assert settings["frames_per_guest"] == 24
     assert settings["lut_preset"] == "fuji400h"
 
 
@@ -150,3 +150,68 @@ async def test_qr_endpoint_returns_png(client: AsyncClient) -> None:
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "image/png"
     assert resp.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+@pytest.mark.asyncio
+async def test_frames_over_base_require_payment(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    payload = future_event_payload()
+    payload["frames_per_guest"] = 60
+    blocked = await client.post("/api/v1/events/", json=payload, headers=auth_headers(token))
+    assert blocked.status_code == 409, blocked.text
+    assert "frames_over_base" in blocked.text
+
+    payload["frames_per_guest"] = 30
+    ok = await client.post("/api/v1/events/", json=payload, headers=auth_headers(token))
+    assert ok.status_code == 201, ok.text
+    event_id = ok.json()["id"]
+    over = await client.patch(f"/api/v1/events/{event_id}/settings", json={"frames_per_guest": 45}, headers=auth_headers(token))
+    assert over.status_code == 409
+    same = await client.patch(f"/api/v1/events/{event_id}/settings", json={"frames_per_guest": 24}, headers=auth_headers(token))
+    assert same.status_code == 200, same.text
+
+
+@pytest.mark.asyncio
+async def test_host_sees_guests_with_frame_counts(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    created = await client.post("/api/v1/events/", json=future_event_payload("G"), headers=auth_headers(token))
+    event = created.json()
+    await client.post(f"/api/v1/events/{event['id']}/activate", headers=auth_headers(token))
+    code = (await client.get(f"/api/v1/events/{event['id']}", headers=auth_headers(token))).json()["short_code"]
+    join = await client.post(
+        "/api/v1/guest/sessions", json={"short_code": code, "name": "Аня", "fingerprint": "a1b2c3d4"}
+    )
+    assert join.status_code == 201, join.text
+    guests = await client.get(f"/api/v1/events/{event['id']}/guests", headers=auth_headers(token))
+    assert guests.status_code == 200, guests.text
+    body = guests.json()
+    assert len(body) == 1 and body[0]["name"] == "Аня" and body[0]["frames_count"] == 0
+    stranger = await authenticate(client, "other@example.com")
+    forbidden = await client.get(f"/api/v1/events/{event['id']}/guests", headers=auth_headers(stranger))
+    assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_owner_own_session_does_not_lock_settings_but_guest_does(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    created = await client.post("/api/v1/events/", json=future_event_payload("L"), headers=auth_headers(token))
+    event = created.json()
+    await client.post(f"/api/v1/events/{event['id']}/activate", headers=auth_headers(token))
+    code = (await client.get(f"/api/v1/events/{event['id']}", headers=auth_headers(token))).json()["short_code"]
+
+    owner = await client.post(
+        "/api/v1/guest/sessions", json={"short_code": code, "name": "Я", "fingerprint": "0a0a0a0a"},
+        headers=auth_headers(token),
+    )
+    assert owner.status_code == 201, owner.text
+    detail = (await client.get(f"/api/v1/events/{event['id']}", headers=auth_headers(token))).json()
+    assert detail["settings_locked"] is False
+    ok = await client.patch(f"/api/v1/events/{event['id']}/settings", json={"lut_preset": "fuji400h"}, headers=auth_headers(token))
+    assert ok.status_code == 200, ok.text
+
+    guest = await client.post("/api/v1/guest/sessions", json={"short_code": code, "name": "Аня", "fingerprint": "1b1b1b1b"})
+    assert guest.status_code == 201, guest.text
+    detail2 = (await client.get(f"/api/v1/events/{event['id']}", headers=auth_headers(token))).json()
+    assert detail2["settings_locked"] is True
+    blocked = await client.patch(f"/api/v1/events/{event['id']}/settings", json={"lut_preset": "ilford"}, headers=auth_headers(token))
+    assert blocked.status_code == 409

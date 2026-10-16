@@ -228,6 +228,8 @@ class GuestSessionOut(BaseModel):
     event: GuestEventOut
     frames_used: int
     frames_remaining: int
+    # Сессия владельца события: ему доступна загрузка из галереи в любой момент.
+    is_owner: bool = False
 
 
 class InvitePreviewOut(BaseModel):
@@ -239,3 +241,14 @@ class InvitePreviewOut(BaseModel):
     used: bool
     expired: bool
     event_closed: bool
+
+
+class GuestProgressOut(BaseModel):
+    """Гость события и сколько кадров он уже снял (для экрана «Ход съёмки»)."""
+    id: UUID
+    name: str
+    avatar_url: str | None = None
+    frames_count: int
+    frames_per_guest: int
+    joined_at: datetime
+    is_owner: bool = False

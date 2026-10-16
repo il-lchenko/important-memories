@@ -22,6 +22,7 @@ from app.domain.schemas.events import (
 from app.domain.schemas.frames import FrameRotationIn
 from app.domain.schemas.guests import (
     EventPinOut,
+    GuestProgressOut,
     EventPinUpdateIn,
     InviteCreateIn,
     InviteTokenOut,
@@ -303,6 +304,16 @@ async def delete_invite(
         invite_id=invite_id,
     )
     return Response(status_code=204)
+
+
+@router.get("/{event_id}/guests", response_model=list[GuestProgressOut])
+async def list_event_guests(
+    event_id: UUID,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> list[GuestProgressOut]:
+    """Гости события и их кадры: экран «Ход съёмки» организатора."""
+    return await event_service.list_guest_progress(session, user_id, event_id)
 
 
 # ── Join attempt stats ───────────────────────────────────────────────────────

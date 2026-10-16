@@ -241,6 +241,7 @@ def _build_session_out(guest: Guest, frames_used: int, event: Event | None = Non
         ),
         frames_used=frames_used,
         frames_remaining=remaining,
+        is_owner=is_owner,
     )
 
 
