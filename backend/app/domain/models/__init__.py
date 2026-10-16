@@ -1,4 +1,5 @@
 from app.domain.models.enums import (
+    EventKind,
     EventStatus,
     EventType,
     FrameSource,
@@ -15,9 +16,12 @@ from app.domain.models.enums import (
     ReportCategory,
     ReportStatus,
     RevealMode,
+    SubscriptionStatus,
 )
 from app.domain.models.models import (
     AuditLog,
+    Collection,
+    CollectionItem,
     DeviceToken,
     EmailCode,
     Event,
@@ -30,14 +34,18 @@ from app.domain.models.models import (
     Promocode,
     PromocodeRedemption,
     Report,
+    Subscription,
     User,
 )
 
 __all__ = [
     "AuditLog",
+    "Collection",
+    "CollectionItem",
     "DeviceToken",
     "EmailCode",
     "Event",
+    "EventKind",
     "EventSettings",
     "EventStatus",
     "EventType",
@@ -63,5 +71,7 @@ __all__ = [
     "ReportCategory",
     "ReportStatus",
     "RevealMode",
+    "Subscription",
+    "SubscriptionStatus",
     "User",
 ]

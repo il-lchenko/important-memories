@@ -15,7 +15,8 @@ from app.core.errors import (
     RateLimitError,
 )
 from app.core.logging import logger
-from app.domain.models import Event, EventStatus, Guest, JoinAttemptOutcome
+from app.domain.models import Event, EventKind, EventStatus, Guest, JoinAttemptOutcome, User
+from app.services import entitlement_service
 from app.services.event_lifecycle import completion_due
 from app.domain.schemas.events import EventSettingsOut
 from app.domain.schemas.guests import GuestEventOut, GuestSessionOut
@@ -186,6 +187,21 @@ async def _check_album_cap(
 _AVATAR_URL_TTL = 86400  # 24h — как для album URLs
 
 
+async def _with_solo_quota(session: AsyncSession, out: GuestSessionOut, event: Event) -> GuestSessionOut:
+    """В соло счётчик кадров общий на пользователя: месячная квота и место в хранилище."""
+    if event.kind != EventKind.SOLO.value:
+        return out
+    owner = await session.get(User, event.user_id)
+    if owner is None:
+        return out
+    limits = await entitlement_service.solo_limits(session, owner)
+    left = await entitlement_service.solo_frames_left(session, owner)
+    out.frames_remaining = left
+    out.frames_used = max(0, limits.frames_per_month - left)
+    out.event.settings.frames_per_guest = limits.frames_per_month
+    return out
+
+
 def _build_session_out(guest: Guest, frames_used: int, event: Event | None = None) -> GuestSessionOut:
     if event is None:
         event = guest.event
@@ -262,6 +278,9 @@ async def join(
         raise
 
     event = await event_repo.get_by_short_code(session, short_code)
+    # Соло-альбом виден только владельцу: чужому код «не находится».
+    if event is not None and event.kind == EventKind.SOLO.value and actor_user_id != event.user_id:
+        event = None
     if event is None:
         try:
             await _register_bad_code(client_ip, fp_hash)
@@ -361,7 +380,7 @@ async def join(
                 outcome=JoinAttemptOutcome.OK,
             )
             await _delay()
-            return _build_session_out(existing, frames_used)
+            return await _with_solo_quota(session, _build_session_out(existing, frames_used), event)
 
     # 2. Анонимный (или авторизованный без существующего guest) — fallback на fingerprint
     existing = await guest_repo.get_by_event_and_fingerprint(session, event.id, fingerprint)
@@ -376,7 +395,7 @@ async def join(
             outcome=JoinAttemptOutcome.OK,
         )
         await _delay()
-        return _build_session_out(existing, frames_used)
+        return await _with_solo_quota(session, _build_session_out(existing, frames_used), event)
 
     # 3. Проверяем cap «3 новых альбома / 24ч» перед созданием нового гостя.
     # Invite-bypass и хост события не считаются.
@@ -430,7 +449,7 @@ async def join(
         await _consent_repo.link_fingerprint_to_guest(session, fp_hash, guest.id)
 
     # Build result before commit while event/settings are still loaded in session
-    result = _build_session_out(guest, frames_used=0, event=event)
+    result = await _with_solo_quota(session, _build_session_out(guest, frames_used=0, event=event), event)
 
     await session.commit()
 
@@ -463,7 +482,7 @@ async def get_session_state(session: AsyncSession, guest_token: str) -> GuestSes
     # Self-healing: если end_at прошёл — закроем event тут же, чтобы клиент увидел completed.
     await auto_complete_if_expired(session, guest.event)
     frames_used = await frame_repo.count_uploaded_for_guest(session, guest.id)
-    return _build_session_out(guest, frames_used)
+    return await _with_solo_quota(session, _build_session_out(guest, frames_used), guest.event)
 
 
 async def update_guest_name(
@@ -480,7 +499,7 @@ async def update_guest_name(
     guest.name = final_name
     await session.commit()
     frames_used = await frame_repo.count_uploaded_for_guest(session, guest.id)
-    return _build_session_out(guest, frames_used)
+    return await _with_solo_quota(session, _build_session_out(guest, frames_used), guest.event)
 
 
 def _avatar_ext_for_ct(content_type: str) -> str:
@@ -539,7 +558,7 @@ async def update_guest_profile(
         guest.bio = bio[:160] or None
     await session.commit()
     frames_used = await frame_repo.count_uploaded_for_guest(session, guest.id)
-    return _build_session_out(guest, frames_used)
+    return await _with_solo_quota(session, _build_session_out(guest, frames_used), guest.event)
 
 
 async def anonymize_guest(session: AsyncSession, guest_id: UUID) -> dict:

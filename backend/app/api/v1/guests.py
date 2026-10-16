@@ -44,7 +44,7 @@ async def get_event_preview(
 ) -> EventPreviewOut:
     ip = client_ip(request)
     event = await event_repo.get_by_short_code(session, short_code)
-    if event is None or event.status == EventStatus.CANCELLED:
+    if event is None or event.status == EventStatus.CANCELLED or event.kind == "solo":
         # Same anti-bruteforce path as POST /sessions — считаем bad_code.
         try:
             await guest_service._register_bad_code(ip, None)

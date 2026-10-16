@@ -11,6 +11,7 @@ from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.short_code import generate as generate_short_code
 from app.domain.models import (
     Event,
+    EventKind,
     EventSettings,
     EventStatus,
     LutPreset,
@@ -24,6 +25,7 @@ from app.domain.schemas.events import (
     EventSettingsOut,
     EventSettingsUpdateIn,
     EventUpdateIn,
+    SoloCreateIn,
 )
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, user_repo
@@ -146,6 +148,7 @@ def _to_out(event: Event, guests_count: int = 0, frames_count: int = 0) -> Event
     return EventOut(
         id=event.id,
         short_code=event.short_code,
+        kind=event.kind,
         title=event.title,
         start_at=event.start_at,
         end_at=event.end_at,
@@ -209,6 +212,44 @@ async def create_event(
         plan=payload.plan,
         photo_format=payload.photo_format,
         uploads_enabled=payload.uploads_enabled,
+    )
+    await event_repo.create(session, event)
+    await session.commit()
+    return _to_out(event)
+
+
+async def create_solo(
+    session: AsyncSession, user_id: UUID, payload: SoloCreateIn
+) -> EventOut:
+    """Соло-альбом: сразу активен, без гостей, QR и проявки. Снимает владелец через
+    свою гостевую сессию; кадры считаются в месячной квоте пользователя."""
+    await rate_limiter.check_and_incr(
+        f"solo:create:user:{user_id}", limit=20, window_sec=3600
+    )
+    user = await user_repo.get_by_id(session, user_id)
+    if user is None:
+        raise NotFoundError("User not found")
+    limits = await entitlement_service.solo_limits(session, user)
+    now = datetime.now(timezone.utc)
+    event = Event(
+        user_id=user_id,
+        short_code=await _allocate_short_code(session),
+        kind=EventKind.SOLO.value,
+        title=payload.title,
+        start_at=now,
+        end_at=now + timedelta(days=3650),
+        expires_at=now + timedelta(days=limits.retention_days),
+        event_type=payload.event_type,
+        status=EventStatus.ACTIVE,
+    )
+    event.settings = EventSettings(
+        max_guests=1,
+        frames_per_guest=limits.frames_per_month,
+        reveal_mode=RevealMode.INSTANT,
+        lut_preset=payload.lut_preset or LutPreset.PORTRA400,
+        plan=Plan.FREE,
+        photo_format=PhotoFormat.PORTRAIT_34,
+        uploads_enabled=True,
     )
     await event_repo.create(session, event)
     await session.commit()
@@ -321,7 +362,14 @@ async def update_settings(
     # быстро отключить фичу при абьюзе, даже после присоединения гостей.
     if payload.uploads_enabled is not None:
         s.uploads_enabled = payload.uploads_enabled
-    # Оформление тоже не блокируется: QR и шрифт меняются в любой момент.
+    # Оформление не блокируется по времени, но дополнительные стили доступны с «Плюс».
+    if payload.qr_style is not None or payload.title_font is not None:
+        owner = await user_repo.get_by_id(session, user_id)
+        await entitlement_service.ensure_can_style(
+            session, owner,
+            qr_style=payload.qr_style, title_font=payload.title_font,
+            current_qr=s.qr_style, current_font=s.title_font,
+        )
     if payload.qr_style is not None:
         s.qr_style = payload.qr_style
     if payload.title_font is not None:

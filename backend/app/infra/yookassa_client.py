@@ -20,6 +20,9 @@ class YookassaPaymentInfo:
     status: str
     amount_kopecks: int
     refunded_kopecks: int
+    # Способ оплаты: id и сохранён ли он для автосписаний (подписка).
+    payment_method_id: str | None = None
+    payment_method_saved: bool = False
 
 
 def _is_configured() -> bool:
@@ -45,11 +48,14 @@ def _fetch_real_sync(yookassa_id: str) -> YookassaPaymentInfo:
     Configuration.account_id = settings.YOOKASSA_SHOP_ID
     Configuration.secret_key = settings.YOOKASSA_SECRET.get_secret_value()
     payment = Payment.find_one(yookassa_id)
+    method = getattr(payment, "payment_method", None)
     return YookassaPaymentInfo(
         id=payment.id,
         status=payment.status,
         amount_kopecks=_to_kopecks(payment.amount),
         refunded_kopecks=_to_kopecks(getattr(payment, "refunded_amount", None)),
+        payment_method_id=getattr(method, "id", None),
+        payment_method_saved=bool(getattr(method, "saved", False)),
     )
 
 
@@ -178,4 +184,130 @@ async def create_payment(
         )
     except asyncio.TimeoutError as exc:
         logger.error("yookassa_timeout", event_id=str(event_id), plan=plan)
+        raise ExternalServiceError("YooKassa timeout") from exc
+
+
+# ── Подписка: первый платёж с сохранением способа оплаты и автосписания ───────
+
+def _receipt(description: str, amount_kopecks: int, user_email: str) -> dict:
+    return {
+        "customer": {"email": user_email},
+        "items": [
+            {
+                "description": description,
+                "quantity": "1.00",
+                "amount": {"value": f"{amount_kopecks / 100:.2f}", "currency": "RUB"},
+                "vat_code": 1,
+                "payment_subject": "service",
+                "payment_mode": "full_payment",
+            }
+        ],
+    }
+
+
+def _subscription_first_sync(
+    amount_kopecks: int, idempotency_key: str, return_url: str, description: str,
+    metadata: dict, user_email: str, payment_method: str | None,
+) -> YookassaPayment:
+    from yookassa import Configuration, Payment
+
+    Configuration.account_id = settings.YOOKASSA_SHOP_ID
+    Configuration.secret_key = settings.YOOKASSA_SECRET.get_secret_value()
+    body: dict = {
+        "amount": {"value": f"{amount_kopecks / 100:.2f}", "currency": "RUB"},
+        "capture": True,
+        "save_payment_method": True,
+        "confirmation": {"type": "redirect", "return_url": return_url},
+        "description": description,
+        "metadata": metadata,
+        "receipt": _receipt(description, amount_kopecks, user_email),
+    }
+    if payment_method and payment_method in _ALLOWED_METHODS:
+        body["payment_method_data"] = {"type": payment_method}
+    try:
+        payment = Payment.create(body, idempotency_key)
+    except Exception as exc:
+        logger.error("yookassa_subscription_create_failed", error=str(exc))
+        raise ExternalServiceError("YooKassa create failed") from exc
+    return YookassaPayment(
+        id=payment.id, confirmation_url=payment.confirmation.confirmation_url, status=payment.status
+    )
+
+
+async def create_subscription_payment(
+    *,
+    user_id: UUID,
+    period: str,
+    amount_kopecks: int,
+    idempotency_key: str,
+    user_email: str,
+    payment_method: str | None = None,
+) -> YookassaPayment:
+    return_url = f"{settings.PUBLIC_PWA_BASE_URL}/payment/return?kind=subscription"
+    description = "Подписка ImpoMento Плюс" + (" на год" if period == "year" else " на месяц")
+    metadata = {"kind": "subscription", "period": period, "user_id": str(user_id)}
+    if not _is_configured():
+        logger.warning("yookassa_mock_mode", user_id=str(user_id), kind="subscription")
+        return _create_mock(amount_kopecks, idempotency_key)
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                _subscription_first_sync, amount_kopecks, idempotency_key, return_url,
+                description, metadata, user_email, payment_method,
+            ),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError as exc:
+        logger.error("yookassa_timeout", user_id=str(user_id), kind="subscription")
+        raise ExternalServiceError("YooKassa timeout") from exc
+
+
+def _charge_saved_sync(
+    amount_kopecks: int, idempotency_key: str, description: str, metadata: dict,
+    user_email: str, payment_method_id: str,
+) -> YookassaPayment:
+    from yookassa import Configuration, Payment
+
+    Configuration.account_id = settings.YOOKASSA_SHOP_ID
+    Configuration.secret_key = settings.YOOKASSA_SECRET.get_secret_value()
+    body = {
+        "amount": {"value": f"{amount_kopecks / 100:.2f}", "currency": "RUB"},
+        "capture": True,
+        "payment_method_id": payment_method_id,
+        "description": description,
+        "metadata": metadata,
+        "receipt": _receipt(description, amount_kopecks, user_email),
+    }
+    try:
+        payment = Payment.create(body, idempotency_key)
+    except Exception as exc:
+        logger.error("yookassa_charge_saved_failed", error=str(exc))
+        raise ExternalServiceError("YooKassa charge failed") from exc
+    return YookassaPayment(id=payment.id, confirmation_url="", status=payment.status)
+
+
+async def charge_saved_method(
+    *,
+    user_id: UUID,
+    period: str,
+    amount_kopecks: int,
+    idempotency_key: str,
+    user_email: str,
+    payment_method_id: str,
+) -> YookassaPayment:
+    """Автосписание очередного периода подписки по сохранённому способу оплаты."""
+    description = "Подписка ImpoMento Плюс" + (" на год" if period == "year" else " на месяц")
+    metadata = {"kind": "subscription", "period": period, "user_id": str(user_id), "renewal": "1"}
+    if not _is_configured():
+        return YookassaPayment(id=f"mock_{uuid4().hex[:24]}", confirmation_url="", status="pending")
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(
+                _charge_saved_sync, amount_kopecks, idempotency_key, description, metadata,
+                user_email, payment_method_id,
+            ),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError as exc:
+        logger.error("yookassa_timeout", user_id=str(user_id), kind="subscription_renewal")
         raise ExternalServiceError("YooKassa timeout") from exc

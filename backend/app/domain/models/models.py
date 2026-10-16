@@ -31,6 +31,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 from app.domain.models.enums import (
+    EventKind,
     EventStatus,
     EventType,
     FrameSource,
@@ -47,6 +48,7 @@ from app.domain.models.enums import (
     ReportCategory,
     ReportStatus,
     RevealMode,
+    SubscriptionStatus,
 )
 
 
@@ -93,6 +95,10 @@ class Event(Base):
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     short_code: Mapped[str] = mapped_column(String(16), unique=True, nullable=False)
+    # Тип альбома: 'event' (с гостями) или 'solo' (личный альбом владельца).
+    kind: Mapped[str] = mapped_column(
+        String(8), nullable=False, default=EventKind.EVENT.value, server_default=EventKind.EVENT.value
+    )
     title: Mapped[str] = mapped_column(String(80), nullable=False)
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -281,8 +287,9 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[UUID] = _uuid_pk()
-    event_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=False
+    # NULL — платёж подписки (не привязан к событию).
+    event_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("events.id", ondelete="CASCADE"), nullable=True
     )
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -310,7 +317,7 @@ class Payment(Base):
         nullable=False,
     )
 
-    event: Mapped[Event] = relationship(back_populates="payments")
+    event: Mapped[Event | None] = relationship(back_populates="payments")
 
 
 class Promocode(Base):
@@ -546,3 +553,79 @@ class ConsentRecord(Base):
     # User-Agent, обрезанный до 200 символов.
     user_agent: Mapped[str | None] = mapped_column(String(200), nullable=True)
     accepted_at: Mapped[datetime] = _ts()
+
+
+class Collection(Base):
+    """Мини-альбом: подборка ссылок на кадры из разных альбомов. Файлы не копируются."""
+    __tablename__ = "collections"
+    __table_args__ = (Index("ix_collections_user", "user_id"),)
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    items: Mapped[list["CollectionItem"]] = relationship(
+        back_populates="collection", cascade="all, delete-orphan", order_by="CollectionItem.position"
+    )
+
+
+class CollectionItem(Base):
+    __tablename__ = "collection_items"
+    __table_args__ = (
+        UniqueConstraint("collection_id", "frame_id", name="uq_collection_items_collection_frame"),
+        Index("ix_collection_items_frame", "frame_id"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    collection_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("collections.id", ondelete="CASCADE"), nullable=False
+    )
+    # Кадр удалён (или альбом очищен) — запись подборки исчезает вместе с ним.
+    frame_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("frames.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    added_at: Mapped[datetime] = _ts()
+
+    collection: Mapped[Collection] = relationship(back_populates="items")
+
+
+class Subscription(Base):
+    """Подписка «Плюс». Одна запись на пользователя, статус и период обновляются платежами."""
+    __tablename__ = "subscriptions"
+    __table_args__ = (Index("ix_subscriptions_user", "user_id", unique=True),)
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=SubscriptionStatus.ACTIVE.value
+    )
+    # 'month' | 'year'
+    period: Mapped[str] = mapped_column(String(8), nullable=False, default="month")
+    # Сохранённый способ оплаты ЮKassa для автосписаний.
+    payment_method_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

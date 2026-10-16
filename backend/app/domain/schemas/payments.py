@@ -109,12 +109,22 @@ class PricingExtendOut(BaseModel):
     per_guest_kopecks: int = 0
 
 
+class PricingPlusOut(BaseModel):
+    """Подписка «Плюс»: цены и включена ли продажа."""
+    enabled: bool
+    month_kopecks: int
+    year_kopecks: int
+
+
 class PricingOut(BaseModel):
     currency: str = "RUB"
     tiers: list[PricingTierOut]
     custom: PricingCustomOut
     frames: PricingFramesOut
     extend: list[PricingExtendOut]
+    # Продление хранения соло-альбома (цена не зависит от числа гостей).
+    solo_extend: list[PricingExtendOut] = []
+    plus: PricingPlusOut | None = None
     upgrade_premium: float
     # Бесплатный тариф: сколько альбомов может жить одновременно и сколько
     # бесплатных активаций в месяц. None — без лимита.

@@ -13,6 +13,19 @@ class EventType(StrEnum):
     OTHER = "other"
 
 
+class EventKind(StrEnum):
+    """Тип альбома: событие с гостями или соло-альбом одного человека."""
+    EVENT = "event"
+    SOLO = "solo"
+
+
+class SubscriptionStatus(StrEnum):
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
 class EventStatus(StrEnum):
     DRAFT = "draft"
     ACTIVE = "active"

@@ -31,7 +31,8 @@ async def test_entitlements_default_unlimited(
     assert body["free_events_per_month"] is None
     assert body["free_events_left"] is None
     assert body["free_active_limit"] is None
-    assert body["features"] == {"solo_album": False, "mini_albums": False}
+    assert body["features"]["solo_album"] is True
+    assert body["features"]["mini_albums"] is True
 
 
 @pytest.mark.asyncio

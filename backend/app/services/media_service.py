@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError, RateLimitError
-from app.domain.models import EventStatus, Frame, FrameSource, FrameStatus, Guest
+from app.domain.models import EventKind, EventStatus, Frame, FrameSource, FrameStatus, Guest, User
 from app.domain.schemas.frames import (
     FramePresignOut,
     FrameRegisterOut,
@@ -16,6 +16,7 @@ from app.domain.schemas.frames import (
 )
 from app.infra import fcm_client, queue, rate_limiter, s3_client
 from app.repos import device_repo, event_repo, frame_repo
+from app.services import entitlement_service
 
 
 def _make_s3_key(event_id: UUID, frame_id: UUID, content_type: str) -> str:
@@ -150,11 +151,20 @@ async def presign_upload(
     await session.execute(
         select(Guest).where(Guest.id == guest.id).with_for_update()
     )
+    if guest.event.kind == EventKind.SOLO.value:
+        # Соло: квота общая на пользователя (кадры за месяц и место в хранилище),
+        # а не на гостя. Снимать может только владелец.
+        if not is_owner:
+            raise PermissionDeniedError("Соло-альбом доступен только владельцу")
+        owner = await session.get(User, guest.event.user_id)
+        if owner is None:
+            raise NotFoundError("User not found")
+        await entitlement_service.ensure_can_shoot_solo(session, owner)
     used = await frame_repo.count_uploaded_for_guest(session, guest.id)
     # Считаем и PENDING (ещё не uploaded, но уже зарезервированы presign'ом).
     pending = await frame_repo.count_pending_for_guest(session, guest.id)
     limit = guest.event.settings.frames_per_guest
-    if used + pending >= limit:
+    if guest.event.kind != EventKind.SOLO.value and used + pending >= limit:
         raise ConflictError(
             "Frame quota exceeded",
             details={"used": used, "pending": pending, "limit": limit},
@@ -253,10 +263,15 @@ async def register_frame(
             )
 
     limit = guest.event.settings.frames_per_guest
+    remaining = max(0, limit - used)
+    if guest.event.kind == EventKind.SOLO.value:
+        owner = await session.get(User, guest.event.user_id)
+        if owner is not None:
+            remaining = await entitlement_service.solo_frames_left(session, owner)
     return FrameRegisterOut(
         id=frame.id,
         status=frame.status.value,
-        frames_remaining=max(0, limit - used),
+        frames_remaining=remaining,
     )
 
 

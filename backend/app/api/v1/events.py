@@ -15,6 +15,7 @@ from app.domain.schemas.events import (
     EventSettingsUpdateIn,
     EventUpdateIn,
     PublicShareOut,
+    SoloCreateIn,
     UploadsWindowIn,
     UploadsWindowOut,
 )
@@ -50,6 +51,16 @@ async def create_event(
     session: SessionDep,
 ) -> EventOut:
     return await event_service.create_event(session, user_id, payload)
+
+
+@router.post("/solo", response_model=EventOut, status_code=201)
+async def create_solo(
+    payload: SoloCreateIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> EventOut:
+    """Личный соло-альбом: без гостей, QR и проявки; снимает владелец."""
+    return await event_service.create_solo(session, user_id, payload)
 
 
 @router.get("/", response_model=list[EventOut])

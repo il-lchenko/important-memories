@@ -18,6 +18,7 @@ from app.domain.schemas.payments import (
     PricingCustomOut,
     PricingExtendOut,
     PricingFramesOut,
+    PricingPlusOut,
     PricingOut,
     PricingTierOut,
     UpgradeKind,
@@ -25,7 +26,7 @@ from app.domain.schemas.payments import (
 )
 from app.infra import yookassa_client
 from app.repos import event_repo, payment_repo, user_repo
-from app.services import entitlement_service, promocode_service
+from app.services import entitlement_service, promocode_service, subscription_service
 
 PLAN_PRICES_KOPECKS: dict[Plan, int] = {
     # Business plan v3.2 pricing grid. All values in kopecks.
@@ -77,6 +78,14 @@ EXTEND_PER_GUEST_KOPECKS: dict[str, int] = {
     "3m": 1000,   # 10 ₽ за гостя
     "6m": 1700,   # 17 ₽ за гостя
     "1y": 3200,   # 32 ₽ за гостя
+}
+
+
+# Продление соло-альбома: фиксированные цены (до 150 кадров на альбом в месяц).
+SOLO_EXTEND_OPTIONS: dict[str, tuple[int, int]] = {
+    "3m": (90, 9900),     # 99 ₽
+    "6m": (180, 17900),   # 179 ₽
+    "1y": (365, 29900),   # 299 ₽
 }
 
 
@@ -151,6 +160,15 @@ def pricing_catalog() -> PricingOut:
             )
             for period, (days, minimum) in EXTEND_OPTIONS.items()
         ],
+        solo_extend=[
+            PricingExtendOut(period=period, days=days, price_kopecks=price)
+            for period, (days, price) in SOLO_EXTEND_OPTIONS.items()
+        ],
+        plus=PricingPlusOut(
+            enabled=settings.SUBSCRIPTION_ENABLED,
+            month_kopecks=settings.SUB_PRICE_MONTH_KOPECKS,
+            year_kopecks=settings.SUB_PRICE_YEAR_KOPECKS,
+        ),
         upgrade_premium=_UPGRADE_PREMIUM,
         free_active_events=settings.FREE_ACTIVE_EVENTS,
         free_events_per_month=settings.FREE_EVENTS_PER_MONTH,
@@ -373,7 +391,10 @@ async def create_extend_checkout(
     if period not in EXTEND_OPTIONS:
         raise ConflictError("Unknown extension period", details={"period": period})
     days_added = EXTEND_OPTIONS[period][0]
-    original_amount = extend_price_kopecks(period, event.settings.max_guests)
+    if event.kind == "solo":
+        original_amount = SOLO_EXTEND_OPTIONS[period][1]
+    else:
+        original_amount = extend_price_kopecks(period, event.settings.max_guests)
 
     existing = await payment_repo.get_by_idempotency_key(session, idempotency_key)
     if existing is not None:
@@ -535,6 +556,9 @@ async def create_upgrade_checkout(
             "Only active or completed events can be upgraded",
             details={"status": event.status.value},
         )
+
+    if event.kind == "solo":
+        raise ConflictError("Для соло-альбома доплата за гостей и кадры недоступна")
 
     meta: dict = {"kind": f"upgrade_{kind}"}
 
@@ -742,6 +766,15 @@ async def _resolve_webhook_status(
     return _YK_STATUS_MAP.get(yk_status, PaymentStatus.PENDING), yk_status
 
 
+async def _subscription_method_id(payment: Payment, obj: dict) -> str | None:
+    """Сохранённый способ оплаты для автосписаний. В боевом режиме берём из API ЮKassa."""
+    if yookassa_client.is_configured() and payment.yookassa_id:
+        info = await yookassa_client.fetch_payment(payment.yookassa_id)
+        return info.payment_method_id if info.payment_method_saved else None
+    method = obj.get("payment_method") or {}
+    return method.get("id") if method.get("saved") else None
+
+
 async def handle_webhook(session: AsyncSession, payload: dict) -> None:
     event_name = payload.get("event")
     obj = payload.get("object") or {}
@@ -784,8 +817,15 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
     payment.status = new_status
     payment.meta = {**payment.meta, "last_webhook_event": event_name, "yookassa_status": yk_status}
 
+    is_subscription = payment.meta.get("kind") == "subscription"
+
     if new_status == PaymentStatus.SUCCEEDED:
-        event = await event_repo.get_by_id(session, payment.event_id)
+        if is_subscription:
+            method_id = await _subscription_method_id(payment, obj)
+            await subscription_service.apply_succeeded_payment(session, payment, method_id)
+            event = None
+        else:
+            event = await event_repo.get_by_id(session, payment.event_id)
         if event is not None:
             kind = payment.meta.get("kind")
             if kind == "extend":
@@ -862,8 +902,11 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
 
         # Выдача реферальной награды при первом успешном платном платеже юзера.
         user = await user_repo.get_by_id(session, payment.user_id)
-        if user is not None:
+        if user is not None and not is_subscription:
             await _maybe_issue_referral_reward(session, user, payment)
+
+    elif new_status == PaymentStatus.CANCELLED and is_subscription:
+        await subscription_service.apply_failed_payment(session, payment)
 
     elif new_status == PaymentStatus.CANCELLED and payment.promocode_redemption_id is not None:
         redemption_id = payment.promocode_redemption_id
@@ -873,7 +916,11 @@ async def handle_webhook(session: AsyncSession, payload: dict) -> None:
 
     elif new_status == PaymentStatus.REFUNDED and prior_status == PaymentStatus.SUCCEEDED:
         # Возврат средств — откатываем эффект, который был применён при SUCCEEDED.
-        event = await event_repo.get_by_id(session, payment.event_id)
+        if is_subscription:
+            await subscription_service.apply_refund(session, payment)
+            event = None
+        else:
+            event = await event_repo.get_by_id(session, payment.event_id)
         if event is not None:
             kind = payment.meta.get("kind")
             if kind == "extend":

@@ -86,9 +86,25 @@ class Settings(BaseSettings):
     # владельцем и знакомыми до введения сроков хранения). Альбомы админов
     # не удаляются независимо от даты создания.
     PURGE_PROTECT_CREATED_BEFORE: str = "2026-10-16T16:16:00+00:00"
-    SUB_EVENTS_PER_MONTH: int | None = None
-    SUB_PRICE_KOPECKS: int | None = None
+    # Подписка «Плюс». Пока SUBSCRIPTION_ENABLED=false, платных ограничений по подписке нет:
+    # действуют бесплатные лимиты, а доп. оформление доступно всем.
     SUBSCRIPTION_ENABLED: bool = False
+    SUB_PRICE_MONTH_KOPECKS: int = 22900
+    SUB_PRICE_YEAR_KOPECKS: int = 219000
+    # События на 5 гостей по подписке.
+    PLUS_FREE_ACTIVE_EVENTS: int = 3
+    PLUS_FREE_EVENTS_PER_MONTH: int = 6
+    # Соло-альбомы: кадров за календарный месяц, кадров в хранилище одновременно, срок хранения.
+    SOLO_FREE_FRAMES_PER_MONTH: int = 150
+    SOLO_FREE_STORED_FRAMES: int = 300
+    SOLO_FREE_RETENTION_DAYS: int = 30
+    SOLO_PLUS_FRAMES_PER_MONTH: int = 500
+    SOLO_PLUS_STORED_FRAMES: int = 2000
+    SOLO_PLUS_RETENTION_DAYS: int = 365
+    # Мини-альбомы (подборки): число подборок (None у подписчиков) и кадров в подборке.
+    MINI_FREE_ALBUMS: int = 3
+    MINI_FREE_FRAMES_PER_ALBUM: int = 30
+    MINI_PLUS_FRAMES_PER_ALBUM: int = 100
 
     FCM_PROJECT_ID: str = ""
     FCM_CREDENTIALS_JSON: SecretStr = SecretStr("")

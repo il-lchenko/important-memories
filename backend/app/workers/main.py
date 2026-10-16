@@ -21,6 +21,7 @@ from app.workers.auto_complete import auto_complete_expired_events
 from app.workers.cleanup import cleanup_expired_frames, retry_failed_uploads
 from app.workers.notifications import notify_expiring_events
 from app.workers.reveal import execute_reveal
+from app.workers.subscriptions import renew_subscriptions
 from app.workers.storage_purge import purge_expired_events, purge_old_archives
 from app.workers.thumbnail import make_thumbnail
 from app.workers.zip_builder import build_zip
@@ -45,6 +46,8 @@ class WorkerSettings:
         cron(notify_expiring_events, hour={12}, minute={0}, run_at_startup=False),
         # Каждую минуту: перевод ACTIVE → COMPLETED для событий с истёкшим end_at.
         cron(auto_complete_expired_events, minute=set(range(0, 60)), run_at_startup=True),
+        # Раз в час: автосписание подписки «Плюс», повторы и закрытие истёкших.
+        cron(renew_subscriptions, minute={7}, run_at_startup=False),
     ]
     redis_settings = _redis_settings()
     keep_result = 7 * 24 * 3600

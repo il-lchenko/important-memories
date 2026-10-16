@@ -53,6 +53,8 @@ class EventOut(BaseModel):
 
     id: UUID
     short_code: str
+    # 'event' (с гостями) или 'solo' (личный альбом владельца)
+    kind: str = "event"
     title: str
     start_at: datetime
     end_at: datetime
@@ -119,6 +121,21 @@ class EventCreateIn(BaseModel):
             if self.reveal_at <= datetime.now(timezone.utc):
                 raise ValueError("reveal_at must be in the future")
         return self
+
+
+class SoloCreateIn(BaseModel):
+    """Создание соло-альбома: личный альбом без гостей, QR и проявки."""
+    title: str = Field(min_length=1, max_length=80)
+    event_type: EventType = EventType.OTHER
+    lut_preset: LutPreset | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _sanitize(cls, v: str) -> str:
+        clean = _sanitize_title(v)
+        if not clean:
+            raise ValueError("Название не может быть пустым")
+        return clean
 
 
 class EventSettingsUpdateIn(BaseModel):
