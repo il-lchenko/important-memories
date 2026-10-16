@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { ZoomPan } from './ZoomPan'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReportModal from './ReportModal'
 import { guestApi } from '../../api/client'
@@ -267,13 +268,17 @@ export default function FrameFullscreen() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        <RotatedImage
-          key={frame.id}
-          src={frame.preview_url ?? frame.full_url}
-          rotation={rotation}
-          naturalWidth={frame.width}
-          naturalHeight={frame.height}
-        />
+        <ZoomPan key={frame.id}>
+          {(zoomed) => (
+            <RotatedImage
+              src={frame.preview_url ?? frame.full_url}
+              fullSrc={zoomed ? frame.full_url : null}
+              rotation={rotation}
+              naturalWidth={frame.width}
+              naturalHeight={frame.height}
+            />
+          )}
+        </ZoomPan>
 
         {/* Prev arrow — left edge tap zone */}
         {hasPrev && (
@@ -720,17 +725,20 @@ function NoteSheet({ note, canEdit, saving, onClose, onSave }: {
 
 function RotatedImage({
   src,
+  fullSrc,
   rotation,
   naturalWidth,
   naturalHeight,
 }: {
   src: string
+  fullSrc: string | null
   rotation: number
   naturalWidth: number
   naturalHeight: number
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
+  const [fullLoaded, setFullLoaded] = useState(false)
 
   useEffect(() => {
     const el = wrapRef.current
@@ -775,18 +783,30 @@ function RotatedImage({
       }}
     >
       {imgW > 0 && (
-        <img
-          src={src}
-          alt=""
+        <div
           style={{
+            position: 'relative',
             width: imgW,
             height: imgH,
-            display: 'block',
             transform: `rotate(${rotation}deg)`,
             transformOrigin: 'center center',
             transition: 'transform 0.3s ease, width 0.2s ease, height 0.2s ease',
           }}
-        />
+        >
+          <img src={src} alt="" draggable={false} style={{ width: '100%', height: '100%', display: 'block' }} />
+          {fullSrc && (
+            <img
+              src={fullSrc}
+              alt=""
+              draggable={false}
+              onLoad={() => setFullLoaded(true)}
+              style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block',
+                opacity: fullLoaded ? 1 : 0, transition: 'opacity 0.2s ease',
+              }}
+            />
+          )}
+        </div>
       )}
     </div>
   )

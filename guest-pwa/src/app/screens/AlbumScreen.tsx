@@ -1,3 +1,4 @@
+import { ZoomPan } from '../../features/album/ZoomPan'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -24,10 +25,12 @@ function useIsDesktop() {
   return v
 }
 
-/** Фото с поворотом: при 90/270 рамка остаётся прежней, картинка вписывается в повёрнутом виде. */
-function RotatedPhoto({ src, rotation }: { src: string; rotation: number }) {
+/** Фото с поворотом: при 90/270 рамка остаётся прежней, картинка вписывается в повёрнутом виде.
+ *  При увеличении поверх превью подгружается оригинал, чтобы разглядеть мелкие детали. */
+function RotatedPhoto({ src, fullSrc, rotation }: { src: string; fullSrc: string | null; rotation: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ w: 0, h: 0 })
+  const [fullLoaded, setFullLoaded] = useState(false)
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -39,8 +42,16 @@ function RotatedPhoto({ src, rotation }: { src: string; rotation: number }) {
   const sideways = rotation % 180 !== 0
   const style = sideways
     ? { position: 'absolute' as const, top: '50%', left: '50%', width: box.h, height: box.w, objectFit: 'contain' as const, transform: `translate(-50%, -50%) rotate(${rotation}deg)` }
-    : { width: '100%', height: '100%', objectFit: 'contain' as const, transform: rotation ? `rotate(${rotation}deg)` : undefined }
-  return <div ref={ref} style={{ position: 'relative', width: '100%', height: '100%' }}><img src={src} alt="" style={style} /></div>
+    : { position: 'absolute' as const, inset: 0, width: '100%', height: '100%', objectFit: 'contain' as const, transform: rotation ? `rotate(${rotation}deg)` : undefined }
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <img src={src} alt="" draggable={false} style={style} />
+      {fullSrc && (
+        <img src={fullSrc} alt="" draggable={false} onLoad={() => setFullLoaded(true)}
+          style={{ ...style, opacity: fullLoaded ? 1 : 0, transition: 'opacity .2s ease' }} />
+      )}
+    </div>
+  )
 }
 
 function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
@@ -112,7 +123,9 @@ function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative', padding: '0 8px' }}>
-        <RotatedPhoto src={frame.preview_url ?? frame.full_url} rotation={rotation} />
+        <ZoomPan key={frame.id}>
+          {(zoomed) => <RotatedPhoto src={frame.preview_url ?? frame.full_url} fullSrc={zoomed ? frame.full_url : null} rotation={rotation} />}
+        </ZoomPan>
         {index > 0 && <button style={{ ...barBtn, position: 'absolute', left: 12, top: '50%' }} aria-label="Предыдущий" onClick={prev}><Icon d={icons.back} /></button>}
         {index < frames.length - 1 && <button style={{ ...barBtn, position: 'absolute', right: 12, top: '50%' }} aria-label="Следующий" onClick={next}><Icon d={icons.chevron} /></button>}
       </div>

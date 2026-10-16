@@ -31,24 +31,18 @@ export function useCamera() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop())
     }
-    // Разные ideals для front/back — иначе фронталка не тянет 4K и падает
-    // fallback-ом в 720p (юзер видит «плохое качество селфи»).
-    // Для user (front): попросить 2560×1440 → 1920×1080 → без constraint (max сенсора).
-    // Для environment (back): 4K → 3MP → без constraint.
+    // Поток всегда просим в 4:3. Поток 16:9 (4K/1080p) на большинстве телефонов — это
+    // обрезка сенсора по короткой стороне: превью выглядит «приближенным» и уже, чем
+    // в обычной камере и чем итоговое фото (takePhoto отдаёт полный кадр 4:3).
+    // Полноразмерный снимок берётся отдельно через ImageCapture.takePhoto.
     const isFront = facingMode === 'user'
+    const mk = (w: number, h: number): MediaStreamConstraints => ({
+      video: { facingMode, width: { ideal: w }, height: { ideal: h }, aspectRatio: { ideal: 4 / 3 } },
+      audio: false,
+    })
     const constraints: MediaStreamConstraints[] = isFront
-      ? [
-          { video: { facingMode, width: { ideal: 2560 }, height: { ideal: 1440 } }, audio: false },
-          { video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false },
-          { video: { facingMode }, audio: false },
-          { video: true, audio: false },
-        ]
-      : [
-          { video: { facingMode, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false },
-          { video: { facingMode, width: { ideal: 2048 }, height: { ideal: 1536 } }, audio: false },
-          { video: { facingMode }, audio: false },
-          { video: true, audio: false },
-        ]
+      ? [mk(1920, 1440), mk(1280, 960), { video: { facingMode }, audio: false }, { video: true, audio: false }]
+      : [mk(2592, 1944), mk(1920, 1440), mk(1280, 960), { video: { facingMode }, audio: false }, { video: true, audio: false }]
     for (const c of constraints) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia(c)
@@ -142,7 +136,16 @@ export function useCamera() {
       const IC = (globalThis as any).ImageCapture
       if (track && IC) {
         const ic = new IC(track)
-        const photoBlob: Blob | null = await ic.takePhoto().catch(() => null)
+        // Явно просим максимальное разрешение снимка: без этого часть браузеров отдаёт
+        // уменьшенный размер по умолчанию.
+        let photoSettings: Record<string, number> = {}
+        try {
+          const caps = await ic.getPhotoCapabilities()
+          const mw = caps?.imageWidth?.max
+          const mh = caps?.imageHeight?.max
+          if (mw && mh) photoSettings = { imageWidth: mw, imageHeight: mh }
+        } catch { /* настройки по умолчанию */ }
+        const photoBlob: Blob | null = await ic.takePhoto(photoSettings).catch(() => ic.takePhoto().catch(() => null))
         if (photoBlob) {
           photoBitmap = await createImageBitmap(photoBlob).catch(() => null)
         }
