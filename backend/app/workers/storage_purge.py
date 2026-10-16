@@ -5,6 +5,9 @@
 2. ZIP-архивы старше 7 дней (ссылка на скачивание живёт 7 дней).
 Ничего не удаляется раньше STORAGE_PURGE_NOT_BEFORE — переходный период
 для альбомов, созданных до появления очистки.
+
+Защищены навсегда: альбомы пользователей-админов и все альбомы, созданные
+до PURGE_PROTECT_CREATED_BEFORE.
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -14,7 +17,7 @@ from sqlalchemy import and_, or_, select, update
 from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.logging import logger
-from app.domain.models import Event, EventStatus, Frame, FrameStatus
+from app.domain.models import Event, EventStatus, Frame, FrameStatus, User
 from app.infra import s3_client
 
 ARCHIVE_TTL = timedelta(days=7)
@@ -23,6 +26,15 @@ CANCELLED_GRACE = timedelta(days=1)
 
 def _not_before() -> datetime:
     return datetime.fromisoformat(settings.STORAGE_PURGE_NOT_BEFORE)
+
+
+def _protect_before() -> datetime:
+    return datetime.fromisoformat(settings.PURGE_PROTECT_CREATED_BEFORE)
+
+
+def is_protected(event: Event, owner_is_admin: bool) -> bool:
+    """Альбом нельзя удалять очисткой: админский или созданный до введения сроков."""
+    return owner_is_admin or event.created_at < _protect_before()
 
 
 def purge_due_at(event: Event) -> datetime | None:
@@ -41,8 +53,10 @@ async def purge_expired_events(ctx: dict) -> int:
     if now < _not_before():
         return 0
     async with SessionLocal() as session:
-        stmt = select(Event).where(
+        stmt = select(Event).join(User, User.id == Event.user_id).where(
             Event.storage_purged_at.is_(None),
+            User.is_admin.is_(False),
+            Event.created_at >= _protect_before(),
             or_(
                 Event.status == EventStatus.CANCELLED,
                 and_(

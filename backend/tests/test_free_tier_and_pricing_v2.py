@@ -83,3 +83,52 @@ def test_purge_due_respects_not_before(monkeypatch) -> None:
     assert storage_purge.purge_due_at(expired) == expired.expires_at
     draft = Event(status=EventStatus.DRAFT, expires_at=now - timedelta(days=10))
     assert storage_purge.purge_due_at(draft) is None
+
+
+@pytest.mark.asyncio
+async def test_purge_never_touches_admin_or_legacy_albums(client: AsyncClient, monkeypatch) -> None:
+    from sqlalchemy import select, update
+
+    from app.core.db import SessionLocal
+    from app.domain.models import User
+
+    purged_prefixes: list[str] = []
+    monkeypatch.setattr(storage_purge.s3_client, "delete_prefix", lambda prefix: purged_prefixes.append(prefix) or 0)
+    monkeypatch.setattr(settings, "STORAGE_PURGE_NOT_BEFORE", "2000-01-01T00:00:00+00:00")
+    monkeypatch.setattr(settings, "PURGE_PROTECT_CREATED_BEFORE", "2026-01-01T00:00:00+00:00")
+
+    admin_token = await authenticate(client, "admin@example.com")
+    user_token = await authenticate(client, "user@example.com")
+    async with SessionLocal() as s:
+        await s.execute(update(User).where(User.email == "admin@example.com").values(is_admin=True))
+        await s.commit()
+
+    ids: dict[str, str] = {}
+    for name, token in (("admin", admin_token), ("user_new", user_token), ("user_legacy", user_token)):
+        event_id, resp = await _create_and_activate(client, token)
+        assert resp.status_code == 200, resp.text
+        ids[name] = event_id
+
+    past = datetime.now(timezone.utc) - timedelta(days=10)
+    async with SessionLocal() as s:
+        for event_id in ids.values():
+            await s.execute(update(Event).where(Event.id == event_id).values(expires_at=past))
+        # «Старый» альбом создан до даты защиты.
+        await s.execute(
+            update(Event).where(Event.id == ids["user_legacy"]).values(created_at=datetime(2025, 6, 1, tzinfo=timezone.utc))
+        )
+        await s.commit()
+
+    # Все три просрочены, но чистится только обычный новый альбом.
+    purged = await storage_purge.purge_expired_events({})
+    assert purged == 1
+    assert purged_prefixes == [f"events/{ids['user_new']}/"]
+
+    async with SessionLocal() as s:
+        rows = {
+            str(e.id): e.storage_purged_at
+            for e in (await s.execute(select(Event))).scalars().all()
+        }
+    assert rows[ids["admin"]] is None
+    assert rows[ids["user_legacy"]] is None
+    assert rows[ids["user_new"]] is not None
