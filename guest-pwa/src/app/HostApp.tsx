@@ -6,7 +6,13 @@ import CreateEventScreen from './screens/CreateEventScreen'
 import DashboardScreen from './screens/DashboardScreen'
 import EventScreen from './screens/EventScreen'
 import HostAlbumScreen from './screens/AlbumScreen'
+import ExtendScreen from './screens/ExtendScreen'
+import InvitesScreen from './screens/InvitesScreen'
+import MemoriesScreen from './screens/MemoriesScreen'
 import PayScreen from './screens/PayScreen'
+import ProfileScreen from './screens/ProfileScreen'
+import ProgressScreen from './screens/ProgressScreen'
+import SettingsScreen from './screens/SettingsScreen'
 import PaymentReturnScreen from './screens/PaymentReturnScreen'
 import QrScreen from './screens/QrScreen'
 import { TopBar } from './ui'
@@ -47,8 +53,8 @@ export default function HostApp() {
 
           <Route element={<RequireHost><TabsShell /></RequireHost>}>
             <Route index element={<DashboardScreen />} />
-            <Route path="memories" element={<ComingSoon title="Кадры" />} />
-            <Route path="profile" element={<ComingSoon title="Профиль" />} />
+            <Route path="memories" element={<MemoriesScreen />} />
+            <Route path="profile" element={<ProfileScreen />} />
           </Route>
 
           <Route element={<RequireHost><PlainShell /></RequireHost>}>
@@ -57,6 +63,10 @@ export default function HostApp() {
             <Route path="events/:id/pay" element={<PayScreen />} />
             <Route path="events/:id/qr" element={<QrScreen />} />
             <Route path="events/:id/album" element={<HostAlbumScreen />} />
+            <Route path="events/:id/settings" element={<SettingsScreen />} />
+            <Route path="events/:id/extend" element={<ExtendScreen />} />
+            <Route path="events/:id/invites" element={<InvitesScreen />} />
+            <Route path="events/:id/progress" element={<ProgressScreen />} />
             <Route path="events/:id/*" element={<ComingSoon title="Событие" />} />
           </Route>
 

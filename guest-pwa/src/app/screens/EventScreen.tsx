@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type EventOut, type Schemas } from '../api/hostClient'
 import {
   EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, albumOpenable, formatDate, formatDateTime, formatShortDate, guestLink,
 } from '../format'
+import { Row } from '../components/Row'
 import { qk, useEvent } from '../queries'
 import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, toast, TopBar } from '../ui'
 
@@ -15,24 +16,6 @@ function Metric({ value, label }: { value: string | number; label: string }) {
       <div className="host-edge" style={{ fontSize: 11, marginTop: 2 }}>{label}</div>
     </div>
   )
-}
-
-function Row({ icon, label, hint, to, onClick, danger }: {
-  icon: string; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean
-}) {
-  const inner = (
-    <>
-      <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex' }}><Icon d={icon} size={20} /></span>
-      <span style={{ flex: 1, color: danger ? 'var(--shutter)' : 'inherit' }}>
-        {label}
-        {hint && <span className="host-muted" style={{ display: 'block', fontSize: 12, marginTop: 1 }}>{hint}</span>}
-      </span>
-      <span style={{ color: 'var(--ink-4)', display: 'flex' }}><Icon d={icons.chevron} size={18} /></span>
-    </>
-  )
-  return to
-    ? <Link to={to} className="host-row">{inner}</Link>
-    : <button className="host-row" onClick={onClick}>{inner}</button>
 }
 
 function PinCard({ eventId }: { eventId: string }) {
