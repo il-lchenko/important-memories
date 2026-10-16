@@ -23,6 +23,7 @@ import '../../../core/tokens.dart';
 import '../../../utils/device_rotation.dart';
 import '../../../utils/film_lut.dart';
 import '../../../utils/guest_prefs.dart';
+import '../upload_queue.dart';
 
 // ── Recent shots storage ─────────────────────────────────────────────────────
 class _RecentShot {
@@ -513,6 +514,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     }
 
     _isCapturing = true;
+    // ref нельзя читать после dispose экрана, а очередь загрузки обязана дожить до конца.
+    final queueDio = ref.read(dioProvider);
     try {
       // Съёмку запускаем первой, без ожидания ответов платформы: lock ориентации
       // уходит в тот же канал раньше takePicture и применится до снимка.
@@ -525,6 +528,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       HapticFeedback.lightImpact();
       setState(() {});
       final file = await pictureFuture;
+      final capturedAtIso = DateTime.now().toUtc().toIso8601String();
       // Щелчок — в момент, когда кадр реально снят: гость держит телефон до звука.
       SystemSound.play(SystemSoundType.click);
       HapticFeedback.mediumImpact();
@@ -615,6 +619,17 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         return;
       }
 
+      // Кадр отдаём в постоянную очередь СРАЗУ после обработки: она переживает закрытие
+      // экрана камеры и перезапуск приложения и повторяет отправку при сбоях сети.
+      final uploadFuture = UploadQueue.instance.enqueue(
+        dio: queueDio,
+        eventId: widget.eventId,
+        bytes: processed,
+        width: width,
+        height: height,
+        capturedAt: capturedAtIso,
+        cancelToken: cancelToken,
+      );
       // Строим thumb и сохраняем на диск.
       final thumbDataUrl = await compute(
         _buildThumbDataUrl,
@@ -631,9 +646,11 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 
       if (_discardedCaptures.contains(captureId)) {
         try { await File(filePath).delete(); } catch (_) {}
+        cancelToken.cancel('user-discarded');
         if (!uploadCompleter.isCompleted) {
           uploadCompleter.completeError('preview-discarded');
         }
+        unawaited(uploadFuture.catchError((_) => ''));
         return;
       }
 
@@ -658,13 +675,14 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       await _saveRecentShots(widget.eventId, newShots);
 
       if (!mounted) {
-        if (!uploadCompleter.isCompleted) {
-          uploadCompleter.completeError('camera-closed');
-        }
+        // Экран закрыт, но кадр уже в очереди и будет отправлен.
+        unawaited(uploadFuture.then((id) {
+          if (!uploadCompleter.isCompleted) uploadCompleter.complete(id);
+        }).catchError((Object e) {
+          if (!uploadCompleter.isCompleted) uploadCompleter.completeError(e);
+        }));
         return;
       }
-      // Upload стартует даже если превью уже закрыто кнопкой «Новый кадр».
-      final uploadFuture = _upload(processed, width, height, cancelToken: cancelToken);
 
       if (mounted) {
         setState(() {

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/api_client.dart';
 import 'core/push_service.dart';
+import 'features/guest/upload_queue.dart';
 import 'core/theme.dart';
 import 'core/router.dart';
 
@@ -36,6 +38,10 @@ class _AppState extends ConsumerState<App> {
   void initState() {
     super.initState();
     _initDeepLinks();
+    // Догружаем кадры, снятые до закрытия приложения или потери сети.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UploadQueue.instance.attach(ref.read(dioProvider));
+    });
     // Пуш-хендлеры (foreground / tap when in background / cold-start-from-notification).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       PushService.attachHandlers(ref.read(appRouterProvider));

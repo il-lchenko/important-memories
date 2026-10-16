@@ -1666,6 +1666,8 @@ export interface components {
             source: "camera" | "upload";
             /** Upload Hash */
             upload_hash?: string | null;
+            /** Resume Frame Id */
+            resume_frame_id?: string | null;
         };
         /** FramePresignOut */
         FramePresignOut: {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../../guest/upload_queue.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -228,6 +229,7 @@ class _AlbumScreenState extends ConsumerState<AlbumScreen>
               ),
             ),
             if (isAdminPreview) _AdminPreviewBanner(revealAtRaw: revealAtRaw),
+            _PendingUploadsBanner(eventId: widget.eventId),
             // Scrollable header + photos
             Expanded(
               child: Listener(
@@ -1605,6 +1607,34 @@ class _AdminPreviewBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// Кадры, снятые на этом телефоне и ещё не дошедшие до сервера (плохая сеть).
+/// Пока очередь не пуста, они не видны в альбоме, поэтому показываем причину.
+class _PendingUploadsBanner extends StatelessWidget {
+  final String eventId;
+  const _PendingUploadsBanner({required this.eventId});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: UploadQueue.instance,
+      builder: (context, _) {
+        final n = UploadQueue.instance.pendingFor(eventId);
+        if (n == 0) return const SizedBox.shrink();
+        return Container(
+          width: double.infinity,
+          color: AppColors.paper2,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(
+            'Догружается кадров: $n. Появятся в альбоме, как только дойдут до сервера.',
+            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.ink2),
+          ),
+        );
+      },
     );
   }
 }

@@ -622,6 +622,9 @@ export default function CameraScreen() {
   const uploadItem = useCallback(async (item: QueueItem): Promise<{ ok: true; frameId: string } | { ok: false }> => {
     // Retry с новым presign на каждой итерации: истёкший URL починится, transient errors переживём.
     let lastErr: unknown = null
+    // Кадр, уже зарезервированный сервером: на повторе просим новый URL для него же,
+    // иначе каждая неудачная попытка занимала бы место в квоте и упиралась в 409.
+    let resumeFrameId: string | undefined
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (!navigator.onLine) await waitForOnline(120_000)
 
@@ -633,9 +636,10 @@ export default function CameraScreen() {
           item.mimeType ?? 'image/jpeg',
           item.source === 'upload'
             ? { source: 'upload', uploadHash: item.uploadHash }
-            : undefined,
+            : { resumeFrameId },
         )
         presignData = data
+        if (item.source !== 'upload') resumeFrameId = data.frame_id
         // Дедуп: сервер вернул существующий frame_id — PUT в S3 не нужен,
         // register тоже отдаст 409/уже uploaded. Возвращаем успех сразу.
         if (data.deduplicated) {

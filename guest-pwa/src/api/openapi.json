@@ -4963,6 +4963,18 @@
               }
             ],
             "title": "Upload Hash"
+          },
+          "resume_frame_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume Frame Id"
           }
         },
         "type": "object",

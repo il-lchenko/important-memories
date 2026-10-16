@@ -30,6 +30,7 @@ async def presign_frame(
         payload.size_bytes,
         source=payload.source,
         upload_hash=payload.upload_hash,
+        resume_frame_id=payload.resume_frame_id,
     )
 
 

@@ -50,6 +50,7 @@ async def presign_upload(
     size_bytes: int,
     source: Literal["camera", "upload"] = "camera",
     upload_hash: str | None = None,
+    resume_frame_id: UUID | None = None,
 ) -> FramePresignOut:
     is_upload = source == "upload"
     max_bytes = 12 * 1024 * 1024 if is_upload else 20 * 1024 * 1024
@@ -100,6 +101,22 @@ async def presign_upload(
             "Съёмка ещё не открыта",
             details={"start_at": guest.event.start_at.isoformat()},
         )
+
+    # Повтор загрузки уже зарезервированного кадра: новый PUT-URL на тот же PENDING-кадр.
+    if resume_frame_id is not None and not is_upload:
+        prev = await frame_repo.get_by_id(session, resume_frame_id)
+        if (
+            prev is not None
+            and prev.guest_id == guest.id
+            and prev.status == FrameStatus.PENDING
+            and prev.source == FrameSource.CAMERA
+        ):
+            return FramePresignOut(
+                frame_id=prev.id,
+                upload_url=s3_client.presign_put(prev.s3_key, content_type),
+                expires_in=settings.S3_PRESIGN_TTL_SEC,
+                deduplicated=False,
+            )
 
     # Rate-limit для gallery-uploads: 1 файл / 10 сек на гостя. Защита от массового
     # заливания (5×3 фото за 3 секунды забило бы квоту и storage).
@@ -182,9 +199,9 @@ async def register_frame(
     if frame.guest_id != guest.id:
         raise PermissionDeniedError("Not your frame")
     if frame.status != FrameStatus.PENDING:
-        # Дедуп: если presign вернул существующий frame_id (уже UPLOADED),
-        # клиент всё равно позвонит register — отвечаем идемпотентно.
-        if frame.status == FrameStatus.UPLOADED and frame.source == FrameSource.UPLOAD:
+        # Идемпотентность: повтор register (ответ потерялся по сети) или дедуп gallery —
+        # кадр уже UPLOADED, отвечаем успехом, а не 409.
+        if frame.status == FrameStatus.UPLOADED:
             limit = guest.event.settings.frames_per_guest
             used = await frame_repo.count_uploaded_for_guest(session, guest.id)
             return FrameRegisterOut(

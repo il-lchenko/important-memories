@@ -250,13 +250,14 @@ export const guestApi = {
   presign(
     sizeBytes: number,
     mimeType = 'image/jpeg',
-    opts?: { source?: 'camera' | 'upload'; uploadHash?: string },
+    opts?: { source?: 'camera' | 'upload'; uploadHash?: string; resumeFrameId?: string },
   ) {
     return api.post<PresignResponse>('/guest/frames/presign', {
       content_type: mimeType,
       size_bytes: sizeBytes,
       ...(opts?.source ? { source: opts.source } : {}),
       ...(opts?.uploadHash ? { upload_hash: opts.uploadHash } : {}),
+      ...(opts?.resumeFrameId ? { resume_frame_id: opts.resumeFrameId } : {}),
     })
   },
   registerFrame(

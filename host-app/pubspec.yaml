@@ -1,7 +1,7 @@
 name: important_memories_host
 description: "Important Memories — цифровая одноразовая камера для ивентов"
 publish_to: 'none'
-version: 1.0.96+97
+version: 1.0.97+98
 
 environment:
   sdk: ^3.6.0

@@ -130,3 +130,54 @@ async def test_register_other_guests_frame_forbidden(client: AsyncClient) -> Non
         headers={"X-Guest-Token": token2},
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_resume_presign_reuses_pending_frame_without_taking_quota(client: AsyncClient) -> None:
+    token = await _setup_active_guest(client, frames_per_guest=1)
+    h = {"X-Guest-Token": token}
+    first = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 1_000_000},
+        headers=h,
+    )
+    assert first.status_code == 200, first.text
+    frame_id = first.json()["frame_id"]
+
+    blocked = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 1_000_000},
+        headers=h,
+    )
+    assert blocked.status_code == 409
+
+    resumed = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 1_000_000, "resume_frame_id": frame_id},
+        headers=h,
+    )
+    assert resumed.status_code == 200, resumed.text
+    assert resumed.json()["frame_id"] == frame_id
+
+
+@pytest.mark.asyncio
+async def test_register_frame_twice_is_idempotent(client: AsyncClient) -> None:
+    token = await _setup_active_guest(client)
+    h = {"X-Guest-Token": token}
+    presign = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 1_000_000},
+        headers=h,
+    )
+    frame_id = presign.json()["frame_id"]
+    body = {
+        "frame_id": frame_id,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "width": 3000,
+        "height": 4000,
+    }
+    first = await client.post("/api/v1/guest/frames/", json=body, headers=h)
+    assert first.status_code == 201, first.text
+    again = await client.post("/api/v1/guest/frames/", json=body, headers=h)
+    assert again.status_code == 201, again.text
+    assert again.json()["id"] == frame_id

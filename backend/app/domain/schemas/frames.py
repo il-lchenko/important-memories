@@ -25,6 +25,9 @@ class FramePresignIn(BaseModel):
     source: Literal["camera", "upload"] = "camera"
     # SHA-256 файла — только для source=upload (дедуп).
     upload_hash: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
+    # Повторная попытка загрузки того же кадра (обрыв сети, истёк URL): сервер выдаёт
+    # новый URL для уже созданного PENDING-кадра, не занимая ещё одно место в квоте.
+    resume_frame_id: UUID | None = None
 
     @model_validator(mode="after")
     def _check_source_rules(self) -> "FramePresignIn":
