@@ -97,10 +97,13 @@ class Settings(BaseSettings):
     # Соло-альбомы: кадров за календарный месяц, кадров в хранилище одновременно, срок хранения.
     SOLO_FREE_FRAMES_PER_MONTH: int = 150
     SOLO_FREE_STORED_FRAMES: int = 300
-    SOLO_FREE_RETENTION_DAYS: int = 30
+    SOLO_FREE_RETENTION_DAYS: int = 90
     SOLO_PLUS_FRAMES_PER_MONTH: int = 500
     SOLO_PLUS_STORED_FRAMES: int = 2000
-    SOLO_PLUS_RETENTION_DAYS: int = 365
+    # Подписчикам соло хранится, пока подписка действует (технически 10 лет, срок сокращается
+    # до SOLO_GRACE_DAYS после её окончания).
+    SOLO_PLUS_RETENTION_DAYS: int = 3650
+    SOLO_GRACE_DAYS: int = 30
     # Мини-альбомы (подборки): число подборок (None у подписчиков) и кадров в подборке.
     MINI_FREE_ALBUMS: int = 3
     MINI_FREE_FRAMES_PER_ALBUM: int = 30

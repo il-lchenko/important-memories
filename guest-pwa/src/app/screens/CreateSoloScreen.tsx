@@ -51,7 +51,9 @@ export default function CreateSoloScreen() {
             <div className="host-edge">Ваши лимиты</div>
             <p style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
               В этом месяце можно снять ещё <b>{ent.solo_frames_left}</b> из {ent.solo_frames_per_month} кадров во всех соло-альбомах.
-              Альбом хранится {ent.solo_retention_days} дн., потом его можно продлить.
+              {ent.solo_retention_days >= 1000
+                ? 'Альбом хранится, пока действует подписка.'
+                : `Альбом хранится ${Math.round(ent.solo_retention_days / 30)} мес., потом его можно продлить.`}
             </p>
           </div>
         )}

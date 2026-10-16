@@ -81,7 +81,7 @@ const pricing = () => ({
     { period: '6m', days: 180, price_kopecks: 17900, per_guest_kopecks: 0 },
     { period: '1y', days: 365, price_kopecks: 29900, per_guest_kopecks: 0 },
   ],
-  plus: { enabled: true, month_kopecks: 22900, year_kopecks: 219000, solo_frames_per_month: 500, solo_free_frames_per_month: 150, solo_retention_days: 365, events_active: 3, events_per_month: 6, free_events_active: 2, free_events_per_month: 4, mini_frames_per_album: 100, mini_free_albums: 3, mini_free_frames_per_album: 30 },
+  plus: { enabled: true, month_kopecks: 22900, year_kopecks: 219000, solo_frames_per_month: 500, solo_free_frames_per_month: 150, solo_retention_days: 3650, solo_free_retention_days: 90, events_active: 3, events_per_month: 6, free_events_active: 2, free_events_per_month: 4, mini_frames_per_album: 100, mini_free_albums: 3, mini_free_frames_per_album: 30 },
   upgrade_premium: 1.15, free_active_events: 2, free_events_per_month: 4,
 })
 
@@ -114,7 +114,7 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { tier: 'free', is_admin: false, subscription_enabled: false, free_events_per_month: 4, free_events_used: 1,
       free_events_left: 3, free_active_limit: 2, free_active_used: 1, free_active_left: 1,
       plus: state.plus, solo_frames_per_month: state.plus ? 500 : 150, solo_frames_used: state.soloUsed, solo_frames_left: (state.plus ? 500 : 150) - state.soloUsed,
-      solo_stored_limit: 300, solo_stored_used: state.soloUsed, solo_retention_days: state.plus ? 365 : 30,
+      solo_stored_limit: 300, solo_stored_used: state.soloUsed, solo_retention_days: state.plus ? 3650 : 90,
       mini_albums_limit: state.plus ? null : 3, mini_frames_per_album: state.plus ? 100 : 30,
       features: { solo_album: true, mini_albums: true, extra_styles: state.plus } })
   }

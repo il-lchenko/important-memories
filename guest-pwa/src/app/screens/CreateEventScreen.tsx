@@ -47,7 +47,7 @@ function StepHeader({ step, onClose }: { step: number; onClose: () => void }) {
         </div>
         <div style={{ display: 'flex', gap: 4 }} aria-hidden="true">
           {STEPS.map((_, i) => (
-            <div key={i} style={{ flex: 1, height: 4, borderRadius: 0, background: i <= step ? 'var(--ink)' : 'var(--paper-3)' }} />
+            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= step ? 'var(--amber)' : 'var(--paper-3)' }} />
           ))}
         </div>
       </div>
@@ -201,7 +201,7 @@ export default function CreateEventScreen() {
             <Field label="Плёнка">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {(Object.keys(FILM_LABELS) as Schemas['LutPreset'][]).map((f) => (
-                  <button key={f} className="host-card host-row" style={{ border: d.film === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 2 }}
+                  <button key={f} className="host-card host-row" style={{ border: d.film === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 12 }}
                     onClick={() => set('film', f)}>
                     <span style={{ flex: 1, fontWeight: 600 }}>{FILM_LABELS[f].name}</span>
                     <span className="host-muted" style={{ fontSize: 12 }}>{FILM_LABELS[f].short}</span>
@@ -251,7 +251,7 @@ export default function CreateEventScreen() {
                 <b>{retention} дн. · до {formatDate(new Date(Date.now() + retention * 86400000).toISOString())}</b>
               </div>
               {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span className="host-muted">Скидка</span><b>−{rubles(discount)}</b></div>}
-              <div style={{ borderTop: '1px dashed var(--ink-4)', margin: '10px 0' }} />
+              <div style={{ borderTop: '1px solid var(--line)', margin: '10px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={{ fontWeight: 600 }}>Итого</span>
                 <span style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, fontWeight: 600 }}>{isFree ? 'Бесплатно' : rubles(total)}</span>

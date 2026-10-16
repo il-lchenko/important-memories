@@ -6,9 +6,10 @@ import {
   EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, albumOpenable, formatDate, formatDateTime, formatShortDate, guestLink,
 } from '../format'
 import { Row } from '../components/Row'
+import { useGalleryUpload } from '../components/useGalleryUpload'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEvent, useMe } from '../queries'
-import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, toast, TopBar } from '../ui'
+import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
 
 function Metric({ value, label }: { value: string | number; label: string }) {
   return (
@@ -85,6 +86,8 @@ export default function EventScreen() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const event = useEvent(id)
+  const me = useMe()
+  const gallery = useGalleryUpload(id, event.data?.short_code ?? '', me.data?.display_name ?? '')
   const [revealSheet, setRevealSheet] = useState(false)
   const [deleteSheet, setDeleteSheet] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -148,7 +151,6 @@ export default function EventScreen() {
   const film = FILM_LABELS[s.lut_preset] ?? FILM_LABELS.original
   const isFreePlan = s.plan === 'free'
 
-  const me = useMe()
   const shoot = async () => {
     try {
       const to = await startOwnerCamera(e.short_code, me.data?.display_name ?? '')
@@ -162,35 +164,41 @@ export default function EventScreen() {
 
   return (
     <>
-      <TopBar back="/app" title={e.title} right={
-        <button className="host-icon-btn" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
-      } />
-      <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div className="host-card" style={{ overflow: 'hidden' }}>
+      {gallery.input}
+      <main className="host-main" style={{ paddingTop: 'calc(14px + env(safe-area-inset-top))', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
           <div className="host-cover">
             {e.cover_url && <img src={e.cover_url} alt="" />}
-            <div style={{ position: 'absolute', top: 12, right: 12 }}>
-              <span className="host-badge" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 45%, rgba(0,0,0,.53))' }} />
+            <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <button className="host-glass" aria-label="Назад" onClick={() => navigate('/app')}><Icon d={icons.back} /></button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="host-glass" aria-label={e.cover_url ? 'Сменить обложку' : 'Добавить обложку'} disabled={cover.isPending} onClick={() => fileRef.current?.click()}>
+                  {cover.isPending ? <Spinner /> : <Icon d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M12 9v.01" />}
+                </button>
+                <button className="host-glass" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
+              </div>
             </div>
-            <button className="host-chip" style={{ position: 'absolute', right: 12, bottom: 12 }} disabled={cover.isPending}
-              onClick={() => fileRef.current?.click()}>
-              {cover.isPending ? 'Загрузка…' : e.cover_url ? 'Сменить обложку' : 'Добавить обложку'}
-            </button>
+            <div style={{ position: 'absolute', left: 14, bottom: 14 }}>
+              <span className="host-badge" style={{ color: meta.color }}>{meta.label}</span>
+            </div>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden
               onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ''; if (f) cover.mutate(f) }} />
           </div>
-          <div style={{ padding: '14px 16px 4px' }}>
-            <div className="host-muted" style={{ fontSize: 13 }}>
+          <div style={{ padding: '14px 4px 0' }}>
+            <h1 className="host-title" style={{ fontWeight: 500, fontSize: 28, letterSpacing: '-.5px' }}>{e.title}</h1>
+            <div className="host-muted" style={{ marginTop: 6, fontSize: 13 }}>
               {EVENT_TYPE_LABELS[e.event_type] ?? 'Событие'} · {formatDate(e.start_at)}
               {e.expires_at && <> · хранится до {formatShortDate(e.expires_at)}</>}
             </div>
           </div>
-          <div style={{ display: 'flex', borderTop: '1px solid var(--ink)', margin: '10px 0 0' }}>
-            <Metric value={`${e.guests_count ?? 0}/${s.max_guests}`} label="гостей" />
-            <Metric value={e.frames_count ?? 0} label="кадров" />
-            <Metric value={s.frames_per_guest} label="на гостя" />
-            <Metric value={film.short} label="плёнка" />
-          </div>
+        </div>
+
+        <div className="host-card host-metrics">
+          <Metric value={`${e.guests_count ?? 0}/${s.max_guests}`} label="гостей" />
+          <Metric value={e.frames_count ?? 0} label="кадров" />
+          <Metric value={s.frames_per_guest} label="на гостя" />
+          <Metric value={film.short} label="плёнка" />
         </div>
 
         {e.status === 'draft' && (
@@ -208,6 +216,9 @@ export default function EventScreen() {
         {e.status !== 'draft' && e.status !== 'cancelled' && (
           <div className="host-card">
             <Row icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
+            {(e.status === 'active' || e.status === 'completed') && (
+              <Row icon={icons.albums} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
+            )}
             {e.status === 'active' && <Row icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
             <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />
             {e.status === 'active' && <Row icon={icons.users} label="Гости и ход съёмки" to={`/app/events/${id}/progress`} />}

@@ -24,9 +24,12 @@ except ImportError:
     _HEIC_SUPPORT = False
 
 
-# Cap для gallery-uploads: 12 MP (12_000_000 пикселей). Больше — считаем абьюзом
-# (мобилки редко дают >12 MP; профессиональная камера — DSLR — не через галерею).
-_UPLOAD_MP_CAP = 12_000_000
+# Cap для gallery-uploads: 80 MP — защита от «бомб» распаковки. Современные телефоны
+# дают 12-50 MP (Huawei 4096x3072 = 12,6 MP уже превышал прежний лимит 12 MP).
+_UPLOAD_MP_CAP = 80_000_000
+# Как и снимки камеры, загруженное из галереи приводим к 4000 px по длинной стороне:
+# одинаковый размер в альбоме и предсказуемая память при наложении плёночного фильтра.
+_UPLOAD_MAX_SIDE = 4000
 
 # Target thumbnail dimensions per format (w × h).
 # 800×1066 в WebP q=85 (~60-90 KB): визуально идентично JPEG q=90 при 2× меньше
@@ -268,6 +271,9 @@ async def make_thumbnail(ctx: dict, frame_id: str, force_lut: bool = False) -> N
                             pass
                         await session.commit()
                         return
+                    if max(w0, h0) > _UPLOAD_MAX_SIDE:
+                        k = _UPLOAD_MAX_SIDE / max(w0, h0)
+                        raw = raw.convert("RGB").resize((round(w0 * k), round(h0 * k)), Image.Resampling.LANCZOS)
                     # Полностью убираем EXIF: создаём новую картинку и paste'им пиксели.
                     # ImageOps.exif_transpose уже применил ориентацию — теперь исходные
                     # метаданные больше не нужны и потенциально приватны (GPS).

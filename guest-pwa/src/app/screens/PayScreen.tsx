@@ -43,7 +43,7 @@ export default function PayScreen() {
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span className="host-muted">{k}</span><b>{v}</b></div>
           ))}
           {discount > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span className="host-muted">Скидка</span><b>−{rubles(discount)}</b></div>}
-          <div style={{ borderTop: '1px dashed var(--ink-4)', margin: '10px 0' }} />
+          <div style={{ borderTop: '1px solid var(--line)', margin: '10px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontWeight: 600 }}>Итого</span>
             <span style={{ fontFamily: 'Playfair Display, serif', fontSize: 28, fontWeight: 600 }}>{rubles(total)}</span>

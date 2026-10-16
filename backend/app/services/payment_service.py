@@ -171,6 +171,7 @@ def pricing_catalog() -> PricingOut:
             solo_frames_per_month=settings.SOLO_PLUS_FRAMES_PER_MONTH,
             solo_free_frames_per_month=settings.SOLO_FREE_FRAMES_PER_MONTH,
             solo_retention_days=settings.SOLO_PLUS_RETENTION_DAYS,
+            solo_free_retention_days=settings.SOLO_FREE_RETENTION_DAYS,
             events_active=settings.PLUS_FREE_ACTIVE_EVENTS,
             events_per_month=settings.PLUS_FREE_EVENTS_PER_MONTH,
             free_events_active=settings.FREE_ACTIVE_EVENTS or 0,

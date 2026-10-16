@@ -20,6 +20,7 @@ from app.core.logging import logger
 from app.domain.models import (
     Event,
     EventKind,
+    EventStatus,
     Payment,
     PaymentStatus,
     Subscription,
@@ -33,7 +34,6 @@ from app.services import entitlement_service
 _PERIOD_DAYS = {"month": 30, "year": 365}
 _RETRY_DELAYS_DAYS = (1, 3, 5)
 _RENEW_AHEAD = timedelta(days=1)
-_EXPIRED_SOLO_GRACE_DAYS = 30
 
 
 def price_kopecks(period: str) -> int:
@@ -147,6 +147,7 @@ async def apply_succeeded_payment(
         sub.next_retry_at = None
         if payment_method_id:
             sub.payment_method_id = payment_method_id
+    await _extend_solo_retention(session, payment.user_id)
     logger.info("subscription_period_paid", user_id=str(payment.user_id), period=period)
 
 
@@ -196,19 +197,44 @@ async def _schedule_retry(sub: Subscription) -> None:
         sub.next_retry_at = None
 
 
-async def _shorten_solo_retention(session: AsyncSession, user_id: UUID) -> None:
-    """Подписка закончилась: соло-альбомам с длинным сроком даём 30 дней на скачивание."""
-    deadline = _now() + timedelta(days=_EXPIRED_SOLO_GRACE_DAYS)
+async def _extend_solo_retention(session: AsyncSession, user_id: UUID) -> None:
+    """Подписка началась: соло-альбомы живут, пока она действует."""
+    horizon = _now() + timedelta(days=settings.SOLO_PLUS_RETENTION_DAYS)
     await session.execute(
         update(Event)
         .where(
             Event.user_id == user_id,
             Event.kind == EventKind.SOLO.value,
+            Event.status != EventStatus.CANCELLED,
+            Event.storage_purged_at.is_(None),
             Event.expires_at.is_not(None),
-            Event.expires_at > deadline,
+            Event.expires_at < horizon,
         )
-        .values(expires_at=deadline)
+        .values(expires_at=horizon)
     )
+
+
+async def _shorten_solo_retention(session: AsyncSession, user_id: UUID) -> None:
+    """Подписка закончилась. Каждому соло-альбому оставляем не меньше SOLO_GRACE_DAYS на
+    скачивание и не меньше обычного бесплатного срока от его создания, чтобы подписка не
+    отнимала то, что и так положено бесплатно."""
+    now = _now()
+    grace = now + timedelta(days=settings.SOLO_GRACE_DAYS)
+    events = (
+        await session.execute(
+            select(Event).where(
+                Event.user_id == user_id,
+                Event.kind == EventKind.SOLO.value,
+                Event.status != EventStatus.CANCELLED,
+                Event.storage_purged_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    for ev in events:
+        free_until = ev.created_at + timedelta(days=settings.SOLO_FREE_RETENTION_DAYS)
+        deadline = max(grace, free_until)
+        if ev.expires_at is None or ev.expires_at > deadline:
+            ev.expires_at = deadline
 
 
 async def renew_due(session: AsyncSession) -> dict[str, int]:

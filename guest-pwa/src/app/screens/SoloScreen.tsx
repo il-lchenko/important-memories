@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi } from '../api/hostClient'
 import { useDownloadAll } from '../components/useDownloadAll'
 import { Row } from '../components/Row'
+import { useGalleryUpload } from '../components/useGalleryUpload'
 import { FILM_LABELS, formatDate } from '../format'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEntitlements, useEvent, useMe } from '../queries'
@@ -18,6 +19,7 @@ export default function SoloScreen() {
   const ent = useEntitlements().data
   const me = useMe()
   const { downloading, downloadAll } = useDownloadAll(id)
+  const gallery = useGalleryUpload(id, event.data?.short_code ?? '', me.data?.display_name ?? '')
   const [deleteSheet, setDeleteSheet] = useState(false)
 
   const remove = useMutation({
@@ -48,6 +50,7 @@ export default function SoloScreen() {
 
   return (
     <>
+      {gallery.input}
       <TopBar back="/app" title={e.title} kicker="Соло-альбом" />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="host-card" style={{ padding: 16 }}>
@@ -65,7 +68,7 @@ export default function SoloScreen() {
                 <span>Кадров в этом месяце</span>
                 <span>{ent.solo_frames_used} из {ent.solo_frames_per_month}</span>
               </div>
-              <div style={{ height: 10, border: '1px solid var(--ink)' }}>
+              <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', background: 'var(--paper-3)' }}>
                 <div style={{ width: `${Math.min(100, Math.round((ent.solo_frames_used / Math.max(1, ent.solo_frames_per_month)) * 100))}%`, height: '100%', background: 'var(--amber)' }} />
               </div>
             </div>
@@ -74,6 +77,7 @@ export default function SoloScreen() {
 
         <div className="host-card">
           <Row icon={icons.camera} label="Снять кадр" hint={ent && ent.solo_frames_left <= 0 ? 'Лимит кадров на месяц исчерпан' : 'Плёночная камера'} onClick={() => void shoot()} />
+          <Row icon={icons.albums} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="С плёночным фильтром, в пределах лимита кадров" onClick={gallery.pick} />
           <Row icon={icons.albums} label="Открыть альбом" hint="Все кадры" to={`/app/events/${id}/album`} />
           <Row icon={icons.download} label={downloading ? 'Собираем архив…' : 'Скачать все фото'} hint="ZIP со всеми кадрами" onClick={() => void downloadAll()} />
           <Row icon={icons.lock} label="Продлить хранение" hint="Альбом останется доступен дольше" to={`/app/events/${id}/extend`} />

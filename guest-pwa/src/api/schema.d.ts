@@ -2526,6 +2526,11 @@ export interface components {
              */
             solo_retention_days: number;
             /**
+             * Solo Free Retention Days
+             * @default 0
+             */
+            solo_free_retention_days: number;
+            /**
              * Events Active
              * @default 0
              */

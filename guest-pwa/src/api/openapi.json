@@ -7049,6 +7049,11 @@
             "title": "Solo Retention Days",
             "default": 0
           },
+          "solo_free_retention_days": {
+            "type": "integer",
+            "title": "Solo Free Retention Days",
+            "default": 0
+          },
           "events_active": {
             "type": "integer",
             "title": "Events Active",

@@ -210,7 +210,7 @@ async def test_upload_dedup_returns_existing_frame(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_upload_size_capped_at_12mb(client: AsyncClient) -> None:
+async def test_upload_size_capped_at_20mb(client: AsyncClient) -> None:
     token = await authenticate(client)
     event = await _create_and_activate(client, token, uploads_enabled=True)
     guest_token = await _join_guest(client, event)
@@ -219,13 +219,13 @@ async def test_upload_size_capped_at_12mb(client: AsyncClient) -> None:
         "/api/v1/guest/frames/presign",
         json={
             "content_type": "image/jpeg",
-            "size_bytes": 13 * 1024 * 1024,
+            "size_bytes": 21 * 1024 * 1024,
             "source": "upload",
             "upload_hash": _hash_hex("f"),
         },
         headers={"X-Guest-Token": guest_token},
     )
-    # Pydantic валидатор возвращает 422 (за-предел 12MB для uploads).
+    # Pydantic валидатор возвращает 422 (за-предел 20MB для uploads).
     assert resp.status_code == 422, resp.text
 
 
@@ -291,3 +291,57 @@ async def test_upload_hash_required_for_source_upload(client: AsyncClient) -> No
         headers={"X-Guest-Token": guest_token},
     )
     assert r2.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_big_phone_photo_size_is_allowed_for_upload(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    event = await _create_and_activate(client, token, uploads_enabled=True)
+    guest_token = await _join_guest(client, event)
+    resp = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 16 * 1024 * 1024, "source": "upload", "upload_hash": _hash_hex("e")},
+        headers={"X-Guest-Token": guest_token},
+    )
+    assert resp.status_code == 200, resp.text
+
+
+async def _owner_session(client: AsyncClient, token: str, event: dict) -> dict:
+    resp = await client.post(
+        "/api/v1/guest/sessions",
+        json={"short_code": event["short_code"], "name": "Хост", "fingerprint": "abcdef12"},
+        headers=auth_headers(token),
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+@pytest.mark.asyncio
+async def test_owner_can_upload_from_gallery_even_when_disabled_and_not_rate_limited(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    event = await _create_and_activate(client, token, uploads_enabled=False)
+    session = await _owner_session(client, token, event)
+    assert session["event"]["settings"]["uploads_enabled"] is True
+    headers = {"X-Guest-Token": session["guest_token"]}
+    for i in range(3):
+        resp = await client.post(
+            "/api/v1/guest/frames/presign",
+            json={"content_type": "image/jpeg", "size_bytes": 800_000, "source": "upload", "upload_hash": _hash_hex("abc"[i])},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.asyncio
+async def test_owner_can_upload_to_completed_album(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    event = await _create_and_activate(client, token, uploads_enabled=False)
+    session = await _owner_session(client, token, event)
+    done = await client.post(f"/api/v1/events/{event['id']}/complete", headers=auth_headers(token))
+    assert done.status_code == 200, done.text
+    resp = await client.post(
+        "/api/v1/guest/frames/presign",
+        json={"content_type": "image/jpeg", "size_bytes": 800_000, "source": "upload", "upload_hash": _hash_hex("d")},
+        headers={"X-Guest-Token": session["guest_token"]},
+    )
+    assert resp.status_code == 200, resp.text

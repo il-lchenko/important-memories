@@ -35,9 +35,9 @@ class FramePresignIn(BaseModel):
             # Uploads должны иметь hash — иначе не сработает дедуп
             if self.upload_hash is None:
                 raise ValueError("upload_hash is required for source=upload")
-            # Uploads имеют более жёсткий лимит размера (12 MB, а не 20)
-            if self.size_bytes > 12 * 1024 * 1024:
-                raise ValueError("Uploads limited to 12 MB")
+            # Тот же потолок, что у камеры (20 МБ): снимки с 50-мегапиксельных телефонов тяжелее 12 МБ.
+            if self.size_bytes > 20 * 1024 * 1024:
+                raise ValueError("Uploads limited to 20 MB")
         else:
             # Camera-фото не должны присылать hash — упрощает БД (NULL для camera)
             if self.upload_hash is not None:

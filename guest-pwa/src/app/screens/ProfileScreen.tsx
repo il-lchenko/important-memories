@@ -109,7 +109,7 @@ export default function ProfileScreen() {
         <div className="host-card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={() => fileRef.current?.click()} aria-label="Сменить фото" disabled={uploading}
             style={{
-              width: 76, height: 76, flexShrink: 0, border: '1px solid var(--ink)', borderRadius: 2, padding: 0, cursor: 'pointer',
+              width: 76, height: 76, flexShrink: 0, border: 'none', borderRadius: '50%', padding: 0, cursor: 'pointer',
               background: 'repeating-linear-gradient(135deg, #1A1714 0 9px, #231E19 9px 18px)', position: 'relative', overflow: 'hidden',
               display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--amber)',
             }}>
@@ -137,7 +137,7 @@ export default function ProfileScreen() {
                 <button className="host-chip" onClick={() => void shareLink(refUrl!, 'ImpoMento')}><Icon d={icons.share} size={14} /> Отправить</button>
               </div>
               {referrals.data && (
-                <div style={{ display: 'flex', marginTop: 14, borderTop: '1px dashed var(--ink-4)' }}>
+                <div style={{ display: 'flex', marginTop: 14, borderTop: '1px solid var(--line)' }}>
                   {([[referrals.data.referrals_count, 'друзей'], [referrals.data.pending_promocodes_count, 'промокодов'], [rubles(referrals.data.total_earned_kopecks), 'выгода']] as const).map(([v, l]) => (
                     <div key={l} style={{ flex: 1, textAlign: 'center', padding: '10px 4px' }}>
                       <div className="host-mono" style={{ fontSize: 20 }}>{v}</div>

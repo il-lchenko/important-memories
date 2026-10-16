@@ -207,6 +207,8 @@ def _build_session_out(guest: Guest, frames_used: int, event: Event | None = Non
         event = guest.event
     s = event.settings
     remaining = max(0, s.frames_per_guest - frames_used)
+    # Владелец вправе добавлять фото из галереи в свой альбом независимо от настройки для гостей.
+    is_owner = guest.user_id is not None and guest.user_id == event.user_id
     avatar_url = (
         s3_client.presign_get(guest.avatar_key, expires_in=_AVATAR_URL_TTL)
         if guest.avatar_key
@@ -233,6 +235,8 @@ def _build_session_out(guest: Guest, frames_used: int, event: Event | None = Non
                 lut_preset=s.lut_preset,
                 sound_enabled=s.sound_enabled,
                 photo_format=s.photo_format,
+                uploads_enabled=bool(s.uploads_enabled) or is_owner,
+                uploads_window_ends_at=s.uploads_window_ends_at,
             ),
         ),
         frames_used=frames_used,

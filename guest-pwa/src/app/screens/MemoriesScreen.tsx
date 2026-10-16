@@ -12,7 +12,7 @@ function BlockCard({ b }: { b: Block }) {
   const thumbs = b.thumbs.slice(0, b.kind === 'single' ? 1 : 4)
   const body = (
     <>
-      <div style={{ display: 'grid', gap: 2, gridTemplateColumns: thumbs.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--ink)' }}>
+      <div style={{ display: 'grid', gap: 2, gridTemplateColumns: thumbs.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--line)' }}>
         {thumbs.map((t) => (
           <div key={t.frame_id} style={{ aspectRatio: thumbs.length > 1 ? '1' : '4 / 3', overflow: 'hidden', background: '#1A1714' }}>
             <img src={t.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: t.rotation ? `rotate(${t.rotation}deg) scale(${t.rotation % 180 ? 1.34 : 1})` : undefined }} />
@@ -50,7 +50,7 @@ export default function MemoriesScreen() {
             <div className="host-grid">
               {minis.collections.map((c) => (
                 <Link key={c.id} to={`/app/collections/${c.id}`} className="host-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gap: 2, gridTemplateColumns: c.preview_urls.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--ink)' }}>
+                  <div style={{ display: 'grid', gap: 2, gridTemplateColumns: c.preview_urls.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--line)' }}>
                     {c.preview_urls.slice(0, 4).map((u) => <img key={u} src={u} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />)}
                     {c.preview_urls.length === 0 && <div style={{ aspectRatio: '4 / 3' }} />}
                   </div>

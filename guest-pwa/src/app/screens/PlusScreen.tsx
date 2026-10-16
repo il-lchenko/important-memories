@@ -8,7 +8,7 @@ import { CenterSpinner, ErrorBox, Spinner, toast, TopBar } from '../ui'
 
 function Feature({ children }: { children: ReactNode }) {
   return (
-    <div style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: '1px dashed var(--ink-4)', lineHeight: 1.45 }}>
+    <div style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)', lineHeight: 1.45 }}>
       <span style={{ color: 'var(--amber-2)' }}>▸</span><span>{children}</span>
     </div>
   )
@@ -82,7 +82,7 @@ export default function PlusScreen() {
           <div className="host-edge">Что входит</div>
           {plus && (
             <>
-              <Feature>Соло-альбомы: до <b>{plus.solo_frames_per_month}</b> кадров в месяц вместо {plus.solo_free_frames_per_month}, хранение {Math.round(plus.solo_retention_days / 30)} мес.</Feature>
+              <Feature>Соло-альбомы: до <b>{plus.solo_frames_per_month}</b> кадров в месяц вместо {plus.solo_free_frames_per_month}, хранятся, пока действует подписка (без подписки {Math.round(plus.solo_free_retention_days / 30)} мес.)</Feature>
               <Feature>События на 5 гостей: {plus.events_active} одновременно и {plus.events_per_month} в месяц вместо {plus.free_events_active} и {plus.free_events_per_month}</Feature>
               <Feature>Мини-альбомы без ограничения по числу (вместо {plus.mini_free_albums}), до {plus.mini_frames_per_album} кадров в подборке вместо {plus.mini_free_frames_per_album}</Feature>
             </>

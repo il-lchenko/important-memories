@@ -21,10 +21,10 @@ export const FILM_LABELS: Record<string, { name: string; short: string }> = {
 }
 
 export const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: 'Черновик', color: 'var(--ink-3)', bg: 'var(--paper)' },
-  active: { label: 'Идёт', color: 'var(--shutter)', bg: 'var(--paper)' },
-  completed: { label: 'Проявлен', color: 'var(--success)', bg: 'var(--paper)' },
-  cancelled: { label: 'Отменён', color: 'var(--ink-4)', bg: 'var(--paper)' },
+  draft: { label: 'Черновик', color: '#B0A080', bg: '' },
+  active: { label: 'Запись', color: '#C9881E', bg: '' },
+  completed: { label: 'Проявлено', color: '#5BAA72', bg: '' },
+  cancelled: { label: 'Отменён', color: '#9C9082', bg: '' },
 }
 
 const dateFmt = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })

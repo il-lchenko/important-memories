@@ -110,7 +110,7 @@ export function CollectionScreen() {
         <div style={{ display: 'grid', gap: 4, gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))' }}>
           {items.map((f: CFrame, i) => (
             <button key={f.id} onClick={() => setOpen(i)} aria-label="Открыть кадр"
-              style={{ aspectRatio: '1', padding: 0, overflow: 'hidden', border: '1px solid var(--ink)', background: '#1A1714', cursor: 'pointer' }}>
+              style={{ aspectRatio: '1', padding: 0, overflow: 'hidden', border: 'none', borderRadius: 12, background: '#1A1714', cursor: 'pointer' }}>
               <img src={f.thumbnail_url ?? f.preview_url ?? f.full_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </button>
           ))}
@@ -223,9 +223,9 @@ export function CollectionPickerScreen() {
                 const on = picked.has(f.id)
                 return (
                   <button key={f.id} disabled={taken} onClick={() => toggle(f.id)} aria-pressed={on}
-                    style={{ aspectRatio: '1', padding: 0, overflow: 'hidden', position: 'relative', border: on ? '3px solid var(--amber)' : '1px solid var(--ink)', background: '#1A1714', cursor: taken ? 'default' : 'pointer', opacity: taken ? 0.4 : 1 }}>
+                    style={{ aspectRatio: '1', padding: 0, overflow: 'hidden', position: 'relative', borderRadius: 12, border: on ? '3px solid var(--amber)' : 'none', background: '#1A1714', cursor: taken ? 'default' : 'pointer', opacity: taken ? 0.4 : 1 }}>
                     <img src={f.thumbnail_url ?? f.preview_url ?? f.full_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    {on && <span style={{ position: 'absolute', right: 4, top: 4, width: 20, height: 20, background: 'var(--amber)', border: '1px solid var(--ink)', fontSize: 13, lineHeight: '18px', textAlign: 'center', fontWeight: 700 }}>✓</span>}
+                    {on && <span style={{ position: 'absolute', right: 4, top: 4, width: 22, height: 22, borderRadius: 11, background: 'var(--amber)', color: '#fff', fontSize: 13, lineHeight: '22px', textAlign: 'center', fontWeight: 700 }}>✓</span>}
                     {taken && <span className="host-edge" style={{ position: 'absolute', left: 4, bottom: 4, background: 'var(--paper)', padding: '0 4px' }}>в подборке</span>}
                   </button>
                 )

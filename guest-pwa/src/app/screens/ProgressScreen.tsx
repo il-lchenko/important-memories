@@ -39,7 +39,7 @@ export default function ProgressScreen() {
             <div className="host-edge" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span>Плёнка израсходована</span><span>{pct}%</span>
             </div>
-            <div style={{ height: 10, border: '1px solid var(--ink)', background: 'var(--paper)' }}>
+            <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', background: 'var(--paper-3)' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: 'var(--amber)' }} />
             </div>
           </div>
@@ -51,7 +51,7 @@ export default function ProgressScreen() {
           {frames.length === 0 && !album.isLoading && <p className="host-muted">Пока ни одного кадра.</p>}
           <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))' }}>
             {frames.map((f) => (
-              <Link key={f.id} to={`/app/events/${id}/album?f=${f.id}`} style={{ aspectRatio: '1', overflow: 'hidden', border: '1px solid var(--ink)', display: 'block' }}>
+              <Link key={f.id} to={`/app/events/${id}/album?f=${f.id}`} style={{ aspectRatio: '1', overflow: 'hidden', borderRadius: 12, display: 'block' }}>
                 <img src={f.thumbnail_url ?? f.preview_url ?? f.full_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </Link>
             ))}

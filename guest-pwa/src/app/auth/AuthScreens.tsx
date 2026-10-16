@@ -19,7 +19,7 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 36 }}>
           <img src="/brand/im-mark-F-light.svg" alt="" width={36} height={36}
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-          <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 22, letterSpacing: '-.01em' }}>
+          <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 22, letterSpacing: '-.01em' }}>
             Impo<span style={{ color: 'var(--amber-2)' }}>Mento</span>
           </span>
         </div>
@@ -197,8 +197,8 @@ export function CodeScreen() {
             style={{
               width: '100%', maxWidth: 52, height: 60, textAlign: 'center',
               fontFamily: 'Inter, sans-serif', fontSize: 24, fontWeight: 600,
-              borderRadius: 2, border: `1px solid var(--ink)`, boxShadow: d ? '3px 3px 0 var(--amber)' : 'none',
-              background: 'var(--paper)', color: 'var(--ink)', outline: 'none',
+              borderRadius: 14, border: d ? '1px solid var(--amber)' : '1px solid var(--line)',
+              background: 'var(--paper-2)', color: 'var(--ink)', outline: 'none',
             }}
           />
         ))}

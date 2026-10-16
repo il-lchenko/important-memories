@@ -24,7 +24,7 @@ async def _owner_session(client: AsyncClient, token: str, short_code: str) -> di
 
 
 @pytest.mark.asyncio
-async def test_create_solo_is_active_with_30_day_retention(client: AsyncClient) -> None:
+async def test_create_solo_is_active_with_free_retention(client: AsyncClient) -> None:
     token = await authenticate(client)
     ev = await _create_solo(client, token)
     assert ev["kind"] == "solo"
@@ -32,7 +32,8 @@ async def test_create_solo_is_active_with_30_day_retention(client: AsyncClient) 
     assert ev["settings"]["max_guests"] == 1
     expires = datetime.fromisoformat(ev["expires_at"])
     delta = expires - datetime.now(timezone.utc)
-    assert timedelta(days=29) < delta <= timedelta(days=30, minutes=1)
+    free_days = settings.SOLO_FREE_RETENTION_DAYS
+    assert timedelta(days=free_days - 1) < delta <= timedelta(days=free_days, minutes=1)
 
     listed = await client.get("/api/v1/events/", headers=auth_headers(token))
     assert [e["kind"] for e in listed.json()] == ["solo"]

@@ -162,7 +162,7 @@ async def test_expired_subscription_removes_plus_and_shortens_solo_retention(cli
     token = await authenticate(client)
     await _subscribe(client, token)
     solo = (await client.post("/api/v1/events/solo", json={"title": "Год"}, headers=auth_headers(token))).json()
-    assert datetime.fromisoformat(solo["expires_at"]) - datetime.now(timezone.utc) > timedelta(days=300)
+    assert datetime.fromisoformat(solo["expires_at"]) - datetime.now(timezone.utc) > timedelta(days=3000)
 
     async with SessionLocal() as s:
         await s.execute(update(Subscription).values(current_period_end=datetime.now(timezone.utc) - timedelta(minutes=1), cancel_at_period_end=True))
@@ -176,7 +176,9 @@ async def test_expired_subscription_removes_plus_and_shortens_solo_retention(cli
     assert status["plus"] is False
     async with SessionLocal() as s:
         event = (await s.execute(select(Event))).scalar_one()
-        assert event.expires_at - datetime.now(timezone.utc) <= timedelta(days=30, minutes=1)
+        # Не меньше обычного бесплатного срока от создания альбома и не больше него же (альбом свежий).
+        left = event.expires_at - datetime.now(timezone.utc)
+        assert timedelta(days=settings.SOLO_FREE_RETENTION_DAYS - 1) < left <= timedelta(days=settings.SOLO_FREE_RETENTION_DAYS, minutes=1)
 
 
 @pytest.mark.asyncio
@@ -214,3 +216,33 @@ async def test_refund_ends_subscription(client: AsyncClient) -> None:
     assert resp.status_code == 200
     status = (await client.get("/api/v1/me/subscription", headers=auth_headers(token))).json()
     assert status["plus"] is False
+
+
+@pytest.mark.asyncio
+async def test_existing_solo_albums_are_extended_when_subscribing(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    solo = (await client.post("/api/v1/events/solo", json={"title": "До подписки"}, headers=auth_headers(token))).json()
+    before = datetime.fromisoformat(solo["expires_at"]) - datetime.now(timezone.utc)
+    assert before < timedelta(days=settings.SOLO_FREE_RETENTION_DAYS + 1)
+
+    await _subscribe(client, token)
+    async with SessionLocal() as s:
+        event = (await s.execute(select(Event))).scalar_one()
+        assert event.expires_at - datetime.now(timezone.utc) > timedelta(days=3000)
+
+
+@pytest.mark.asyncio
+async def test_old_solo_keeps_grace_of_30_days_after_subscription_ends(client: AsyncClient) -> None:
+    token = await authenticate(client)
+    await _subscribe(client, token)
+    await client.post("/api/v1/events/solo", json={"title": "Давний"}, headers=auth_headers(token))
+    async with SessionLocal() as s:
+        await s.execute(update(Event).values(created_at=datetime.now(timezone.utc) - timedelta(days=200)))
+        await s.execute(update(Subscription).values(current_period_end=datetime.now(timezone.utc) - timedelta(minutes=1), cancel_at_period_end=True))
+        await s.commit()
+    async with SessionLocal() as s:
+        await subscription_service.renew_due(s)
+    async with SessionLocal() as s:
+        event = (await s.execute(select(Event))).scalar_one()
+        left = event.expires_at - datetime.now(timezone.utc)
+        assert timedelta(days=settings.SOLO_GRACE_DAYS - 1) < left <= timedelta(days=settings.SOLO_GRACE_DAYS, minutes=1)

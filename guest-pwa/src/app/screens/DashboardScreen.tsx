@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { EventOut, InvitedEventOut, Schemas } from '../api/hostClient'
 import { apiErrorMessage } from '../api/hostClient'
-import { EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, formatShortDate } from '../format'
+import { PhotoCard } from '../components/PhotoCard'
+import { STATUS_META } from '../format'
 import { useCollections, useEvents, useInvitedEvents, useMe } from '../queries'
 import { CenterSpinner, ErrorBox, Icon, icons, TopBar } from '../ui'
 
@@ -16,59 +17,47 @@ type Card =
 
 function StatusStamp({ status }: { status: string }) {
   const meta = STATUS_META[status] ?? STATUS_META.draft
-  return <span className="host-badge" style={{ color: meta.color, background: meta.bg }}>{meta.label}</span>
+  return <span className="host-badge" style={{ color: meta.color }}>{meta.label}</span>
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
+function Meta({ guests, frames, date }: { guests?: number; frames: number; date?: string | null }) {
+  return (
+    <>
+      {guests !== undefined && <span><Icon d={icons.profile} size={16} />{guests}</span>}
+      <span className="hot"><Icon d={icons.roll} size={16} />{frames}</span>
+      {date && <span><Icon d={icons.calendar} size={16} />{date}</span>}
+    </>
+  )
+}
 
-function EventCard({ card, no }: { card: Card; no: number }) {
+const fullDate = (iso?: string | null) => {
+  if (!iso) return null
+  const d = new Date(iso)
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+}
+
+function EventCard({ card }: { card: Card }) {
   if (card.kind === 'mini') {
     const c = card.col
     return (
-      <Link to={`/app/collections/${c.id}`} className="host-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-        <div className="host-cover" style={{ display: 'grid', gridTemplateColumns: c.preview_urls.length > 1 ? '1fr 1fr' : '1fr', gap: 2 }}>
-          {c.preview_urls.slice(0, 4).map((u) => <img key={u} src={u} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)}
-          <span className="host-frameno" aria-label={`Кадр ${no}`}>{pad(no)}</span>
-          <div style={{ position: 'absolute', top: 10, right: 10 }}><span className="host-badge" style={{ color: 'var(--amber-2)' }}>Мини</span></div>
-        </div>
-        <div style={{ padding: '12px 16px 16px' }}>
-          <div className="host-edge">подборка ▸ {c.items_count} кадр.</div>
-          <div className="host-frame-title">{c.title}</div>
-          <div className="host-muted" style={{ fontSize: 13 }}>{formatShortDate(c.created_at)}</div>
-        </div>
-      </Link>
+      <PhotoCard to={`/app/collections/${c.id}`} covers={c.preview_urls} title={c.title}
+        badge={<span className="host-badge" style={{ color: '#C9881E' }}>Мини-альбом</span>}
+        meta={<Meta frames={c.items_count} date={fullDate(c.created_at)} />} />
     )
   }
-
   const e = card.event
   const solo = card.kind === 'mine' && card.event.kind === 'solo'
-  const href = card.kind === 'mine' ? `/app/events/${e.id}` : `/app/events/${e.id}/album`
-  const film = card.kind === 'mine' ? (FILM_LABELS[card.event.settings.lut_preset]?.short ?? 'RAW') : 'ALB'
-  return (
-    <Link to={href} className="host-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}>
-      <div className="host-cover">
-        {e.cover_url && <img src={e.cover_url} alt="" loading="lazy" />}
-        <span className="host-frameno" aria-label={`Кадр ${no}`}>{pad(no)}</span>
-        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6 }}>
-          {card.kind === 'invited' && <span className="host-badge" style={{ color: 'var(--ink)' }}>Гость</span>}
-          {solo ? <span className="host-badge" style={{ color: 'var(--amber-2)' }}>Соло</span> : <StatusStamp status={e.status} />}
-        </div>
-      </div>
-      <div style={{ padding: '12px 16px 16px' }}>
-        <div className="host-edge">
-          {card.kind === 'mine'
-            ? solo
-              ? `${film} ▸ ${card.event.frames_count ?? 0} кадр. ▸ до ${formatShortDate(card.event.expires_at)}`
-              : `${film} ▸ ${card.event.guests_count ?? 0}/${card.event.settings.max_guests} гост. ▸ ${card.event.frames_count ?? 0} кадр.`
-            : `мои ${card.event.my_frames_count} из ${card.event.total_frames} кадр.`}
-        </div>
-        <div className="host-frame-title">{e.title}</div>
-        <div className="host-muted" style={{ fontSize: 13 }}>
-          {card.kind === 'mine' && !solo ? `${EVENT_TYPE_LABELS[card.event.event_type] ?? 'Событие'} · ` : ''}{formatShortDate(e.start_at)}
-        </div>
-      </div>
-    </Link>
+  const to = card.kind === 'mine' ? `/app/events/${e.id}` : `/app/events/${e.id}/album`
+  const badge = (
+    <>
+      {solo ? <span className="host-badge" style={{ color: '#C9881E' }}>Соло</span> : <StatusStamp status={e.status} />}
+      {card.kind === 'invited' && <span className="host-badge" style={{ color: '#F0E8D8' }}>Гость</span>}
+    </>
   )
+  const meta = card.kind === 'mine'
+    ? <Meta guests={solo ? undefined : card.event.guests_count ?? 0} frames={card.event.frames_count ?? 0} date={fullDate(e.start_at)} />
+    : <Meta frames={card.event.my_frames_count} date={fullDate(e.start_at)} />
+  return <PhotoCard to={to} cover={e.cover_url} badge={badge} title={e.title} meta={meta} />
 }
 
 export default function DashboardScreen() {
@@ -109,7 +98,7 @@ export default function DashboardScreen() {
 
   return (
     <>
-      <TopBar title="Альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : `Контактный лист · ${cards.length}`} />
+      <TopBar title="Мои альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : undefined} />
       <main className="host-main">
         <div className="host-scroll-x" style={{ padding: '16px 0 10px' }}>
           {([['mine', 'События'], ['solo', 'Соло'], ['minis', 'Подборки'], ['invited', 'Я гость'], ['all', 'Все']] as const).map(([k, label]) => (
@@ -151,7 +140,7 @@ export default function DashboardScreen() {
         )}
 
         <div className="host-grid">
-          {cards.map((c, i) => <EventCard key={`${c.kind}-${c.kind === 'mini' ? c.col.id : c.event.id}`} card={c} no={i + 1} />)}
+          {cards.map((c) => <EventCard key={`${c.kind}-${c.kind === 'mini' ? c.col.id : c.event.id}`} card={c} />)}
         </div>
       </main>
     </>

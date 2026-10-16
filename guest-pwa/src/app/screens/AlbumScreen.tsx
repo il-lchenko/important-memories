@@ -100,7 +100,7 @@ function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
     setRot((r) => ({ ...r, [frame.id]: nextRot }))
     rotate.mutate(nextRot)
   }
-  const barBtn = { width: 40, height: 40, borderRadius: 2, border: '1px solid rgba(240,230,210,.5)', background: 'transparent', color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' } as const
+  const barBtn = { width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(240,230,210,.5)', background: 'transparent', color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' } as const
 
   return (
     <div className="darkroom" role="dialog" aria-modal="true" aria-label="Просмотр кадра"
@@ -250,7 +250,7 @@ export default function HostAlbumScreen() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {(Object.keys(TITLE_FONTS) as TitleFont[]).map((f) => (
             <button key={f} className="host-card host-row" disabled={saveFont.isPending}
-              style={{ border: font === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 2, flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
+              style={{ border: font === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 12, flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
               onClick={() => {
                 if (lock.fontLocked(f, event.data?.settings.title_font)) { toast('Дополнительные шрифты доступны с подпиской «Плюс»'); navigate('/app/plus'); return }
                 saveFont.mutate(f)

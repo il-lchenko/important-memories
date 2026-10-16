@@ -54,7 +54,7 @@ async def presign_upload(
     resume_frame_id: UUID | None = None,
 ) -> FramePresignOut:
     is_upload = source == "upload"
-    max_bytes = 12 * 1024 * 1024 if is_upload else 20 * 1024 * 1024
+    max_bytes = 20 * 1024 * 1024
     if size_bytes > max_bytes:
         raise ConflictError("File too large", details={"max_bytes": max_bytes})
 
@@ -63,6 +63,7 @@ async def presign_upload(
     window_ends_at = guest.event.settings.uploads_window_ends_at
     is_post_event_window_open = (
         is_upload
+        and not is_owner
         and guest.event.status == EventStatus.COMPLETED
         and window_ends_at is not None
         and window_ends_at > now
@@ -71,7 +72,14 @@ async def presign_upload(
     if is_upload:
         # Пост-event окно от хоста: событие COMPLETED, но window > now — разрешаем.
         # Иначе — стандартные проверки (ACTIVE + uploads_enabled).
-        if not is_post_event_window_open:
+        if is_owner:
+            # Владелец добавляет фото из галереи в свой альбом всегда: пока он идёт и после завершения.
+            if guest.event.status not in (EventStatus.ACTIVE, EventStatus.COMPLETED):
+                raise ConflictError(
+                    "Альбом закрыт для загрузки",
+                    details={"status": guest.event.status.value},
+                )
+        elif not is_post_event_window_open:
             if guest.event.status != EventStatus.ACTIVE:
                 raise ConflictError(
                     "Загрузка доступна только во время события",
@@ -90,8 +98,8 @@ async def presign_upload(
                 details={"status": guest.event.status.value},
             )
 
-    # end_at гейт: камере блокируем всегда, upload в пост-event окне пропускаем.
-    if not is_post_event_window_open and guest.event.end_at is not None and guest.event.end_at <= now:
+    # end_at гейт: камере блокируем всегда, upload в пост-event окне и от владельца пропускаем.
+    if not is_post_event_window_open and not (is_upload and is_owner) and guest.event.end_at is not None and guest.event.end_at <= now:
         raise ConflictError(
             "Съёмка завершена — время истекло",
             details={"end_at": guest.event.end_at.isoformat()},
@@ -121,7 +129,7 @@ async def presign_upload(
 
     # Rate-limit для gallery-uploads: 1 файл / 10 сек на гостя. Защита от массового
     # заливания (5×3 фото за 3 секунды забило бы квоту и storage).
-    if is_upload:
+    if is_upload and not is_owner:
         blocked = await rate_limiter.too_soon(
             f"rl:upload:{guest.id}", cooldown_sec=10
         )

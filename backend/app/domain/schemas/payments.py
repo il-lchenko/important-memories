@@ -118,6 +118,7 @@ class PricingPlusOut(BaseModel):
     solo_frames_per_month: int = 0
     solo_free_frames_per_month: int = 0
     solo_retention_days: int = 0
+    solo_free_retention_days: int = 0
     events_active: int = 0
     events_per_month: int = 0
     free_events_active: int = 0
