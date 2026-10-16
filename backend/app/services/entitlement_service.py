@@ -134,7 +134,11 @@ async def solo_usage(session: AsyncSession, user_id) -> tuple[int, int]:
     """(кадров снято в этом месяце, кадров хранится сейчас) по всем соло-альбомам пользователя."""
     month = (await session.execute(_solo_frames_stmt(user_id).where(Frame.captured_at >= _month_start()))).scalar_one()
     stored = (
-        await session.execute(_solo_frames_stmt(user_id).where(Event.storage_purged_at.is_(None)))
+        await session.execute(
+            _solo_frames_stmt(user_id).where(
+                Event.storage_purged_at.is_(None), Event.status != EventStatus.CANCELLED
+            )
+        )
     ).scalar_one()
     return int(month), int(stored)
 

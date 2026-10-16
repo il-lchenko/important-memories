@@ -151,6 +151,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/solo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Solo
+         * @description Личный соло-альбом: без гостей, QR и проявки; снимает владелец.
+         */
+        post: operations["events_create_solo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/invited": {
         parameters: {
             query?: never;
@@ -982,6 +1002,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collections/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Collections */
+        get: operations["collections_list_collections"];
+        put?: never;
+        /** Create Collection */
+        post: operations["collections_create_collection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collections/{collection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Collection */
+        get: operations["collections_get_collection"];
+        put?: never;
+        post?: never;
+        /** Delete Collection */
+        delete: operations["collections_delete_collection"];
+        options?: never;
+        head?: never;
+        /** Rename Collection */
+        patch: operations["collections_rename_collection"];
+        trace?: never;
+    };
+    "/api/v1/collections/{collection_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Items */
+        post: operations["collections_add_items"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collections/{collection_id}/items/{frame_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Item */
+        delete: operations["collections_remove_item"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Subscription */
+        get: operations["subscription_get_subscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscription/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscription Checkout */
+        post: operations["subscription_subscription_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscription/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscription Cancel */
+        post: operations["subscription_subscription_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/subscription/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Subscription Resume */
+        post: operations["subscription_subscription_resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/": {
         parameters: {
             query?: never;
@@ -1273,6 +1432,113 @@ export interface components {
              */
             admin_bypass: boolean;
         };
+        /** CollectionCreateIn */
+        CollectionCreateIn: {
+            /** Title */
+            title: string;
+        };
+        /** CollectionFrameOut */
+        CollectionFrameOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Event Title */
+            event_title: string;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Thumbnail Url */
+            thumbnail_url: string | null;
+            /** Preview Url */
+            preview_url: string | null;
+            /** Full Url */
+            full_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Rotation
+             * @default 0
+             */
+            rotation: number;
+            /** Caption */
+            caption?: string | null;
+            /**
+             * Is Mine
+             * @default false
+             */
+            is_mine: boolean;
+        };
+        /** CollectionItemsIn */
+        CollectionItemsIn: {
+            /** Frame Ids */
+            frame_ids: string[];
+        };
+        /** CollectionOut */
+        CollectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items: components["schemas"]["CollectionFrameOut"][];
+            /** Frames Limit */
+            frames_limit: number;
+            /**
+             * Unavailable Count
+             * @default 0
+             */
+            unavailable_count: number;
+        };
+        /** CollectionSummaryOut */
+        CollectionSummaryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Items Count */
+            items_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Preview Urls
+             * @default []
+             */
+            preview_urls: string[];
+        };
+        /** CollectionsListOut */
+        CollectionsListOut: {
+            /** Collections */
+            collections: components["schemas"]["CollectionSummaryOut"][];
+            /** Albums Limit */
+            albums_limit: number | null;
+            /** Frames Per Album */
+            frames_per_album: number;
+        };
         /** ConsentAcceptIn */
         ConsentAcceptIn: {
             /**
@@ -1365,6 +1631,11 @@ export interface components {
             solo_album: boolean;
             /** Mini Albums */
             mini_albums: boolean;
+            /**
+             * Extra Styles
+             * @default true
+             */
+            extra_styles: boolean;
         };
         /** EntitlementsOut */
         EntitlementsOut: {
@@ -1377,6 +1648,11 @@ export interface components {
             is_admin: boolean;
             /** Subscription Enabled */
             subscription_enabled: boolean;
+            /**
+             * Plus
+             * @default false
+             */
+            plus: boolean;
             /** Free Events Per Month */
             free_events_per_month: number | null;
             /** Free Events Used */
@@ -1392,6 +1668,43 @@ export interface components {
             free_active_used: number;
             /** Free Active Left */
             free_active_left?: number | null;
+            /**
+             * Solo Frames Per Month
+             * @default 0
+             */
+            solo_frames_per_month: number;
+            /**
+             * Solo Frames Used
+             * @default 0
+             */
+            solo_frames_used: number;
+            /**
+             * Solo Frames Left
+             * @default 0
+             */
+            solo_frames_left: number;
+            /**
+             * Solo Stored Limit
+             * @default 0
+             */
+            solo_stored_limit: number;
+            /**
+             * Solo Stored Used
+             * @default 0
+             */
+            solo_stored_used: number;
+            /**
+             * Solo Retention Days
+             * @default 30
+             */
+            solo_retention_days: number;
+            /** Mini Albums Limit */
+            mini_albums_limit?: number | null;
+            /**
+             * Mini Frames Per Album
+             * @default 0
+             */
+            mini_frames_per_album: number;
             features: components["schemas"]["EntitlementFeaturesOut"];
         };
         /** EventCreateIn */
@@ -1438,6 +1751,11 @@ export interface components {
             id: string;
             /** Short Code */
             short_code: string;
+            /**
+             * Kind
+             * @default event
+             */
+            kind: string;
             /** Title */
             title: string;
             /**
@@ -2168,12 +2486,80 @@ export interface components {
             frames: components["schemas"]["PricingFramesOut"];
             /** Extend */
             extend: components["schemas"]["PricingExtendOut"][];
+            /**
+             * Solo Extend
+             * @default []
+             */
+            solo_extend: components["schemas"]["PricingExtendOut"][];
+            plus?: components["schemas"]["PricingPlusOut"] | null;
             /** Upgrade Premium */
             upgrade_premium: number;
             /** Free Active Events */
             free_active_events?: number | null;
             /** Free Events Per Month */
             free_events_per_month?: number | null;
+        };
+        /**
+         * PricingPlusOut
+         * @description Подписка «Плюс»: цены и включена ли продажа.
+         */
+        PricingPlusOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Month Kopecks */
+            month_kopecks: number;
+            /** Year Kopecks */
+            year_kopecks: number;
+            /**
+             * Solo Frames Per Month
+             * @default 0
+             */
+            solo_frames_per_month: number;
+            /**
+             * Solo Free Frames Per Month
+             * @default 0
+             */
+            solo_free_frames_per_month: number;
+            /**
+             * Solo Retention Days
+             * @default 0
+             */
+            solo_retention_days: number;
+            /**
+             * Events Active
+             * @default 0
+             */
+            events_active: number;
+            /**
+             * Events Per Month
+             * @default 0
+             */
+            events_per_month: number;
+            /**
+             * Free Events Active
+             * @default 0
+             */
+            free_events_active: number;
+            /**
+             * Free Events Per Month
+             * @default 0
+             */
+            free_events_per_month: number;
+            /**
+             * Mini Frames Per Album
+             * @default 0
+             */
+            mini_frames_per_album: number;
+            /**
+             * Mini Free Albums
+             * @default 0
+             */
+            mini_free_albums: number;
+            /**
+             * Mini Free Frames Per Album
+             * @default 0
+             */
+            mini_free_frames_per_album: number;
         };
         /** PricingTierOut */
         PricingTierOut: {
@@ -2363,6 +2749,67 @@ export interface components {
          * @enum {string}
          */
         RevealMode: "instant" | "delayed";
+        /**
+         * SoloCreateIn
+         * @description Создание соло-альбома: личный альбом без гостей, QR и проявки.
+         */
+        SoloCreateIn: {
+            /** Title */
+            title: string;
+            /** @default other */
+            event_type: components["schemas"]["EventType"];
+            lut_preset?: components["schemas"]["LutPreset"] | null;
+        };
+        /** SubscriptionCheckoutIn */
+        SubscriptionCheckoutIn: {
+            /**
+             * Period
+             * @default month
+             * @enum {string}
+             */
+            period: "month" | "year";
+            /** Payment Method */
+            payment_method?: ("sbp" | "bank_card" | "yoo_money" | "sberbank") | null;
+        };
+        /** SubscriptionCheckoutOut */
+        SubscriptionCheckoutOut: {
+            /**
+             * Payment Id
+             * Format: uuid
+             */
+            payment_id: string;
+            /** Confirmation Url */
+            confirmation_url: string;
+            /** Amount Kopecks */
+            amount_kopecks: number;
+            /**
+             * Currency
+             * @default RUB
+             */
+            currency: string;
+        };
+        /** SubscriptionOut */
+        SubscriptionOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Plus */
+            plus: boolean;
+            /** Status */
+            status?: string | null;
+            /** Period */
+            period?: string | null;
+            /** Current Period End */
+            current_period_end?: string | null;
+            /**
+             * Cancel At Period End
+             * @default false
+             */
+            cancel_at_period_end: boolean;
+            /** Month Kopecks */
+            month_kopecks: number;
+            /** Year Kopecks */
+            year_kopecks: number;
+        };
         /** TokenOut */
         TokenOut: {
             /** Access Token */
@@ -2805,6 +3252,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EventCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    events_create_solo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SoloCreateIn"];
             };
         };
         responses: {
@@ -4506,6 +4986,312 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemoriesOut"];
+                };
+            };
+        };
+    };
+    collections_list_collections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionsListOut"];
+                };
+            };
+        };
+    };
+    collections_create_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collections_get_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collections_delete_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collections_rename_collection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collections_add_items: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionItemsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    collections_remove_item: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                collection_id: string;
+                frame_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscription_get_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+        };
+    };
+    subscription_subscription_checkout: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionCheckoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionCheckoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subscription_subscription_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
+                };
+            };
+        };
+    };
+    subscription_subscription_resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionOut"];
                 };
             };
         };

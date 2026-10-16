@@ -557,7 +557,8 @@ async def cancel_event(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> None:
     event = await _load_owned(session, event_id, user_id)
-    if event.status == EventStatus.ACTIVE:
+    # Соло-альбом всегда «активен», его владелец вправе удалить в любой момент.
+    if event.status == EventStatus.ACTIVE and event.kind != EventKind.SOLO.value:
         raise ConflictError(
             "Нельзя удалить активное событие",
             details={"status": event.status.value},

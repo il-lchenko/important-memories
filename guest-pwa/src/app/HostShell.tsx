@@ -31,7 +31,7 @@ export function TabsShell() {
             <Icon d={t.icon} size={18} /> {t.label}
           </NavLink>
         ))}
-        <button className="btn btn-sm" style={{ marginTop: 16 }} onClick={() => navigate('/app/events/new')}>
+        <button className="btn btn-sm" style={{ marginTop: 16 }} onClick={() => navigate('/app/new')}>
           <Icon d={icons.plus} size={18} /> Новый альбом
         </button>
       </nav>
@@ -42,7 +42,7 @@ export function TabsShell() {
         <NavLink to={TABS[0].to} end className="host-tab"><Icon d={TABS[0].icon} />{TABS[0].label}</NavLink>
         <NavLink to={TABS[1].to} className="host-tab"><Icon d={TABS[1].icon} />{TABS[1].label}</NavLink>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <button className="host-fab" aria-label="Новый альбом" onClick={() => navigate('/app/events/new')}>
+          <button className="host-fab" aria-label="Новый альбом" onClick={() => navigate('/app/new')}>
             <Icon d={icons.plus} size={26} stroke={2.2} />
           </button>
         </div>

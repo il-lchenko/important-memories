@@ -99,6 +99,7 @@ export default function SettingsScreen() {
   }
 
   const s = e.settings
+  const solo = e.kind === 'solo'
   const tiers = pricing.data?.tiers ?? []
   const priceOf = (plan: Plan) => (plan === 'free' ? 0 : tiers.find((t) => t.plan === plan)?.price_kopecks ?? 0)
   const nextPlan = NEXT_PLAN[s.plan]
@@ -123,6 +124,14 @@ export default function SettingsScreen() {
           <Row icon={icons.settings} label="Название" hint={e.title} onClick={() => { setTitle(e.title); setRenameOpen(true) }} />
         </Section>
 
+        {solo && (
+          <Section title="Хранение">
+            <Line k="Хранится до" v={e.expires_at ? formatDate(e.expires_at) : '—'} />
+            <Row icon={icons.lock} label="Продлить хранение" hint="Альбом останется доступен дольше" to={`/app/events/${id}/extend`} />
+          </Section>
+        )}
+
+        {!solo && (<>
         <Section title="Тариф">
           <Line k="Гостей" v={`до ${s.max_guests}`} />
           <Line k="Кадров на гостя" v={s.frames_per_guest} />
@@ -206,6 +215,7 @@ export default function SettingsScreen() {
             </div>
           </Section>
         )}
+        </>)}
       </main>
 
       <Sheet open={renameOpen} onClose={() => setRenameOpen(false)} title="Название события">

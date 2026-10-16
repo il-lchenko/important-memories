@@ -1,11 +1,11 @@
 import { ZoomPan } from '../../features/album/ZoomPan'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
 import { GridFormatDialog, MagazineGrid, PolaroidFeed, RetroLayout, ViewSwitcher, type Frame, type ViewMode } from '../../features/album/AlbumScreen'
 import { formatDateTime } from '../format'
-import { qk, useEvent } from '../queries'
+import { qk, useEvent, useStyleLock } from '../queries'
 import { TITLE_FONTS, parseTitleFont, type TitleFont } from '../styles'
 import { CenterSpinner, ErrorBox, Icon, icons, Sheet, toast, TopBar } from '../ui'
 
@@ -179,6 +179,8 @@ export default function HostAlbumScreen() {
     return () => io.disconnect()
   }, [album.hasNextPage, album.isFetchingNextPage, album])
 
+  const navigate = useNavigate()
+  const lock = useStyleLock()
   const saveFont = useMutation({
     mutationFn: async (f: TitleFont) => { await hostApi.patch(`/events/${id}/settings`, { title_font: f }) },
     onSuccess: () => { void qc.invalidateQueries({ queryKey: qk.event(id) }); setFontSheet(false) },
@@ -249,8 +251,11 @@ export default function HostAlbumScreen() {
           {(Object.keys(TITLE_FONTS) as TitleFont[]).map((f) => (
             <button key={f} className="host-card host-row" disabled={saveFont.isPending}
               style={{ border: font === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 2, flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}
-              onClick={() => saveFont.mutate(f)}>
-              <span className="host-muted" style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase' }}>{TITLE_FONTS[f].label}</span>
+              onClick={() => {
+                if (lock.fontLocked(f, event.data?.settings.title_font)) { toast('Дополнительные шрифты доступны с подпиской «Плюс»'); navigate('/app/plus'); return }
+                saveFont.mutate(f)
+              }}>
+              <span className="host-muted" style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase' }}>{TITLE_FONTS[f].label}{lock.fontLocked(f, event.data?.settings.title_font) ? ' 🔒 Плюс' : ''}</span>
               <span style={{ ...TITLE_FONTS[f].style, fontSize: 26 }}>{title}</span>
             </button>
           ))}

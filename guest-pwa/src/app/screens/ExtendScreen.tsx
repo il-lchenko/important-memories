@@ -22,9 +22,12 @@ export default function ExtendScreen() {
   }
 
   const e = event.data
-  const options = pricing.data.extend
+  const solo = e.kind === 'solo'
+  const options = solo ? pricing.data.solo_extend ?? [] : pricing.data.extend
+  const priceOf = (o: { price_kopecks: number; per_guest_kopecks?: number }) =>
+    solo ? o.price_kopecks : Math.max(o.price_kopecks, (o.per_guest_kopecks ?? 0) * e.settings.max_guests)
   const opt = options.find((o) => o.period === period) ?? options[0]
-  const price = opt ? Math.max(opt.price_kopecks, opt.per_guest_kopecks * e.settings.max_guests) : 0
+  const price = opt ? priceOf(opt) : 0
   const discount = promo ? Math.min(promo.discountKopecks, price) : 0
   const total = price - discount
   const base = e.expires_at && new Date(e.expires_at).getTime() > Date.now() ? new Date(e.expires_at).getTime() : Date.now()
@@ -44,7 +47,7 @@ export default function ExtendScreen() {
 
         <div style={{ display: 'grid', gap: 10 }}>
           {options.map((o) => {
-            const p = Math.max(o.price_kopecks, o.per_guest_kopecks * e.settings.max_guests)
+            const p = priceOf(o)
             return (
               <button key={o.period} className="host-card" onClick={() => setPeriod(o.period)}
                 style={{

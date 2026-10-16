@@ -114,6 +114,17 @@ class PricingPlusOut(BaseModel):
     enabled: bool
     month_kopecks: int
     year_kopecks: int
+    # Что даёт подписка в сравнении с бесплатным тарифом.
+    solo_frames_per_month: int = 0
+    solo_free_frames_per_month: int = 0
+    solo_retention_days: int = 0
+    events_active: int = 0
+    events_per_month: int = 0
+    free_events_active: int = 0
+    free_events_per_month: int = 0
+    mini_frames_per_album: int = 0
+    mini_free_albums: int = 0
+    mini_free_frames_per_album: int = 0
 
 
 class PricingOut(BaseModel):

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import QRCode from 'qrcode'
 import { apiErrorMessage, hostApi } from '../api/hostClient'
 import { guestLink } from '../format'
-import { qk, useEvent } from '../queries'
+import { qk, useEvent, useStyleLock } from '../queries'
 import { copyText, ErrorBox, Icon, icons, CenterSpinner, shareLink, toast, TopBar } from '../ui'
 import { QR_PRESETS, parseQrPreset, type QrPreset } from '../styles'
 
@@ -23,6 +23,7 @@ async function renderQr(canvas: HTMLCanvasElement, url: string, preset: QrPreset
 
 export default function QrScreen() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const event = useEvent(id)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -41,7 +42,11 @@ export default function QrScreen() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: qk.event(id) }) },
     onError: (e) => { setLocal(null); toast(apiErrorMessage(e, 'Не удалось сохранить стиль')) },
   })
-  const choose = (p: QrPreset) => { setLocal(p); save.mutate(p) }
+  const lock = useStyleLock()
+  const choose = (p: QrPreset) => {
+    if (lock.qrLocked(p, event.data?.settings.qr_style)) { toast('Дополнительные стили доступны с подпиской «Плюс»'); navigate('/app/plus'); return }
+    setLocal(p); save.mutate(p)
+  }
 
   const download = () => {
     const canvas = canvasRef.current
@@ -89,7 +94,7 @@ export default function QrScreen() {
                 style={{
                   background: QR_PRESETS[p].canvas, color: QR_PRESETS[p].modules, borderRadius: 2, height: 64, cursor: 'pointer',
                   border: preset === p ? '2px solid var(--amber)' : '2px solid var(--line)', fontSize: 12, fontWeight: 600,
-                }}>{QR_PRESETS[p].label}</button>
+                }}>{QR_PRESETS[p].label}{lock.qrLocked(p, event.data?.settings.qr_style) ? ' 🔒' : ''}</button>
             ))}
           </div>
         </div>

@@ -1,10 +1,11 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, goToLogin, hostApi, type Schemas } from '../api/hostClient'
 import { uploadPutBlob } from '../../api/client'
 import { Row } from '../components/Row'
 import { formatDate, rubles } from '../format'
-import { qk, useMe } from '../queries'
+import { qk, useMe, useSubscription } from '../queries'
 import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
 
 async function resizeToSquareJpeg(file: File): Promise<Blob> {
@@ -37,6 +38,8 @@ function discountLabel(p: Schemas['PromocodeOut']): string {
 
 export default function ProfileScreen() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const sub = useSubscription().data
   const me = useMe()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -93,6 +96,9 @@ export default function ProfileScreen() {
   if (me.error || !me.data) return (<><TopBar title="Профиль" /><main className="host-main"><ErrorBox message={apiErrorMessage(me.error)} onRetry={() => void me.refetch()} /></main></>)
 
   const u = me.data
+  const plusHint = sub?.plus
+    ? `Активна${sub.current_period_end ? ` до ${formatDate(sub.current_period_end)}` : ''}`
+    : sub?.enabled ? 'Больше кадров, стили и функции' : 'Скоро: больше кадров, стили и функции'
   const refCode = referrals.data?.referral_code ?? u.referral_code
   const refUrl = refCode ? `https://impomento.pro/?ref=${refCode}` : null
 
@@ -158,6 +164,10 @@ export default function ProfileScreen() {
               </button>
             ))
             : <div className="host-muted" style={{ padding: 16 }}>Пока нет промокодов. Их выдают за приглашённых друзей.</div>}
+        </Section>
+
+        <Section title="Подписка">
+          <Row icon={icons.frames} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
         </Section>
 
         <Section title="Прочее">

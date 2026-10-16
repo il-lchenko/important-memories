@@ -40,13 +40,24 @@ export default function PaymentReturnScreen() {
       n += 1
       setTries(n)
       try {
-        const { data } = await hostApi.get<EventOut>(`/events/${p.eventId}`)
-        if (succeeded(data, p)) {
-          clearPending()
-          await qc.invalidateQueries({ queryKey: qk.events })
-          qc.setQueryData(qk.event(p.eventId), data)
-          if (!stopped) setPhase('ok')
-          return
+        if (p.kind === 'subscription') {
+          const { data: sub } = await hostApi.get<{ plus: boolean }>('/me/subscription')
+          if (sub.plus) {
+            clearPending()
+            await qc.invalidateQueries({ queryKey: qk.subscription })
+            await qc.invalidateQueries({ queryKey: qk.entitlements })
+            if (!stopped) setPhase('ok')
+            return
+          }
+        } else {
+          const { data } = await hostApi.get<EventOut>(`/events/${p.eventId}`)
+          if (succeeded(data, p)) {
+            clearPending()
+            await qc.invalidateQueries({ queryKey: qk.events })
+            qc.setQueryData(qk.event(p.eventId), data)
+            if (!stopped) setPhase('ok')
+            return
+          }
         }
       } catch { /* повторим */ }
       if (n >= MAX_TRIES) { if (!stopped) setPhase('timeout'); return }
@@ -57,6 +68,7 @@ export default function PaymentReturnScreen() {
     // nonce — ручной перезапуск проверки после таймаута
   }, [nonce, phase, qc])
 
+  const isSub = pending.current?.kind === 'subscription'
   const goBack = () => navigate(pending.current?.returnTo ?? (eventId ? `/app/events/${eventId}` : '/app'), { replace: true })
 
   return (
@@ -78,8 +90,8 @@ export default function PaymentReturnScreen() {
               <span className="host-badge" style={{ color: 'var(--success)', fontSize: 20, padding: '6px 16px', borderWidth: 3, transform: 'rotate(-4deg)' }}>Оплачено</span>
             </div>
             <h1 className="host-title" style={{ marginBottom: 10 }}>Оплата прошла</h1>
-            <p className="host-muted" style={{ marginBottom: 28 }}>Изменения уже применены к альбому.</p>
-            <button className="btn" onClick={goBack}>Перейти к событию</button>
+            <p className="host-muted" style={{ marginBottom: 28 }}>{isSub ? 'Подписка «Плюс» активна. Новые лимиты и функции уже доступны.' : 'Изменения уже применены к альбому.'}</p>
+            <button className="btn" onClick={goBack}>{isSub ? 'К подписке' : 'Перейти к событию'}</button>
           </>
         )}
         {phase === 'timeout' && (

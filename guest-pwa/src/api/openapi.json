@@ -387,6 +387,53 @@
         ]
       }
     },
+    "/api/v1/events/solo": {
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Create Solo",
+        "description": "Личный соло-альбом: без гостей, QR и проявки; снимает владелец.",
+        "operationId": "events_create_solo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SoloCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/events/invited": {
       "get": {
         "tags": [
@@ -3051,6 +3098,463 @@
         ]
       }
     },
+    "/api/v1/collections/": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "List Collections",
+        "operationId": "collections_list_collections",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionsListOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Create Collection",
+        "operationId": "collections_create_collection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/collections/{collection_id}": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Get Collection",
+        "operationId": "collections_get_collection",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Rename Collection",
+        "operationId": "collections_rename_collection",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Delete Collection",
+        "operationId": "collections_delete_collection",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{collection_id}/items": {
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Add Items",
+        "operationId": "collections_add_items",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionItemsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{collection_id}/items/{frame_id}": {
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Remove Item",
+        "operationId": "collections_remove_item",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          },
+          {
+            "name": "frame_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Frame Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/subscription": {
+      "get": {
+        "tags": [
+          "subscription"
+        ],
+        "summary": "Get Subscription",
+        "operationId": "subscription_get_subscription",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/subscription/checkout": {
+      "post": {
+        "tags": [
+          "subscription"
+        ],
+        "summary": "Subscription Checkout",
+        "operationId": "subscription_subscription_checkout",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionCheckoutIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionCheckoutOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscription/cancel": {
+      "post": {
+        "tags": [
+          "subscription"
+        ],
+        "summary": "Subscription Cancel",
+        "operationId": "subscription_subscription_cancel",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/subscription/resume": {
+      "post": {
+        "tags": [
+          "subscription"
+        ],
+        "summary": "Subscription Resume",
+        "operationId": "subscription_subscription_resume",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/reports/": {
       "post": {
         "tags": [
@@ -3825,6 +4329,245 @@
         ],
         "title": "CheckoutOut"
       },
+      "CollectionCreateIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "CollectionCreateIn"
+      },
+      "CollectionFrameOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "event_title": {
+            "type": "string",
+            "title": "Event Title"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url"
+          },
+          "preview_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preview Url"
+          },
+          "full_url": {
+            "type": "string",
+            "title": "Full Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          },
+          "rotation": {
+            "type": "integer",
+            "title": "Rotation",
+            "default": 0
+          },
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caption"
+          },
+          "is_mine": {
+            "type": "boolean",
+            "title": "Is Mine",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "event_id",
+          "event_title",
+          "captured_at",
+          "thumbnail_url",
+          "preview_url",
+          "full_url",
+          "width",
+          "height"
+        ],
+        "title": "CollectionFrameOut"
+      },
+      "CollectionItemsIn": {
+        "properties": {
+          "frame_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Frame Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_ids"
+        ],
+        "title": "CollectionItemsIn"
+      },
+      "CollectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionFrameOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "frames_limit": {
+            "type": "integer",
+            "title": "Frames Limit"
+          },
+          "unavailable_count": {
+            "type": "integer",
+            "title": "Unavailable Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "items",
+          "frames_limit"
+        ],
+        "title": "CollectionOut"
+      },
+      "CollectionSummaryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "items_count": {
+            "type": "integer",
+            "title": "Items Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "preview_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preview Urls",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "items_count",
+          "created_at"
+        ],
+        "title": "CollectionSummaryOut"
+      },
+      "CollectionsListOut": {
+        "properties": {
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionSummaryOut"
+            },
+            "type": "array",
+            "title": "Collections"
+          },
+          "albums_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Albums Limit"
+          },
+          "frames_per_album": {
+            "type": "integer",
+            "title": "Frames Per Album"
+          }
+        },
+        "type": "object",
+        "required": [
+          "collections",
+          "albums_limit",
+          "frames_per_album"
+        ],
+        "title": "CollectionsListOut"
+      },
       "ConsentAcceptIn": {
         "properties": {
           "doc_type": {
@@ -4040,6 +4783,11 @@
           "mini_albums": {
             "type": "boolean",
             "title": "Mini Albums"
+          },
+          "extra_styles": {
+            "type": "boolean",
+            "title": "Extra Styles",
+            "default": true
           }
         },
         "type": "object",
@@ -4067,6 +4815,11 @@
           "subscription_enabled": {
             "type": "boolean",
             "title": "Subscription Enabled"
+          },
+          "plus": {
+            "type": "boolean",
+            "title": "Plus",
+            "default": false
           },
           "free_events_per_month": {
             "anyOf": [
@@ -4120,6 +4873,52 @@
               }
             ],
             "title": "Free Active Left"
+          },
+          "solo_frames_per_month": {
+            "type": "integer",
+            "title": "Solo Frames Per Month",
+            "default": 0
+          },
+          "solo_frames_used": {
+            "type": "integer",
+            "title": "Solo Frames Used",
+            "default": 0
+          },
+          "solo_frames_left": {
+            "type": "integer",
+            "title": "Solo Frames Left",
+            "default": 0
+          },
+          "solo_stored_limit": {
+            "type": "integer",
+            "title": "Solo Stored Limit",
+            "default": 0
+          },
+          "solo_stored_used": {
+            "type": "integer",
+            "title": "Solo Stored Used",
+            "default": 0
+          },
+          "solo_retention_days": {
+            "type": "integer",
+            "title": "Solo Retention Days",
+            "default": 30
+          },
+          "mini_albums_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mini Albums Limit"
+          },
+          "mini_frames_per_album": {
+            "type": "integer",
+            "title": "Mini Frames Per Album",
+            "default": 0
           },
           "features": {
             "$ref": "#/components/schemas/EntitlementFeaturesOut"
@@ -4279,6 +5078,11 @@
           "short_code": {
             "type": "string",
             "title": "Short Code"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "event"
           },
           "title": {
             "type": "string",
@@ -6161,6 +6965,24 @@
             "type": "array",
             "title": "Extend"
           },
+          "solo_extend": {
+            "items": {
+              "$ref": "#/components/schemas/PricingExtendOut"
+            },
+            "type": "array",
+            "title": "Solo Extend",
+            "default": []
+          },
+          "plus": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PricingPlusOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "upgrade_premium": {
             "type": "number",
             "title": "Upgrade Premium"
@@ -6197,6 +7019,80 @@
           "upgrade_premium"
         ],
         "title": "PricingOut"
+      },
+      "PricingPlusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "month_kopecks": {
+            "type": "integer",
+            "title": "Month Kopecks"
+          },
+          "year_kopecks": {
+            "type": "integer",
+            "title": "Year Kopecks"
+          },
+          "solo_frames_per_month": {
+            "type": "integer",
+            "title": "Solo Frames Per Month",
+            "default": 0
+          },
+          "solo_free_frames_per_month": {
+            "type": "integer",
+            "title": "Solo Free Frames Per Month",
+            "default": 0
+          },
+          "solo_retention_days": {
+            "type": "integer",
+            "title": "Solo Retention Days",
+            "default": 0
+          },
+          "events_active": {
+            "type": "integer",
+            "title": "Events Active",
+            "default": 0
+          },
+          "events_per_month": {
+            "type": "integer",
+            "title": "Events Per Month",
+            "default": 0
+          },
+          "free_events_active": {
+            "type": "integer",
+            "title": "Free Events Active",
+            "default": 0
+          },
+          "free_events_per_month": {
+            "type": "integer",
+            "title": "Free Events Per Month",
+            "default": 0
+          },
+          "mini_frames_per_album": {
+            "type": "integer",
+            "title": "Mini Frames Per Album",
+            "default": 0
+          },
+          "mini_free_albums": {
+            "type": "integer",
+            "title": "Mini Free Albums",
+            "default": 0
+          },
+          "mini_free_frames_per_album": {
+            "type": "integer",
+            "title": "Mini Free Frames Per Album",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "month_kopecks",
+          "year_kopecks"
+        ],
+        "title": "PricingPlusOut",
+        "description": "Подписка «Плюс»: цены и включена ли продажа."
       },
       "PricingTierOut": {
         "properties": {
@@ -6717,6 +7613,164 @@
           "delayed"
         ],
         "title": "RevealMode"
+      },
+      "SoloCreateIn": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType",
+            "default": "other"
+          },
+          "lut_preset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LutPreset"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "SoloCreateIn",
+        "description": "Создание соло-альбома: личный альбом без гостей, QR и проявки."
+      },
+      "SubscriptionCheckoutIn": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "month",
+              "year"
+            ],
+            "title": "Period",
+            "default": "month"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sbp",
+                  "bank_card",
+                  "yoo_money",
+                  "sberbank"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          }
+        },
+        "type": "object",
+        "title": "SubscriptionCheckoutIn"
+      },
+      "SubscriptionCheckoutOut": {
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Payment Id"
+          },
+          "confirmation_url": {
+            "type": "string",
+            "title": "Confirmation Url"
+          },
+          "amount_kopecks": {
+            "type": "integer",
+            "title": "Amount Kopecks"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "RUB"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payment_id",
+          "confirmation_url",
+          "amount_kopecks"
+        ],
+        "title": "SubscriptionCheckoutOut"
+      },
+      "SubscriptionOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "plus": {
+            "type": "boolean",
+            "title": "Plus"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "cancel_at_period_end": {
+            "type": "boolean",
+            "title": "Cancel At Period End",
+            "default": false
+          },
+          "month_kopecks": {
+            "type": "integer",
+            "title": "Month Kopecks"
+          },
+          "year_kopecks": {
+            "type": "integer",
+            "title": "Year Kopecks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "plus",
+          "month_kopecks",
+          "year_kopecks"
+        ],
+        "title": "SubscriptionOut"
       },
       "TokenOut": {
         "properties": {

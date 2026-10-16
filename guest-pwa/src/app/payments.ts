@@ -1,6 +1,6 @@
 import { hostApi, newIdempotencyKey, type Schemas } from './api/hostClient'
 
-export type PayKind = 'checkout' | 'extend' | 'upgrade_guests' | 'upgrade_frames'
+export type PayKind = 'checkout' | 'extend' | 'upgrade_guests' | 'upgrade_frames' | 'subscription'
 export type PayMethod = 'sbp' | 'bank_card' | 'yoo_money' | 'sberbank'
 
 const PENDING_KEY = 'im_pay_pending'
@@ -10,7 +10,7 @@ export interface PendingPayment {
   kind: PayKind
   startedAt: number
   /** Что должно стать истиной после оплаты (для опроса статуса). */
-  expect: { status?: string; expiresAfter?: string | null; maxGuests?: number; frames?: number }
+  expect: { status?: string; expiresAfter?: string | null; maxGuests?: number; frames?: number; plus?: boolean }
   returnTo: string
 }
 
@@ -70,4 +70,15 @@ export const payUpgrade = (eventId: string, kind: 'guests' | 'frames', method?: 
 export function goToPayment(url: string, pending: PendingPayment) {
   savePending(pending)
   window.location.assign(url)
+}
+
+/** Подписка «Плюс»: ключ идемпотентности один на попытку, платёж создаётся без события. */
+export async function paySubscription(period: 'month' | 'year', method?: PayMethod): Promise<PayResult> {
+  const { data } = await hostApi.post<{ confirmation_url: string; amount_kopecks: number }>(
+    '/subscription/checkout',
+    { period, payment_method: method },
+    { headers: { 'Idempotency-Key': keyFor(`sub_${period}`) } },
+  )
+  resetKey(`sub_${period}`)
+  return { done: !data.confirmation_url, redirectUrl: data.confirmation_url, amountKopecks: data.amount_kopecks }
 }

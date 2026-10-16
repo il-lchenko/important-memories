@@ -9,6 +9,9 @@ export const qk = {
   album: (id: string) => ['album', id] as const,
   pricing: ['pricing'] as const,
   entitlements: ['entitlements'] as const,
+  collections: ['collections'] as const,
+  collection: (id: string) => ['collection', id] as const,
+  subscription: ['subscription'] as const,
 }
 
 export function useMe() {
@@ -57,4 +60,40 @@ export function useEntitlements() {
     queryFn: async () => (await hostApi.get<Schemas['EntitlementsOut']>('/me/entitlements')).data,
     staleTime: 60_000,
   })
+}
+
+export function useCollections() {
+  return useQuery({
+    queryKey: qk.collections,
+    queryFn: async () => (await hostApi.get<Schemas['CollectionsListOut']>('/collections/')).data,
+  })
+}
+
+export function useCollection(id: string) {
+  return useQuery({
+    queryKey: qk.collection(id),
+    queryFn: async () => (await hostApi.get<Schemas['CollectionOut']>(`/collections/${id}`)).data,
+  })
+}
+
+export function useSubscription() {
+  return useQuery({
+    queryKey: qk.subscription,
+    queryFn: async () => (await hostApi.get<Schemas['SubscriptionOut']>('/me/subscription')).data,
+    staleTime: 30_000,
+  })
+}
+
+const FREE_QR = new Set(['classic'])
+const FREE_FONTS = new Set(['playfair'])
+
+/** Платные стили закрыты замком, пока подписка запущена и у пользователя её нет.
+ *  Уже выбранный раньше вариант остаётся доступным. */
+export function useStyleLock() {
+  const ent = useEntitlements().data
+  const gated = !!ent && ent.subscription_enabled && !ent.plus
+  return {
+    qrLocked: (preset: string, current?: string | null) => gated && !FREE_QR.has(preset) && preset !== current,
+    fontLocked: (font: string, current?: string | null) => gated && !FREE_FONTS.has(font) && font !== current,
+  }
 }

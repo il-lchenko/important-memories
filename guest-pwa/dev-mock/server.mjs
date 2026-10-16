@@ -22,13 +22,14 @@ const mkEvent = (title, status, over = {}, sOver = {}) => ({
   id: randomUUID(), short_code: Math.random().toString(36).slice(2, 10), title,
   start_at: day(-3), end_at: day(2), expires_at: day(55), event_type: 'wedding', status,
   cover_url: null, created_at: day(-4), updated_at: now(), settings: settings(sOver),
-  guests_count: 12, frames_count: 84, pin_enabled: false, ...over,
+  guests_count: 12, frames_count: 84, pin_enabled: false, kind: 'event', ...over,
 })
 
 const state = {
   events: [
     mkEvent('Свадьба Ани и Пети', 'active', { cover_url: svg('Свадьба', 20, 800, 450) }),
     mkEvent('День рождения Маши', 'completed', { event_type: 'birthday', cover_url: svg('Маша', 200, 800, 450), expires_at: day(20) }, { plan: 'p10', max_guests: 10 }),
+    mkEvent('Грузия, осень', 'active', { kind: 'solo', event_type: 'other', guests_count: 1, frames_count: 14, expires_at: day(25), cover_url: svg('Грузия', 140, 800, 450) }, { plan: 'free', max_guests: 1, frames_per_guest: 150, uploads_enabled: true }),
     mkEvent('Корпоратив Q4', 'draft', { event_type: 'corporate', guests_count: 0, frames_count: 0, expires_at: null }, { plan: 'free', max_guests: 5 }),
   ],
   frames: {},
@@ -36,6 +37,9 @@ const state = {
   pins: {},
   publicShare: {},
   codes: new Map(),
+  collections: [],
+  plus: false,
+  soloUsed: 14,
 }
 state.events.forEach((e, i) => {
   state.frames[e.id] = Array.from({ length: e.status === 'draft' ? 0 : 14 }, (_, k) => ({
@@ -72,6 +76,12 @@ const pricing = () => ({
     { period: '6m', days: 180, price_kopecks: 79000, per_guest_kopecks: 1700 },
     { period: '1y', days: 365, price_kopecks: 129000, per_guest_kopecks: 3200 },
   ],
+  solo_extend: [
+    { period: '3m', days: 90, price_kopecks: 9900, per_guest_kopecks: 0 },
+    { period: '6m', days: 180, price_kopecks: 17900, per_guest_kopecks: 0 },
+    { period: '1y', days: 365, price_kopecks: 29900, per_guest_kopecks: 0 },
+  ],
+  plus: { enabled: true, month_kopecks: 22900, year_kopecks: 219000, solo_frames_per_month: 500, solo_free_frames_per_month: 150, solo_retention_days: 365, events_active: 3, events_per_month: 6, free_events_active: 2, free_events_per_month: 4, mini_frames_per_album: 100, mini_free_albums: 3, mini_free_frames_per_album: 30 },
   upgrade_premium: 1.15, free_active_events: 2, free_events_per_month: 4,
 })
 
@@ -102,7 +112,11 @@ const server = http.createServer(async (req, res) => {
   if (path === '/pricing') return json(res, 200, pricing())
   if (path === '/me/entitlements') {
     return json(res, 200, { tier: 'free', is_admin: false, subscription_enabled: false, free_events_per_month: 4, free_events_used: 1,
-      free_events_left: 3, free_active_limit: 2, free_active_used: 1, free_active_left: 1, features: { solo_album: false, mini_albums: false } })
+      free_events_left: 3, free_active_limit: 2, free_active_used: 1, free_active_left: 1,
+      plus: state.plus, solo_frames_per_month: state.plus ? 500 : 150, solo_frames_used: state.soloUsed, solo_frames_left: (state.plus ? 500 : 150) - state.soloUsed,
+      solo_stored_limit: 300, solo_stored_used: state.soloUsed, solo_retention_days: state.plus ? 365 : 30,
+      mini_albums_limit: state.plus ? null : 3, mini_frames_per_album: state.plus ? 100 : 30,
+      features: { solo_album: true, mini_albums: true, extra_styles: state.plus } })
   }
   if (path === '/me/referrals') return json(res, 200, { referral_code: 'IM-ABC234', referrals_count: 2, total_earned_kopecks: 0, pending_promocodes_count: 1 })
   if (path === '/me/promocodes') return json(res, 200, [])
@@ -115,6 +129,49 @@ const server = http.createServer(async (req, res) => {
       type: 'grid_6', kind: 'single', title: e.title, date_iso: e.start_at, albums_count: 1, event_id: e.id, event_ids: [e.id],
       event_type: e.event_type, thumbs: state.frames[e.id].slice(0, 6).map((f) => ({ url: f.thumbnail_url, event_id: e.id, frame_id: f.id, rotation: 0 })),
     })) })
+  }
+  if (path === '/events/solo' && m === 'POST') {
+    const e = mkEvent(body.title ?? 'Соло', 'active', { kind: 'solo', event_type: 'other', guests_count: 1, frames_count: 0, expires_at: day(30) },
+      { plan: 'free', max_guests: 1, frames_per_guest: 150, uploads_enabled: true, lut_preset: body.lut_preset ?? 'portra400' })
+    state.events.unshift(e); state.frames[e.id] = []
+    return json(res, 201, e)
+  }
+  const subInfo = () => ({ enabled: true, plus: state.plus, status: state.plus ? 'active' : null, period: state.plus ? 'month' : null,
+    current_period_end: state.plus ? day(30) : null, cancel_at_period_end: !!state.cancelPlus, month_kopecks: 22900, year_kopecks: 219000 })
+  if (path === '/me/subscription') return json(res, 200, subInfo())
+  if (path === '/subscription/checkout' && m === 'POST') { state.plus = true; return json(res, 200, { payment_id: randomUUID(), confirmation_url: 'http://localhost:5174/payment/return?kind=subscription', amount_kopecks: 22900, currency: 'RUB' }) }
+  if (path === '/subscription/cancel' && m === 'POST') { state.cancelPlus = true; return json(res, 200, subInfo()) }
+  if (path === '/subscription/resume' && m === 'POST') { state.cancelPlus = false; return json(res, 200, subInfo()) }
+
+  const colView = (c) => {
+    const items = c.items.map((fid) => { for (const [eid, list] of Object.entries(state.frames)) { const f = list.find((x) => x.id === fid); if (f) return { f, eid } } return null }).filter(Boolean)
+    return {
+      id: c.id, title: c.title, created_at: c.created_at, frames_limit: state.plus ? 100 : 30, unavailable_count: c.items.length - items.length,
+      items: items.map(({ f, eid }) => ({ id: f.id, event_id: eid, event_title: state.events.find((e) => e.id === eid)?.title ?? '', captured_at: f.captured_at,
+        thumbnail_url: f.thumbnail_url, preview_url: f.preview_url, full_url: f.full_url, width: f.width, height: f.height, rotation: f.rotation, caption: f.caption, is_mine: f.is_mine })),
+    }
+  }
+  if (path === '/collections/') {
+    if (m === 'POST') {
+      if (!state.plus && state.collections.length >= 3) return err(res, 409, 'Можно создать 3 мини-альбома бесплатно.')
+      const c = { id: randomUUID(), title: body.title, created_at: now(), items: [] }
+      state.collections.unshift(c); return json(res, 201, colView(c))
+    }
+    return json(res, 200, { albums_limit: state.plus ? null : 3, frames_per_album: state.plus ? 100 : 30, collections: state.collections.map((c) => {
+      const v = colView(c); return { id: c.id, title: c.title, items_count: v.items.length, created_at: c.created_at, preview_urls: v.items.slice(0, 4).map((i) => i.thumbnail_url) }
+    }) })
+  }
+  const cm = path.match(/^\/collections\/([^/]+)(\/items(?:\/([^/]+))?)?$/)
+  if (cm) {
+    const c = state.collections.find((x) => x.id === cm[1])
+    if (!c) return err(res, 404, 'Collection not found', 'NOT_FOUND')
+    if (!cm[2]) {
+      if (m === 'PATCH') { c.title = body.title; return json(res, 204) }
+      if (m === 'DELETE') { state.collections = state.collections.filter((x) => x.id !== c.id); return json(res, 204) }
+      return json(res, 200, colView(c))
+    }
+    if (cm[3] && m === 'DELETE') { c.items = c.items.filter((i) => i !== cm[3]); return json(res, 204) }
+    if (m === 'POST') { for (const fid of body.frame_ids ?? []) if (!c.items.includes(fid)) c.items.push(fid); return json(res, 200, colView(c)) }
   }
   if (path === '/events/invited') return json(res, 200, [])
   if (path === '/events/') {
@@ -138,7 +195,7 @@ const server = http.createServer(async (req, res) => {
     if (!ev) return err(res, 404, 'Event not found', 'NOT_FOUND')
     if (sub === '') {
       if (m === 'PATCH') { Object.assign(ev, body); ev.updated_at = now(); return json(res, 200, ev) }
-      if (m === 'DELETE') { if (ev.status === 'active') return err(res, 409, 'Нельзя удалить активное событие'); ev.status = 'cancelled'; return json(res, 204) }
+      if (m === 'DELETE') { if (ev.status === 'active' && ev.kind !== 'solo') return err(res, 409, 'Нельзя удалить активное событие'); ev.status = 'cancelled'; return json(res, 204) }
       return json(res, 200, ev)
     }
     if (sub === '/settings' && m === 'PATCH') { Object.assign(ev.settings, body); return json(res, 200, ev) }

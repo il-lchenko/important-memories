@@ -4,12 +4,16 @@ import { CodeScreen, ConsentScreen, LoginScreen } from './auth/AuthScreens'
 import { PlainShell, RequireHost, TabsShell } from './HostShell'
 import CreateEventScreen from './screens/CreateEventScreen'
 import DashboardScreen from './screens/DashboardScreen'
-import EventScreen from './screens/EventScreen'
+import EventRoute from './screens/EventRoute'
 import HostAlbumScreen from './screens/AlbumScreen'
+import { CollectionPickerScreen, CollectionScreen, CreateCollectionScreen } from './screens/CollectionScreens'
+import CreateSoloScreen from './screens/CreateSoloScreen'
 import ExtendScreen from './screens/ExtendScreen'
 import InvitesScreen from './screens/InvitesScreen'
 import MemoriesScreen from './screens/MemoriesScreen'
+import NewScreen from './screens/NewScreen'
 import PayScreen from './screens/PayScreen'
+import PlusScreen from './screens/PlusScreen'
 import ProfileScreen from './screens/ProfileScreen'
 import ProgressScreen from './screens/ProgressScreen'
 import SettingsScreen from './screens/SettingsScreen'
@@ -58,8 +62,14 @@ export default function HostApp() {
           </Route>
 
           <Route element={<RequireHost><PlainShell /></RequireHost>}>
+            <Route path="new" element={<NewScreen />} />
+            <Route path="solo/new" element={<CreateSoloScreen />} />
+            <Route path="plus" element={<PlusScreen />} />
+            <Route path="collections/new" element={<CreateCollectionScreen />} />
+            <Route path="collections/:id" element={<CollectionScreen />} />
+            <Route path="collections/:id/add" element={<CollectionPickerScreen />} />
             <Route path="events/new" element={<CreateEventScreen />} />
-            <Route path="events/:id" element={<EventScreen />} />
+            <Route path="events/:id" element={<EventRoute />} />
             <Route path="events/:id/pay" element={<PayScreen />} />
             <Route path="events/:id/qr" element={<QrScreen />} />
             <Route path="events/:id/album" element={<HostAlbumScreen />} />

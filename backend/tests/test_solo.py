@@ -130,3 +130,20 @@ async def test_entitlements_and_pricing_expose_solo_and_plus(client: AsyncClient
     assert pricing["plus"]["month_kopecks"] == 22900
     assert pricing["plus"]["year_kopecks"] == 219000
     assert pricing["plus"]["enabled"] is False
+
+
+@pytest.mark.asyncio
+async def test_deleting_solo_frees_storage_quota(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "SOLO_FREE_STORED_FRAMES", 1)
+    token = await authenticate(client)
+    ev = await _create_solo(client, token)
+    session = await _owner_session(client, token, ev["short_code"])
+    headers = {"X-Guest-Token": session["guest_token"]}
+    body = {"content_type": "image/jpeg", "size_bytes": 1_000_000}
+    assert (await client.post("/api/v1/guest/frames/presign", json=body, headers=headers)).status_code == 200
+    assert (await client.post("/api/v1/guest/frames/presign", json=body, headers=headers)).status_code == 409
+
+    deleted = await client.delete(f"/api/v1/events/{ev['id']}", headers=auth_headers(token))
+    assert deleted.status_code == 204
+    ent = (await client.get("/api/v1/me/entitlements", headers=auth_headers(token))).json()
+    assert ent["solo_stored_used"] == 0
