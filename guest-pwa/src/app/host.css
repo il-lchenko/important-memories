@@ -347,3 +347,33 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
 }
 .host-cover-cta:active { transform: translate(-50%, -50%) scale(.97); }
+
+/* ── «Проявочная»: тёмная карточка с перфорацией плёнки и искрой (Darkroom из дизайн-системы) ── */
+.host-darkroom {
+  position: relative; display: flex; overflow: hidden; border-radius: 24px; color: #F0E6D2;
+  background: radial-gradient(120% 100% at 100% 0%, rgba(255, 179, 71, .26), rgba(255, 179, 71, 0) 55%), #16100C;
+  box-shadow: 0 14px 30px -14px rgba(22, 16, 12, .55);
+}
+.host-darkroom-edge {
+  flex: 0 0 30px; background-color: #0C0806; border-right: 1px solid rgba(255, 179, 71, .28);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='26'%3E%3Crect x='9' y='6' width='12' height='14' rx='3.5' fill='%23F6F2E8' fill-opacity='.92'/%3E%3C/svg%3E");
+  background-repeat: repeat-y; background-position: center top;
+}
+.host-darkroom-spark { position: absolute; right: -22px; top: -22px; width: 132px; height: 132px; color: #FFB347; opacity: .13; pointer-events: none; }
+.host-darkroom-body { position: relative; flex: 1; min-width: 0; padding: 20px 20px 20px 18px; }
+.host-darkroom-kicker { font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: #FFB347; }
+.host-darkroom-title { font-family: 'Playfair Display', serif; font-weight: 600; font-size: 24px; line-height: 1.15; letter-spacing: -.3px; margin: 8px 0 14px; color: #F0E6D2; }
+.host-darkroom-text { font-size: 14px; line-height: 1.5; color: rgba(240, 230, 210, .72); margin: 0 0 16px; }
+.host-darkroom-stages { display: flex; gap: 6px; margin: 0 0 16px; }
+.host-darkroom-stages span {
+  flex: 1; text-align: center; padding: 9px 4px; border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  border: 1px solid rgba(255, 179, 71, .3); color: rgba(240, 230, 210, .5);
+}
+.host-darkroom-stages span[data-state='done'] { background: rgba(255, 179, 71, .88); border-color: transparent; color: #16100C; }
+.host-darkroom-stages span[data-state='now'] { border-color: #FFB347; color: #FFB347; box-shadow: 0 0 14px rgba(255, 179, 71, .35); animation: host-pulse 2.4s ease-in-out infinite; }
+@keyframes host-pulse { 50% { box-shadow: 0 0 4px rgba(255, 179, 71, .15); } }
+.host-darkroom .btn-ghost { color: #F0E6D2; border-color: rgba(240, 230, 210, .32); background: transparent; }
+
+/* Заметка с искрой вместо цветной полосы */
+.host-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--paper-2); font-size: 13px; line-height: 1.5; }
+.host-note[data-tone='danger'] { background: rgba(213, 75, 61, .08); }

@@ -1583,8 +1583,7 @@ class _AdminPreviewBanner extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: AppColors.shutter.withValues(alpha: 0.08),
-        border: Border(left: BorderSide(color: AppColors.shutter, width: 3)),
-        borderRadius: const BorderRadius.all(Radius.circular(6)),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

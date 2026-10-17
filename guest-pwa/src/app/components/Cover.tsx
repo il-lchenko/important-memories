@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type EventOut, type Schemas } from '../api/hostClient'
 import { qk } from '../queries'
-import { Icon, icons, Sheet, Spinner, toast } from '../ui'
+import { BrandIcon, Icon, icons, Sheet, Spinner, toast } from '../ui'
 
 /** Всё про обложку альбома: загрузка из галереи, первый кадр, выбор из кадров. */
 export function useCover(eventId: string) {
@@ -67,9 +67,9 @@ export function CoverSheet({ eventId, open, onClose, framesCount, hasCover, api 
   const fileRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<'menu' | 'frames'>('menu')
   const close = () => { setMode('menu'); onClose() }
-  const choice = (icon: string, title: string, text: string, onClick: () => void, disabled?: boolean) => (
+  const choice = (icon: string | ReactNode, title: string, text: string, onClick: () => void, disabled?: boolean) => (
     <button className="host-card host-row" style={{ borderRadius: 16, textAlign: 'left', opacity: disabled ? 0.5 : 1 }} disabled={disabled} onClick={onClick}>
-      <span style={{ color: 'var(--amber)', display: 'flex' }}><Icon d={icon} size={24} /></span>
+      <span style={{ color: 'var(--amber)', display: 'flex' }}>{typeof icon === 'string' ? <Icon d={icon} size={24} /> : icon}</span>
       <span style={{ flex: 1 }}>
         <span style={{ display: 'block', fontWeight: 700 }}>{title}</span>
         <span className="host-muted" style={{ display: 'block', fontSize: 12.5, marginTop: 1 }}>{text}</span>
@@ -83,7 +83,7 @@ export function CoverSheet({ eventId, open, onClose, framesCount, hasCover, api 
       <Sheet open={open} onClose={close} title={mode === 'menu' ? (hasCover ? 'Сменить обложку' : 'Обложка альбома') : 'Выберите кадр'}>
         {mode === 'menu' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {choice(icons.addPhoto, 'Загрузить из галереи', 'Любое фото с телефона или компьютера', () => fileRef.current?.click())}
+            {choice(<BrandIcon name="gallery" size={26} />, 'Загрузить из галереи', 'Любое фото с телефона или компьютера', () => fileRef.current?.click())}
             {choice(icons.camera, 'Взять первый кадр альбома', framesCount > 0 ? 'Самый первый снятый кадр станет обложкой' : 'Появится после первого снимка',
               () => { close(); api.fromFrame.mutate(null) }, framesCount === 0)}
             {choice(icons.frames, 'Выбрать из кадров', framesCount > 0 ? 'Любой кадр из альбома' : 'Появится после первого снимка', () => setMode('frames'), framesCount === 0)}

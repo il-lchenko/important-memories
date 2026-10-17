@@ -13,6 +13,12 @@ export default function ProgressScreen() {
     queryFn: async () => (await hostApi.get<Schemas['AlbumOut']>(`/events/${id}/album`, { params: { limit: 24 } })).data,
   })
 
+  const guests = useQuery({
+    queryKey: ['event-guests', id],
+    refetchInterval: 20_000,
+    queryFn: async () => (await hostApi.get<Schemas['GuestProgressOut'][]>(`/events/${id}/guests`)).data,
+  })
+
   if (event.isLoading) return (<><TopBar back={`/app/events/${id}`} title="Ход съёмки" /><CenterSpinner /></>)
   if (event.error || !event.data) return (<><TopBar back="/app" title="Ход съёмки" /><main className="host-main"><ErrorBox message={apiErrorMessage(event.error)} /></main></>)
 
@@ -21,11 +27,6 @@ export default function ProgressScreen() {
   const potential = Math.max(1, e.guests_count * s.frames_per_guest)
   const pct = Math.min(100, Math.round((e.frames_count / potential) * 100))
   const frames = album.data?.items ?? []
-  const guests = useQuery({
-    queryKey: ['event-guests', id],
-    refetchInterval: 20_000,
-    queryFn: async () => (await hostApi.get<Schemas['GuestProgressOut'][]>(`/events/${id}/guests`)).data,
-  })
 
   return (
     <>

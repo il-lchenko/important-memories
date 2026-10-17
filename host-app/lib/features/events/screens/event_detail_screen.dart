@@ -13,6 +13,7 @@ import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../album/album_provider.dart';
 import '../events_provider.dart';
+import '../../../core/widgets/brand_icon.dart';
 import '../widgets/cover_picker.dart';
 import '../widgets/join_stats_card.dart';
 import '../widgets/pin_card.dart';
@@ -1034,7 +1035,7 @@ class _CoverPill extends StatelessWidget {
         child: busy
             ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
             : Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: big ? 22 : 19),
+                BrandIcon('cover', size: big ? 26 : 22, ink: Colors.white),
                 const SizedBox(width: 8),
                 Text(label, style: GoogleFonts.manrope(fontSize: big ? 15 : 13, fontWeight: FontWeight.w700, color: Colors.white)),
               ]),
@@ -1289,7 +1290,7 @@ class _ActionList extends ConsumerWidget {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.photo_library_outlined, color: Colors.white, size: 22),
+                  Icon(Icons.auto_stories, color: Colors.white, size: 22),
                   SizedBox(width: 10),
                   Text('Открыть альбом', style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                 ],

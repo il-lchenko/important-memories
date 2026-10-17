@@ -11,24 +11,58 @@ export function Icon({ d, size = 20 }: { d: string; size?: number; stroke?: numb
 }
 
 /** Фирменный значок ImpoMento: ink-штрихи плюс янтарная искра. */
-export function BrandIcon({ name, size = 24, stroke = 1.6 }: { name: keyof typeof brandIcons; size?: number; stroke?: number }) {
+export function BrandIcon({ name, size = 24, stroke = 1.6, light = false }: { name: keyof typeof brandIcons; size?: number; stroke?: number; light?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
       {brandIcons[name].map((l, i) => {
         if (l.kind === 'accent') return <path key={i} d={l.d} fill="var(--amber)" />
-        if (l.kind === 'ink') return <path key={i} d={l.d} fill="var(--ink)" />
-        return <path key={i} d={l.d} stroke="var(--ink)" strokeOpacity={l.kind === 'soft' ? 0.3 : 1} strokeWidth={stroke} />
+        if (l.kind === 'ink') return <path key={i} d={l.d} fill={light ? '#fff' : 'var(--ink)'} />
+        return <path key={i} d={l.d} stroke={light ? '#fff' : 'var(--ink)'} strokeOpacity={l.kind === 'soft' ? 0.3 : 1} strokeWidth={stroke} />
       })}
     </svg>
   )
 }
 
 /** Маркер списков: маленькая янтарная искра. */
-export function Spark({ size = 16 }: { size?: number }) {
+export function Spark({ size = 16, color = 'var(--amber)' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d="M12 2Q14 10 22 12Q14 14 12 22Q10 14 2 12Q10 10 12 2Z" fill="var(--amber)" />
+      <path d="M12 2Q14 10 22 12Q14 14 12 22Q10 14 2 12Q10 10 12 2Z" fill={color} />
     </svg>
+  )
+}
+
+/** Карточка «проявочной»: тёмная, с перфорацией плёнки слева и искрой; для состояний, требующих действия. */
+export function DarkroomCard({ kicker, title, children, stages }: {
+  kicker: string; title: ReactNode; children?: ReactNode; stages?: { label: string; state: 'done' | 'now' | 'next' }[]
+}) {
+  return (
+    <section className="host-darkroom">
+      <div className="host-darkroom-edge" aria-hidden="true" />
+      <svg className="host-darkroom-spark" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 1Q14.4 9.6 23 12Q14.4 14.4 12 23Q9.6 14.4 1 12Q9.6 9.6 12 1Z" fill="currentColor" />
+      </svg>
+      <div className="host-darkroom-body">
+        <div className="host-darkroom-kicker">{kicker}</div>
+        <h2 className="host-darkroom-title">{title}</h2>
+        {stages && (
+          <div className="host-darkroom-stages" aria-hidden="true">
+            {stages.map((st) => <span key={st.label} data-state={st.state}>{st.label}</span>)}
+          </div>
+        )}
+        {children}
+      </div>
+    </section>
+  )
+}
+
+/** Короткая заметка: искра вместо цветной полосы. */
+export function Note({ tone = 'amber', children }: { tone?: 'amber' | 'danger'; children: ReactNode }) {
+  return (
+    <div className="host-note" data-tone={tone}>
+      <span style={{ paddingTop: 2 }}><Spark size={15} color={tone === 'danger' ? 'var(--shutter)' : 'var(--amber)'} /></span>
+      <div>{children}</div>
+    </div>
   )
 }
 

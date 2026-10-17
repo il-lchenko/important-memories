@@ -128,7 +128,8 @@ async def get_album(
     revealed_for_guests = _is_revealed_for_guests(event)
     # Host (owner) always has access to the album — even before reveal_at — as admin preview.
     revealed = revealed_for_guests or is_owner
-    is_admin_preview = is_owner and not revealed_for_guests
+    # У соло-альбома нет гостей: «предпросмотр до проявки» не имеет смысла.
+    is_admin_preview = is_owner and not revealed_for_guests and event.kind != "solo"
 
     total_stmt = select(func.count(Frame.id)).where(
         Frame.event_id == event_id,

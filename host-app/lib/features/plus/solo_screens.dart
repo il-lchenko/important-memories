@@ -14,6 +14,7 @@ import '../../core/tokens.dart';
 import '../../utils/guest_prefs.dart';
 import '../album/album_provider.dart';
 import '../events/events_provider.dart';
+import '../../core/widgets/brand_icon.dart';
 import 'plus_providers.dart';
 
 const _films = <(String, String)>[
@@ -373,8 +374,8 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
                       left != null && left <= 0 ? 'Лимит кадров на месяц исчерпан' : 'Плёночная камера',
                       () => _openCamera(shortCode)),
                   _RowData(Icons.photo_library_outlined, 'Добавить фото из галереи',
-                      'Кнопка «Из галереи» под затвором камеры', () => _openCamera(shortCode)),
-                  _RowData(Icons.photo_outlined, 'Открыть альбом', 'Все кадры',
+                      'Кнопка «Из галереи» под затвором камеры', () => _openCamera(shortCode), brand: 'gallery'),
+                  _RowData(Icons.auto_stories_outlined, 'Открыть альбом', 'Все кадры',
                       () => context.push('/events/${widget.eventId}/album')),
                   _RowData(Icons.download_outlined, _downloading ? 'Собираем архив…' : 'Скачать все фото',
                       'ZIP со всеми кадрами', _downloadAll),
@@ -415,7 +416,8 @@ class _RowData {
   final String? hint;
   final VoidCallback onTap;
   final bool danger;
-  const _RowData(this.icon, this.title, this.hint, this.onTap, {this.danger = false});
+  final String? brand;
+  const _RowData(this.icon, this.title, this.hint, this.onTap, {this.danger = false, this.brand});
 }
 
 class _Rows extends StatelessWidget {
@@ -436,7 +438,10 @@ class _Rows extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 child: Row(children: [
-                  Icon(rows[i].icon, color: rows[i].danger ? AppColors.shutter : AppColors.amber, size: 22),
+                  if (rows[i].brand != null)
+                    BrandIcon(rows[i].brand!, size: 26)
+                  else
+                    Icon(rows[i].icon, color: rows[i].danger ? AppColors.shutter : AppColors.amber, size: 22),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

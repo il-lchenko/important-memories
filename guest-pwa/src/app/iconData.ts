@@ -53,7 +53,7 @@ export const materialPaths = {
 } as const
 
 export type BrandLayer = { kind: 'stroke' | 'soft' | 'accent' | 'ink'; d: string }
-export const brandIcons: Record<'event' | 'solo' | 'mini' | 'plus', BrandLayer[]> = {
+export const brandIcons: Record<'event' | 'solo' | 'mini' | 'plus' | 'cover' | 'gallery', BrandLayer[]> = {
   "event": [
     {
       "kind": "stroke",
@@ -94,6 +94,38 @@ export const brandIcons: Record<'event' | 'solo' | 'mini' | 'plus', BrandLayer[]
     {
       "kind": "accent",
       "d": "M9.7 11.9Q10.36 14.54 13 15.2Q10.36 15.86 9.7 18.5Q9.04 15.86 6.4 15.2Q9.04 14.54 9.7 11.9Z"
+    }
+  ],
+  "cover": [
+    {
+      "kind": "stroke",
+      "d": "M7.6 3.8H16.4Q21.2 3.8 21.2 8.6V15.6Q21.2 20.4 16.4 20.4H7.6Q2.8 20.4 2.8 15.6V8.6Q2.8 3.8 7.6 3.8Z"
+    },
+    {
+      "kind": "accent",
+      "d": "M10.4 7.6C11.84 7.6 13 8.76 13 10.2C13 11.64 11.84 12.8 10.4 12.8C8.96 12.8 7.8 11.64 7.8 10.2C7.8 8.76 8.96 7.6 10.4 7.6Z"
+    },
+    {
+      "kind": "stroke",
+      "d": "M5.6 17.4C6.4 14.4 8.2 13.4 10.4 13.4C12.6 13.4 14.4 14.4 15.2 17.4"
+    },
+    {
+      "kind": "accent",
+      "d": "M17.6 4.7Q18.14 6.86 20.3 7.4Q18.14 7.94 17.6 10.1Q17.06 7.94 14.9 7.4Q17.06 6.86 17.6 4.7Z"
+    }
+  ],
+  "gallery": [
+    {
+      "kind": "stroke",
+      "d": "M7.6 3.8H16.4Q21.2 3.8 21.2 8.6V15.6Q21.2 20.4 16.4 20.4H7.6Q2.8 20.4 2.8 15.6V8.6Q2.8 3.8 7.6 3.8Z"
+    },
+    {
+      "kind": "accent",
+      "d": "M12 7.3C13.6 7.3 14.9 8.6 14.9 10.2C14.9 11.8 13.6 13.1 12 13.1C10.4 13.1 9.1 11.8 9.1 10.2C9.1 8.6 10.4 7.3 12 7.3Z"
+    },
+    {
+      "kind": "stroke",
+      "d": "M6.4 18.2C7.2 14.8 9.4 13.6 12 13.6C14.6 13.6 16.8 14.8 17.6 18.2"
     }
   ],
   "plus": [

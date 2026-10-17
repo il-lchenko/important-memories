@@ -7,7 +7,7 @@ import { GridFormatDialog, MagazineGrid, PolaroidFeed, RetroLayout, ViewSwitcher
 import { formatDateTime } from '../format'
 import { qk, useEvent, useStyleLock } from '../queries'
 import { TITLE_FONTS, parseTitleFont, type TitleFont } from '../styles'
-import { CenterSpinner, ErrorBox, Icon, icons, Sheet, toast, TopBar } from '../ui'
+import { CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, toast, TopBar } from '../ui'
 
 type AlbumPage = Schemas['AlbumOut']
 type AlbumFrame = Schemas['AlbumFrameOut']
@@ -202,9 +202,7 @@ export default function HostAlbumScreen() {
       } />
       <main className="host-main" style={{ paddingTop: 12 }}>
         {first?.is_admin_preview && (
-          <div className="host-card" style={{ padding: 12, marginBottom: 12, borderLeft: '3px solid var(--amber)', fontSize: 13 }}>
-            Режим администратора: гости пока не видят альбом.
-          </div>
+          <div style={{ marginBottom: 12 }}><Note>Вы видите альбом раньше гостей: они увидят его после проявления.</Note></div>
         )}
         <h1 style={{ ...TITLE_FONTS[font].style, fontSize: 'clamp(32px, 6vw, 56px)', margin: '4px 0 6px' }}>{title}</h1>
         <div className="host-muted" style={{ marginBottom: 14 }}>

@@ -4,7 +4,7 @@ import { apiErrorMessage, hostApi } from '../api/hostClient'
 import { formatDate, rubles } from '../format'
 import { paySubscription, goToPayment } from '../payments'
 import { qk, usePricing, useSubscription } from '../queries'
-import { BrandIcon, CenterSpinner, ErrorBox, Spark, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, DarkroomCard, ErrorBox, Spark, Spinner, toast, TopBar } from '../ui'
 
 function Feature({ children }: { children: ReactNode }) {
   return (
@@ -59,23 +59,19 @@ export default function PlusScreen() {
       <TopBar back="/app/profile" title="ImpoMento Плюс" kicker={s.plus && s.status ? 'Подписка активна' : 'Подписка'} />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {s.plus && s.status && (
-          <div className="host-card" style={{ padding: 16, borderLeft: '3px solid var(--success)' }}>
-            <div className="host-edge">Статус</div>
-            <div style={{ fontWeight: 600, marginTop: 4 }}>
-              {s.cancel_at_period_end ? 'Не продлится' : 'Продлевается автоматически'}
-            </div>
-            <div className="host-muted" style={{ marginTop: 4 }}>
+          <DarkroomCard kicker="Подписка активна" title={s.cancel_at_period_end ? 'Не продлится' : 'Продлевается автоматически'}>
+            <p className="host-darkroom-text">
               Действует до {s.current_period_end ? formatDate(s.current_period_end) : '—'}
               {s.period === 'year' ? ' (годовая)' : ' (месячная)'}
-            </div>
-            <div style={{ marginTop: 12 }}>
+            </p>
+            <div>
               {s.cancel_at_period_end ? (
                 <button className="btn btn-sm" disabled={resume.isPending} onClick={() => resume.mutate()}>Включить автопродление</button>
               ) : (
                 <button className="btn-ghost btn-sm" disabled={cancel.isPending} onClick={() => cancel.mutate()}>Отменить автопродление</button>
               )}
             </div>
-          </div>
+          </DarkroomCard>
         )}
 
         <div className="host-card" style={{ padding: '20px 18px', display: 'flex', alignItems: 'center', gap: 16, background: 'var(--paper-2)' }}>

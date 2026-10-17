@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../../core/widgets/brand_icon.dart';
 import '../../plus/plus_providers.dart';
 
 /// Как задать обложку: из галереи, первый кадр альбома или выбранный кадр.
@@ -43,7 +44,7 @@ class _CoverSheet extends StatefulWidget {
 class _CoverSheetState extends State<_CoverSheet> {
   bool _frames = false;
 
-  Widget _tile(IconData icon, String title, String text, VoidCallback? onTap) {
+  Widget _tile(Widget icon, String title, String text, VoidCallback? onTap) {
     return Opacity(
       opacity: onTap == null ? 0.5 : 1,
       child: Padding(
@@ -58,7 +59,7 @@ class _CoverSheetState extends State<_CoverSheet> {
               border: Border.all(color: AppColors.line),
             ),
             child: Row(children: [
-              Icon(icon, color: AppColors.amber, size: 26),
+              icon,
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -99,12 +100,12 @@ class _CoverSheetState extends State<_CoverSheet> {
               Text(widget.hasCover ? 'Сменить обложку' : 'Обложка альбома',
                   style: GoogleFonts.playfairDisplay(fontSize: 26, fontWeight: FontWeight.w600, color: AppColors.ink)),
               const SizedBox(height: 14),
-              _tile(Icons.add_photo_alternate_outlined, 'Загрузить из галереи', 'Любое фото с телефона',
+              _tile(const BrandIcon('gallery', size: 28), 'Загрузить из галереи', 'Любое фото с телефона',
                   () => Navigator.pop(context, const CoverChoice('gallery'))),
-              _tile(Icons.camera_alt_outlined, 'Взять первый кадр альбома',
+              _tile(const Icon(Icons.camera_alt_outlined, color: AppColors.amber, size: 26), 'Взять первый кадр альбома',
                   has ? 'Самый первый снятый кадр станет обложкой' : 'Появится после первого снимка',
                   has ? () => Navigator.pop(context, const CoverChoice('first')) : null),
-              _tile(Icons.camera_roll_outlined, 'Выбрать из кадров', has ? 'Любой кадр из альбома' : 'Появится после первого снимка',
+              _tile(const Icon(Icons.camera_roll_outlined, color: AppColors.amber, size: 26), 'Выбрать из кадров', has ? 'Любой кадр из альбома' : 'Появится после первого снимка',
                   has ? () => setState(() => _frames = true) : null),
             ],
           ],

@@ -10,7 +10,7 @@ import { Row } from '../components/Row'
 import { useGalleryUpload } from '../components/useGalleryUpload'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEvent, useMe } from '../queries'
-import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, copyText, DarkroomCard, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
 
 function Metric({ value, label }: { value: string | number; label: string }) {
   return (
@@ -71,7 +71,7 @@ function JoinStats({ eventId }: { eventId: string }) {
   const d = stats.data
   if (!d || d.total === 0) return null
   return (
-    <div className="host-card" style={{ padding: 16, borderLeft: d.suspicious ? '3px solid var(--shutter)' : undefined }}>
+    <div className="host-card" style={{ padding: 16, outline: d.suspicious ? '1px solid rgba(213,75,61,.45)' : undefined }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         Входы за {d.window_hours} ч{d.suspicious && <span style={{ color: 'var(--shutter)' }}> · подозрительная активность</span>}
       </div>
@@ -168,7 +168,7 @@ export default function EventScreen() {
               <div style={{ display: 'flex', gap: 8 }}>
                 {e.cover_url && (
                   <button className="host-glass host-glass-pill" aria-label="Сменить обложку" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
-                    {cover.pending ? <Spinner /> : <><Icon d={icons.addPhoto} size={20} /><span>Обложка</span></>}
+                    {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={22} light /><span>Обложка</span></>}
                   </button>
                 )}
                 <button className="host-glass" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
@@ -179,7 +179,7 @@ export default function EventScreen() {
             </div>
             {!e.cover_url && (
               <button className="host-cover-cta" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
-                {cover.pending ? <Spinner /> : <><Icon d={icons.addPhoto} size={22} /><span>Добавить обложку</span></>}
+                {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={26} light /><span>Добавить обложку</span></>}
               </button>
             )}
           </div>
@@ -205,22 +205,25 @@ export default function EventScreen() {
         </div>
 
         {e.status === 'draft' && (
-          <div className="host-card" style={{ padding: 16, borderLeft: '3px solid var(--amber)' }}>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>Событие ещё не запущено</div>
-            <p className="host-muted" style={{ marginBottom: 14 }}>
-              {isFreePlan ? 'Запустите событие, чтобы получить QR-код для гостей.' : 'Оплатите выбранный тариф, и событие запустится.'}
+          <DarkroomCard
+            kicker="Черновик · ещё не запущено"
+            title={isFreePlan ? 'Плёнка заряжена, осталось запустить' : 'Осталось оплатить и запустить'}
+            stages={[{ label: 'Создано', state: 'done' }, { label: isFreePlan ? 'Запуск' : 'Оплата', state: 'now' }, { label: 'Съёмка', state: 'next' }]}
+          >
+            <p className="host-darkroom-text">
+              {isFreePlan ? 'После запуска появится QR-код: гости сканируют его и снимают на ваш альбом.' : 'Оплатите выбранный тариф, и событие запустится, а гости получат QR-код.'}
             </p>
             {isFreePlan
-              ? <button className="btn" disabled={activate.isPending} onClick={() => activate.mutate()}>Запустить бесплатно</button>
+              ? <button className="btn" disabled={activate.isPending} onClick={() => activate.mutate()}>{activate.isPending ? <Spinner /> : 'Запустить бесплатно'}</button>
               : <button className="btn" onClick={payNow}>Оплатить и запустить</button>}
-          </div>
+          </DarkroomCard>
         )}
 
         {e.status !== 'draft' && e.status !== 'cancelled' && (
           <div className="host-card">
             <Row icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
             {(e.status === 'active' || e.status === 'completed') && (
-              <Row icon={icons.albums} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
+              <Row icon={<BrandIcon name="gallery" size={24} />} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
             )}
             {e.status === 'active' && <Row icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
             <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />

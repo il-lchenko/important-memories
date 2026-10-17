@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/tokens.dart';
 import '../../core/widgets/brand_icon.dart';
+import '../../core/widgets/darkroom_card.dart';
 import '../payments/utils/idempotency_key.dart';
 import 'plus_providers.dart';
 
@@ -244,29 +245,31 @@ class _PlusScreenState extends ConsumerState<PlusScreen> with WidgetsBindingObse
                   ]),
                 ),
                 if (isPlus)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.paper2,
-                      borderRadius: BorderRadius.circular(20),
-                      border: const Border(left: BorderSide(color: Color(0xFF4F7B53), width: 3)),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: DarkroomCard(
+                      kicker: 'Подписка активна',
+                      title: cancelAtEnd ? 'Не продлится' : 'Продлевается автоматически',
+                      children: [
+                        DarkroomText(
+                          'Действует до ${end == null ? '—' : DateFormat('d MMMM y', 'ru').format(end)}'
+                          '${s['period'] == 'year' ? ' (годовая)' : ' (месячная)'}',
+                        ),
+                        SizedBox(
+                          height: 48,
+                          child: cancelAtEnd
+                              ? ElevatedButton(onPressed: _busy ? null : () => _toggleRenew(true), child: const Text('Включить автопродление'))
+                              : OutlinedButton(
+                                  onPressed: _busy ? null : () => _toggleRenew(false),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFF0E6D2),
+                                    side: BorderSide(color: const Color(0xFFF0E6D2).withValues(alpha: 0.32)),
+                                  ),
+                                  child: const Text('Отменить автопродление'),
+                                ),
+                        ),
+                      ],
                     ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(cancelAtEnd ? 'Не продлится' : 'Продлевается автоматически',
-                          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.ink)),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Действует до ${end == null ? '—' : DateFormat('d MMMM y', 'ru').format(end)}'
-                        '${s['period'] == 'year' ? ' (годовая)' : ' (месячная)'}',
-                        style: GoogleFonts.manrope(fontSize: 13, color: AppColors.ink3),
-                      ),
-                      const SizedBox(height: 12),
-                      OutlinedButton(
-                        onPressed: _busy ? null : () => _toggleRenew(cancelAtEnd),
-                        child: Text(cancelAtEnd ? 'Включить автопродление' : 'Отменить автопродление'),
-                      ),
-                    ]),
                   ),
                 Container(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

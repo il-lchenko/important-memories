@@ -5,7 +5,7 @@ import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
 import { Lightbox, type LightboxFrame } from '../components/Lightbox'
 import { formatShortDate } from '../format'
 import { qk, useCollection, useEvents, useInvitedEvents } from '../queries'
-import { CenterSpinner, ErrorBox, Icon, icons, Sheet, Spinner, toast, TopBar } from '../ui'
+import { CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, Spinner, toast, TopBar } from '../ui'
 
 type CFrame = Schemas['CollectionFrameOut']
 
@@ -95,11 +95,7 @@ export function CollectionScreen() {
         </button>
         {items.length >= c.frames_limit && <p className="host-muted">Достигнут лимит кадров в подборке.</p>}
         {c.unavailable_count > 0 && (
-          <div className="host-card" style={{ padding: 12, borderLeft: '3px solid var(--amber)' }}>
-            <span className="host-muted">
-              Недоступно кадров: {c.unavailable_count}. Автор удалил их или срок хранения альбома закончился.
-            </span>
-          </div>
+          <Note>Недоступно кадров: {c.unavailable_count}. Автор удалил их или срок хранения альбома закончился.</Note>
         )}
         {items.length === 0 && c.unavailable_count === 0 && (
           <div className="host-card" style={{ padding: 24, textAlign: 'center' }}>
