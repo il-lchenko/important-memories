@@ -21,8 +21,8 @@ export default function MemoriesScreen() {
             <div className="host-grid">
               {minis.collections.map((c) => (
                 <Link key={c.id} to={`/app/collections/${c.id}`} className="host-card" style={{ display: 'block', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gap: 2, gridTemplateColumns: c.preview_urls.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--line)' }}>
-                    {c.preview_urls.slice(0, 4).map((u) => <img key={u} src={u} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />)}
+                  <div style={{ display: 'grid', gap: 2, gridTemplateColumns: !c.cover_url && c.preview_urls.length > 1 ? '1fr 1fr' : '1fr', background: 'var(--ink)', borderBottom: '1px solid var(--line)' }}>
+                    {(c.cover_url ? [c.cover_url] : c.preview_urls.slice(0, 4)).map((u) => <img key={u} src={u} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />)}
                     {c.preview_urls.length === 0 && <div style={{ aspectRatio: '4 / 3' }} />}
                   </div>
                   <div style={{ padding: '12px 16px 16px' }}>

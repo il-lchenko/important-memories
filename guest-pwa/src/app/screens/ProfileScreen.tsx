@@ -8,7 +8,7 @@ import { InstallGuide } from '../install'
 import { Row } from '../components/Row'
 import { formatDate, rubles } from '../format'
 import { qk, useMe, useSubscription } from '../queries'
-import { BrandIcon, CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
+import { CenterSpinner, copyText, ErrorBox, Icon, icons, li, shareLink, Sheet, Spinner, toast, TopBar } from '../ui'
 
 async function resizeToSquareJpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
@@ -28,7 +28,7 @@ async function resizeToSquareJpeg(file: File): Promise<Blob> {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <div className="host-field-label" style={{ margin: '4px 2px 8px' }}>{title}</div>
+      <div className="host-field-label" style={{ margin: '2px 2px 6px' }}>{title}</div>
       <div className="host-card">{children}</div>
     </section>
   )
@@ -108,7 +108,7 @@ export default function ProfileScreen() {
   return (
     <>
       <TopBar title="Профиль" kicker={u.is_admin ? 'Администратор' : undefined} />
-      <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <main className="host-main" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="host-card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button onClick={() => fileRef.current?.click()} aria-label="Сменить фото" disabled={uploading}
             style={{
@@ -169,11 +169,8 @@ export default function ProfileScreen() {
             : <div className="host-muted" style={{ padding: 16 }}>Пока нет промокодов. Их выдают за приглашённых друзей.</div>}
         </Section>
 
-        <Section title="Подписка">
-          <Row icon={<BrandIcon name="plus" size={24} />} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
-        </Section>
-
-        <Section title="Приложение">
+        <Section title="Основное">
+          <Row icon={li('plus', 28)} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
           <Row label="Установить на телефон" hint="Значок на экране, запуск без адресной строки" onClick={() => setInstallSheet(true)} />
           <Row label="Показать подсказки заново" hint="Короткая экскурсия по разделам" onClick={() => { resetTours(); navigate('/app') }} />
         </Section>

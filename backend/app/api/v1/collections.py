@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import Response
 
 from app.api.deps import CurrentUserId, SessionDep
 from app.domain.schemas.events import PublicShareOut
 from app.domain.schemas.collections import (
+    CollectionCoverFromFrameIn,
     CollectionCreateIn,
     CollectionItemsIn,
     CollectionOut,
@@ -81,4 +82,25 @@ async def regenerate_public_share(collection_id: UUID, user_id: CurrentUserId, s
 @router.delete("/{collection_id}/public-share", status_code=204)
 async def disable_public_share(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> Response:
     await collection_service.disable_public_share(session, user_id, collection_id)
+    return Response(status_code=204)
+
+
+@router.post("/{collection_id}/cover", response_model=CollectionOut)
+async def upload_cover(
+    collection_id: UUID, user_id: CurrentUserId, session: SessionDep, file: UploadFile = File(...)
+) -> CollectionOut:
+    data = await file.read()
+    return await collection_service.upload_cover(session, user_id, collection_id, data, file.content_type or "image/jpeg")
+
+
+@router.post("/{collection_id}/cover/from-frame", response_model=CollectionOut)
+async def cover_from_frame(
+    collection_id: UUID, payload: CollectionCoverFromFrameIn, user_id: CurrentUserId, session: SessionDep
+) -> CollectionOut:
+    return await collection_service.set_cover_from_frame(session, user_id, collection_id, payload.frame_id)
+
+
+@router.delete("/{collection_id}/cover", status_code=204)
+async def clear_cover(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> Response:
+    await collection_service.clear_cover(session, user_id, collection_id)
     return Response(status_code=204)

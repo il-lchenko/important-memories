@@ -10,7 +10,7 @@ import { useGalleryUpload } from '../components/useGalleryUpload'
 import { FILM_LABELS, formatDate } from '../format'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEntitlements, useEvent, useMe } from '../queries'
-import { BrandIcon, CenterSpinner, ErrorBox, icons, Sheet, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, ErrorBox, icons, li, Sheet, Spinner, toast, TopBar } from '../ui'
 
 /** Личный соло-альбом: без гостей, QR и проявки. */
 export default function SoloScreen() {
@@ -101,7 +101,7 @@ export default function SoloScreen() {
 
         <div className="host-card">
           <Row icon={icons.camera} label="Снять кадр" hint={ent && ent.solo_frames_left <= 0 ? 'Лимит кадров на месяц исчерпан' : 'Плёночная камера'} onClick={() => void shoot()} />
-          <Row icon={<BrandIcon name="gallery" size={24} />} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="С плёночным фильтром, в пределах лимита кадров" onClick={gallery.pick} />
+          <Row icon={li('gallery')} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="С плёночным фильтром, в пределах лимита кадров" onClick={gallery.pick} />
           <Row icon={icons.albums} label="Открыть альбом" hint="Все кадры" to={`/app/events/${id}/album`} />
           <Row icon={icons.share} label="Поделиться альбомом" hint="Открытая ссылка для просмотра" onClick={() => setShareSheet(true)} />
           <Row icon={icons.download} label={downloading ? 'Собираем архив…' : 'Скачать все фото'} hint="ZIP со всеми кадрами" onClick={() => void downloadAll()} />

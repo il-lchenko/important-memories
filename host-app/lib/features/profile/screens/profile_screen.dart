@@ -86,16 +86,15 @@ class ProfileScreen extends ConsumerWidget {
               ),
               onAvatarTap: () => _pickAndUploadAvatar(context, ref),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
 
-            const _SectionTitle('Альбом'),
+            const _SectionTitle('Основное'),
             _NavRow(
               label: 'Расширенные настройки',
               desc: 'План, продление, ссылки альбома',
               onTap: () => _openAlbumSettingsPicker(context, ref),
             ),
 
-            const _SectionTitle('Подписка'),
             _NavRow(
               leading: const BrandIcon('plus', size: 28),
               label: 'ImpoMento Плюс',
@@ -103,7 +102,6 @@ class ProfileScreen extends ConsumerWidget {
               onTap: () => context.push('/plus'),
             ),
 
-            const _SectionTitle('Приложение'),
             _NavRow(
               label: 'Показать подсказки заново',
               desc: 'Короткая экскурсия по разделам',
@@ -361,7 +359,7 @@ class _NavRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
           color: AppColors.paper,
           borderRadius: BorderRadius.circular(14),
@@ -516,7 +514,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 22, bottom: 8),
+      padding: const EdgeInsets.only(top: 14, bottom: 6),
       child: Text(
         text.toUpperCase(),
         style: const TextStyle(
@@ -553,7 +551,7 @@ class _ToggleRowState extends State<_ToggleRow> {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
       decoration: BoxDecoration(
         color: AppColors.paper,
         borderRadius: BorderRadius.circular(14),
@@ -605,7 +603,7 @@ class _FaqRow extends StatelessWidget {
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         decoration: BoxDecoration(
           color: AppColors.paper,
           borderRadius: BorderRadius.circular(14),

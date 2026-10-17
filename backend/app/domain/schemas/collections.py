@@ -17,6 +17,10 @@ class CollectionCreateIn(BaseModel):
         return clean
 
 
+class CollectionCoverFromFrameIn(BaseModel):
+    frame_id: UUID
+
+
 class CollectionItemsIn(BaseModel):
     frame_ids: list[UUID] = Field(min_length=1, max_length=100)
 
@@ -43,6 +47,7 @@ class CollectionSummaryOut(BaseModel):
     items_count: int
     created_at: datetime
     preview_urls: list[str] = []
+    cover_url: str | None = None
 
 
 class CollectionOut(BaseModel):
@@ -51,6 +56,7 @@ class CollectionOut(BaseModel):
     created_at: datetime
     items: list[CollectionFrameOut]
     frames_limit: int
+    cover_url: str | None = None
     # Сколько кадров в подборке недоступно (автор удалил, срок хранения истёк, нет доступа).
     unavailable_count: int = 0
 

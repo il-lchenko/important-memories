@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { brandIcons, materialPaths } from './iconData'
+import { brandIcons, materialPaths, type BrandIconName } from './iconData'
 
 export function Icon({ d, size = 20 }: { d: string; size?: number; stroke?: number }) {
   return (
@@ -10,18 +10,30 @@ export function Icon({ d, size = 20 }: { d: string; size?: number; stroke?: numb
   )
 }
 
-/** Фирменный значок ImpoMento: ink-штрихи плюс янтарная искра. */
-export function BrandIcon({ name, size = 24, stroke = 1.6, light = false }: { name: keyof typeof brandIcons; size?: number; stroke?: number; light?: boolean }) {
+/** Значок ImpoMento: фирменные (искра, кольцо объектива) и единый линейный набор. `mono` красит всё цветом текста. */
+export function BrandIcon({ name, size = 24, stroke = 1.8, light = false, mono = false }: {
+  name: BrandIconName; size?: number; stroke?: number; light?: boolean; mono?: boolean
+}) {
+  const ink = light ? '#fff' : mono ? 'currentColor' : 'var(--ink)'
+  const accent = mono ? 'currentColor' : 'var(--amber)'
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
       {brandIcons[name].map((l, i) => {
-        if (l.kind === 'accent') return <path key={i} d={l.d} fill="var(--amber)" />
-        if (l.kind === 'ink') return <path key={i} d={l.d} fill={light ? '#fff' : 'var(--ink)'} />
-        return <path key={i} d={l.d} stroke={light ? '#fff' : 'var(--ink)'} strokeOpacity={l.kind === 'soft' ? 0.3 : 1} strokeWidth={stroke} />
+        switch (l.kind) {
+          case 'accent': return <path key={i} d={l.d} fill={accent} />
+          case 'badge': return <path key={i} d={l.d} fill={mono ? 'currentColor' : 'var(--amber)'} />
+          case 'white': return <path key={i} d={l.d} fill="#fff" />
+          case 'whiteStroke': return <path key={i} d={l.d} stroke="#fff" strokeWidth={stroke} />
+          case 'ink': return <path key={i} d={l.d} fill={ink} />
+          default: return <path key={i} d={l.d} stroke={ink} strokeOpacity={l.kind === 'soft' ? 0.3 : 1} strokeWidth={stroke} />
+        }
       })}
     </svg>
   )
 }
+
+/** Строка списка: линейная иконка единого набора в цвет текста. */
+export const li = (name: BrandIconName, size = 24) => <BrandIcon name={name} size={size} mono />
 
 /** Маркер списков: маленькая янтарная искра. */
 export function Spark({ size = 16, color = 'var(--amber)' }: { size?: number; color?: string }) {

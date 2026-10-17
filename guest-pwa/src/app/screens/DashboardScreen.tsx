@@ -41,7 +41,7 @@ function EventCard({ card }: { card: Card }) {
   if (card.kind === 'mini') {
     const c = card.col
     return (
-      <PhotoCard to={`/app/collections/${c.id}`} covers={c.preview_urls} title={c.title}
+      <PhotoCard to={`/app/collections/${c.id}`} cover={c.cover_url} covers={c.cover_url ? undefined : c.preview_urls} title={c.title}
         badge={<span className="host-badge" style={{ color: '#C9881E' }}>Мини-альбом</span>}
         meta={<Meta frames={c.items_count} date={fullDate(c.created_at)} />} />
     )
@@ -103,7 +103,7 @@ export default function DashboardScreen() {
       <TopBar title="Мои альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : undefined} />
       <main className="host-main">
         <div className="host-scroll-x" data-tour="filters" style={{ padding: '16px 0 10px' }}>
-          {([['mine', 'События'], ['solo', 'Соло'], ['minis', 'Подборки'], ['invited', 'Я гость'], ['all', 'Все']] as const).map(([k, label]) => (
+          {([['mine', 'События'], ['solo', 'Соло'], ['minis', 'Мини-альбомы'], ['invited', 'Я гость'], ['all', 'Все']] as const).map(([k, label]) => (
             <button key={k} className="host-chip" data-active={scope === k} onClick={() => setScope(k)}>{label}</button>
           ))}
           {scope !== 'minis' && (

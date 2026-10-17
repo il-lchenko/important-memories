@@ -14,7 +14,12 @@ import 'cover_picker.dart';
 class EventCoverCard extends ConsumerStatefulWidget {
   final String eventId;
   final Map<String, dynamic> event;
-  const EventCoverCard({super.key, required this.eventId, required this.event});
+
+  /// Для подборки: путь API (`collections/<id>`), кадры для выбора и действие после изменения.
+  final String? base;
+  final List<CoverFrame>? frames;
+  final VoidCallback? onChanged;
+  const EventCoverCard({super.key, required this.eventId, required this.event, this.base, this.frames, this.onChanged});
 
   @override
   ConsumerState<EventCoverCard> createState() => _EventCoverCardState();
@@ -24,14 +29,19 @@ class _EventCoverCardState extends ConsumerState<EventCoverCard> {
   bool _busy = false;
 
   String? get _coverUrl => widget.event['cover_url'] as String?;
-  int get _frames => widget.event['frames_count'] as int? ?? 0;
+  int get _frames => widget.frames?.length ?? widget.event['frames_count'] as int? ?? 0;
+  String get _base => widget.base ?? 'events/${widget.eventId}';
 
   Future<void> _run(Future<void> Function() job) async {
     setState(() => _busy = true);
     try {
       await job();
-      ref.invalidate(eventDetailProvider(widget.eventId));
-      ref.invalidate(eventsProvider);
+      if (widget.onChanged != null) {
+        widget.onChanged!();
+      } else {
+        ref.invalidate(eventDetailProvider(widget.eventId));
+        ref.invalidate(eventsProvider);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(extractUserMessage(e))));
     } finally {
@@ -47,22 +57,22 @@ class _EventCoverCardState extends ConsumerState<EventCoverCard> {
       final form = dio_pkg.FormData.fromMap({
         'file': dio_pkg.MultipartFile.fromBytes(bytes, filename: 'cover.jpg', contentType: dio_pkg.DioMediaType('image', 'jpeg')),
       });
-      await ref.read(dioProvider).post('events/${widget.eventId}/cover', data: form);
+      await ref.read(dioProvider).post('$_base/cover', data: form);
     });
   }
 
   Future<void> _fromFrame(String? id) => _run(() async {
-        await ref.read(dioProvider).post('events/${widget.eventId}/cover/from-frame', data: {'frame_id': id});
+        await ref.read(dioProvider).post('$_base/cover/from-frame', data: {'frame_id': id});
       });
 
   Future<void> _sheet() async {
-    final c = await showCoverSheet(context, eventId: widget.eventId, framesCount: _frames, hasCover: _coverUrl != null);
+    final c = await showCoverSheet(context, eventId: widget.eventId, framesCount: _frames, hasCover: _coverUrl != null, frames: widget.frames);
     if (c == null || !mounted) return;
     switch (c.kind) {
       case 'gallery':
         await _fromGallery();
       case 'first':
-        await _fromFrame(null);
+        await _fromFrame(widget.frames?.first.id);
       case 'frame':
         await _fromFrame(c.frameId);
     }
@@ -127,7 +137,7 @@ class _EventCoverCardState extends ConsumerState<EventCoverCard> {
             framesCount: _frames,
             busy: _busy,
             onGallery: _fromGallery,
-            onFirstFrame: () => _fromFrame(null),
+            onFirstFrame: () => _fromFrame(widget.frames?.first.id),
             onMore: _sheet,
           ),
         ),

@@ -7,7 +7,7 @@ import { GridFormatDialog, MagazineGrid, PolaroidFeed, RetroLayout, ViewSwitcher
 import { formatDateTime } from '../format'
 import { qk, useEvent, useStyleLock } from '../queries'
 import { TITLE_FONTS, parseTitleFont, type TitleFont } from '../styles'
-import { CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, ErrorBox, Note, Sheet, shareLink, toast, TopBar } from '../ui'
 
 type AlbumPage = Schemas['AlbumOut']
 type AlbumFrame = Schemas['AlbumFrameOut']
@@ -100,7 +100,7 @@ function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
     setRot((r) => ({ ...r, [frame.id]: nextRot }))
     rotate.mutate(nextRot)
   }
-  const barBtn = { width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(240,230,210,.5)', background: 'transparent', color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' } as const
+  const barBtn = { width: 44, height: 44, borderRadius: '50%', border: '1px solid rgba(240,230,210,.26)', background: 'rgba(255,255,255,.07)', color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 } as const
 
   return (
     <div className="darkroom" role="dialog" aria-modal="true" aria-label="Просмотр кадра"
@@ -113,21 +113,22 @@ function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
         if (Math.abs(dx) > 60) { if (dx < 0) next(); else prev() }
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 'calc(10px + env(safe-area-inset-top)) 12px 8px' }}>
-        <button style={barBtn} aria-label="Закрыть" onClick={onClose}><Icon d={icons.close} /></button>
+        <button style={barBtn} aria-label="Закрыть" onClick={onClose}><BrandIcon name="close" size={22} mono /></button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 12, letterSpacing: '.14em', color: 'rgba(240,230,210,.6)' }}>
           КАДР {index + 1} ИЗ {total}
         </div>
-        <button style={barBtn} aria-label="Повернуть" onClick={doRotate}><Icon d={icons.rotate} /></button>
-        <a style={{ ...barBtn, textDecoration: 'none' }} aria-label="Скачать оригинал" href={frame.full_url} target="_blank" rel="noreferrer" download><Icon d={icons.download} /></a>
-        <button style={barBtn} aria-label="Удалить кадр" onClick={() => setConfirmDelete(true)}><Icon d={icons.trash} /></button>
+        <button style={barBtn} aria-label="Повернуть" onClick={doRotate}><BrandIcon name="rotate" size={22} mono /></button>
+        <button style={barBtn} aria-label="Поделиться" onClick={() => void shareLink(frame.full_url, frame.guest_name)}><BrandIcon name="share" size={22} mono /></button>
+        <a style={{ ...barBtn, textDecoration: 'none' }} aria-label="Скачать оригинал" href={frame.full_url} target="_blank" rel="noreferrer" download><BrandIcon name="download" size={22} mono /></a>
+        <button style={barBtn} aria-label="Удалить кадр" onClick={() => setConfirmDelete(true)}><BrandIcon name="trash" size={22} mono /></button>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative', padding: '0 8px' }}>
         <ZoomPan key={frame.id}>
           {(zoomed) => <RotatedPhoto src={frame.preview_url ?? frame.full_url} fullSrc={zoomed ? frame.full_url : null} rotation={rotation} />}
         </ZoomPan>
-        {index > 0 && <button style={{ ...barBtn, position: 'absolute', left: 12, top: '50%' }} aria-label="Предыдущий" onClick={prev}><Icon d={icons.back} /></button>}
-        {index < frames.length - 1 && <button style={{ ...barBtn, position: 'absolute', right: 12, top: '50%' }} aria-label="Следующий" onClick={next}><Icon d={icons.chevron} /></button>}
+        {index > 0 && <button style={{ ...barBtn, position: 'absolute', left: 12, top: '50%' }} aria-label="Предыдущий" onClick={prev}><BrandIcon name="back" size={22} mono /></button>}
+        {index < frames.length - 1 && <button style={{ ...barBtn, position: 'absolute', right: 12, top: '50%' }} aria-label="Следующий" onClick={next}><BrandIcon name="next" size={22} mono /></button>}
       </div>
 
       <div style={{ padding: '10px 20px calc(16px + env(safe-area-inset-bottom))', textAlign: 'center' }}>

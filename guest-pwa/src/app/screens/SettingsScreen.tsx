@@ -8,7 +8,7 @@ import { Row } from '../components/Row'
 import { formatDate, formatDateTime, guestLink, rubles } from '../format'
 import { payUpgrade } from '../payments'
 import { qk, useEvent, usePricing } from '../queries'
-import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
+import { CenterSpinner, copyText, ErrorBox, Icon, icons, shareLink, Sheet, Spinner, toast, TopBar } from '../ui'
 
 type Plan = Schemas['Plan']
 

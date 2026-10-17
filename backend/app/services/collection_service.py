@@ -6,7 +6,9 @@
 чтении, поэтому удалённый кадр, очищенный по сроку альбом или потерянный доступ
 просто пропадают из подборки.
 """
+import asyncio
 from datetime import datetime, timezone
+from secrets import token_urlsafe
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -32,6 +34,7 @@ from app.domain.schemas.collections import (
 )
 from app.infra import s3_client
 from app.services import entitlement_service
+from app.services.event_service import _COVER_MAX_BYTES, _normalize_cover
 
 _URL_TTL = 86400
 
@@ -78,6 +81,10 @@ async def _owned(session: AsyncSession, user_id: UUID, collection_id: UUID) -> C
     if col.user_id != user_id:
         raise PermissionDeniedError("Not your collection")
     return col
+
+
+def _cover_url(col: Collection) -> str | None:
+    return s3_client.presign_get(col.cover_key, expires_in=_URL_TTL) if col.cover_key else None
 
 
 def _frame_out(frame: Frame, event: Event, mine: bool) -> CollectionFrameOut:
@@ -153,7 +160,7 @@ async def list_collections(session: AsyncSession, user_id: UUID) -> CollectionsL
         summaries.append(
             CollectionSummaryOut(
                 id=col.id, title=col.title, items_count=len(ordered),
-                created_at=col.created_at, preview_urls=previews,
+                created_at=col.created_at, preview_urls=previews, cover_url=_cover_url(col),
             )
         )
     return CollectionsListOut(
@@ -178,7 +185,7 @@ async def create_collection(session: AsyncSession, user_id: UUID, title: str) ->
     await session.commit()
     return CollectionOut(
         id=col.id, title=col.title, created_at=col.created_at, items=[],
-        frames_limit=limits.frames_per_album,
+        frames_limit=limits.frames_per_album, cover_url=None,
     )
 
 
@@ -191,7 +198,7 @@ async def get_collection(session: AsyncSession, user_id: UUID, collection_id: UU
     items = [_frame_out(*visible[i]) for i in ids if i in visible]
     return CollectionOut(
         id=col.id, title=col.title, created_at=col.created_at, items=items,
-        frames_limit=limits.frames_per_album, unavailable_count=len(ids) - len(items),
+        frames_limit=limits.frames_per_album, cover_url=_cover_url(col), unavailable_count=len(ids) - len(items),
     )
 
 
@@ -203,8 +210,11 @@ async def rename_collection(session: AsyncSession, user_id: UUID, collection_id:
 
 async def delete_collection(session: AsyncSession, user_id: UUID, collection_id: UUID) -> None:
     col = await _owned(session, user_id, collection_id)
+    cover = col.cover_key
     await session.delete(col)
     await session.commit()
+    if cover:
+        s3_client.delete_object(cover)
 
 
 async def add_items(
@@ -268,3 +278,51 @@ async def disable_public_share(session: AsyncSession, user_id: UUID, collection_
     if col.public_share_token is not None:
         col.public_share_token = None
         await session.commit()
+
+
+async def _store_cover(session: AsyncSession, col: Collection, jpeg: bytes) -> None:
+    key = f"collections/{col.id}/cover-{token_urlsafe(8)}.jpg"
+    s3_client.upload_bytes(key, jpeg, "image/jpeg")
+    previous = col.cover_key
+    col.cover_key = key
+    await session.commit()
+    if previous and previous != key:
+        s3_client.delete_object(previous)
+
+
+async def upload_cover(
+    session: AsyncSession, user_id: UUID, collection_id: UUID, data: bytes, content_type: str
+) -> CollectionOut:
+    if content_type not in {"image/jpeg", "image/png", "image/webp", "application/octet-stream", ""}:
+        raise ConflictError("Unsupported image type; use JPEG, PNG, or WebP")
+    if len(data) > _COVER_MAX_BYTES:
+        raise ConflictError("Cover image too large", details={"max_bytes": _COVER_MAX_BYTES})
+    col = await _owned(session, user_id, collection_id)
+    jpeg = await asyncio.to_thread(_normalize_cover, data)
+    await _store_cover(session, col, jpeg)
+    return await get_collection(session, user_id, collection_id)
+
+
+async def set_cover_from_frame(
+    session: AsyncSession, user_id: UUID, collection_id: UUID, frame_id: UUID
+) -> CollectionOut:
+    col = await _owned(session, user_id, collection_id)
+    if frame_id not in {i.frame_id for i in col.items}:
+        raise NotFoundError("Кадра нет в подборке")
+    visible = await _visible_frames(session, user_id, [frame_id])
+    if frame_id not in visible:
+        raise PermissionDeniedError("Кадр недоступен")
+    frame = visible[frame_id][0]
+    raw = await asyncio.to_thread(s3_client.download_bytes, frame.preview_url or frame.s3_key)
+    jpeg = await asyncio.to_thread(_normalize_cover, raw, frame.rotation or 0)
+    await _store_cover(session, col, jpeg)
+    return await get_collection(session, user_id, collection_id)
+
+
+async def clear_cover(session: AsyncSession, user_id: UUID, collection_id: UUID) -> None:
+    col = await _owned(session, user_id, collection_id)
+    previous = col.cover_key
+    if previous:
+        col.cover_key = None
+        await session.commit()
+        s3_client.delete_object(previous)

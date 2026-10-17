@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/api_client.dart';
 import '../../core/tokens.dart';
 import '../events/events_provider.dart';
 import '../events/widgets/public_link_sheet.dart';
+import '../events/widgets/cover_card.dart';
+import '../events/widgets/cover_picker.dart' show CoverFrame;
 import 'plus_providers.dart';
+import 'solo_screens.dart' show PlusMetric, PlusRowData, PlusRows;
 
 TextStyle _display(double size, {FontWeight w = FontWeight.w600}) => GoogleFonts.playfairDisplay(
       fontFeatures: [const FontFeature.liningFigures()],
@@ -89,7 +93,7 @@ class MiniAlbumsStrip extends ConsumerWidget {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: SizedBox(width: 96, height: 72, child: previews.isEmpty ? Container(color: AppColors.paper3) : _img(previews.first)),
+                          child: SizedBox(width: 96, height: 72, child: (c['cover_url'] ?? (previews.isEmpty ? null : previews.first)) == null ? Container(color: AppColors.paper3) : _img((c['cover_url'] ?? previews.first) as String)),
                         ),
                         const SizedBox(height: 4),
                         Text(c['title'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -221,9 +225,6 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
           TextField(controller: ctrl, maxLength: 80, decoration: const InputDecoration(counterText: '')),
           const SizedBox(height: 12),
           SizedBox(height: AppSizes.buttonHeight, child: ElevatedButton(onPressed: () => Navigator.pop(ctx, 'rename'), child: const Text('Сохранить название'))),
-          const SizedBox(height: 8),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'delete'),
-              child: const Text('Удалить подборку', style: TextStyle(color: AppColors.shutter))),
         ]),
       ),
     );
@@ -238,6 +239,30 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
         ref.invalidate(collectionsProvider);
         if (mounted) context.pop();
       }
+    } catch (e) {
+      _snack(extractUserMessage(e));
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.paper,
+        title: Text('Удалить подборку?', style: _display(20)),
+        content: Text('Сами кадры останутся в своих альбомах, пропадёт только подборка.',
+            style: GoogleFonts.manrope(fontSize: 14, height: 1.45, color: AppColors.ink3)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить', style: TextStyle(color: AppColors.shutter))),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await ref.read(dioProvider).delete('collections/${widget.id}');
+      ref.invalidate(collectionsProvider);
+      if (mounted) context.pop();
     } catch (e) {
       _snack(extractUserMessage(e));
     }
@@ -277,23 +302,39 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
             final items = (col['items'] as List).cast<Map>();
             final limit = col['frames_limit'] as int? ?? 0;
             final unavailable = col['unavailable_count'] as int? ?? 0;
+            final title = col['title'] as String? ?? 'Подборка';
+            final frameList = <CoverFrame>[
+              for (final f in items)
+                (id: f['id'] as String, url: (f['thumbnail_url'] ?? f['preview_url'] ?? f['full_url']) as String? ?? ''),
+            ];
+            final created = DateTime.tryParse(col['created_at'] as String? ?? '')?.toLocal();
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
               children: [
-                Row(children: [
-                  _roundBtn(Icons.chevron_left, () => context.pop()),
-                  const Spacer(),
-                  _roundBtn(Icons.ios_share, () => showPublicLinkSheet(context,
-                      base: 'collections/${widget.id}', title: col['title'] as String? ?? 'Подборка',
-                      note: 'По ссылке видны только кадры из ваших событий и снятые вами. Чужие кадры из альбомов, где вы были гостем, не показываются.')),
-                  const SizedBox(width: 8),
-                  _roundBtn(Icons.more_horiz, () => _menu(Map<String, dynamic>.from(col))),
-                ]),
+                Row(children: [_roundBtn(Icons.chevron_left, () => context.pop())]),
+                const SizedBox(height: 14),
+                EventCoverCard(
+                  eventId: widget.id,
+                  event: {'cover_url': col['cover_url'], 'frames_count': items.length},
+                  base: 'collections/${widget.id}',
+                  frames: frameList,
+                  onChanged: _refresh,
+                ),
                 const SizedBox(height: 18),
-                Text('МИНИ-АЛЬБОМ · ${items.length} ИЗ $limit',
+                Text('МИНИ-АЛЬБОМ',
                     style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.5, color: AppColors.ink3)),
                 const SizedBox(height: 4),
-                Text(col['title'] as String? ?? '', style: _display(30, w: FontWeight.w500)),
+                Text(title, style: _display(30, w: FontWeight.w500)),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: AppColors.line)),
+                  child: Row(children: [
+                    PlusMetric('${items.length}', 'кадров'),
+                    PlusMetric('$limit', 'максимум'),
+                    PlusMetric(created == null ? '—' : DateFormat('d MMM yyyy', 'ru').format(created), 'создан'),
+                  ]),
+                ),
                 const SizedBox(height: 16),
                 SizedBox(
                   height: AppSizes.buttonHeight,
@@ -334,6 +375,15 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                       ),
                     ),
                   ),
+                const SizedBox(height: 16),
+                PlusRows([
+                  PlusRowData(Icons.ios_share, 'Поделиться подборкой', 'Открытая ссылка для просмотра',
+                      () => showPublicLinkSheet(context,
+                          base: 'collections/${widget.id}', title: title,
+                          note: 'По ссылке видны только кадры из ваших событий и снятые вами. Чужие кадры из альбомов, где вы были гостем, не показываются.')),
+                  PlusRowData(Icons.tune_outlined, 'Настройки', 'Название подборки', () => _menu(Map<String, dynamic>.from(col))),
+                  PlusRowData(Icons.delete_outline, 'Удалить подборку', null, () => _confirmDelete(), danger: true),
+                ]),
               ],
             );
           },

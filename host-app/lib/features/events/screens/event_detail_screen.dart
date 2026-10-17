@@ -1496,7 +1496,7 @@ class _ActionRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: AppColors.line),
               ),
-              child: Icon(icon, color: AppColors.ink, size: 20),
+              child: Center(child: UiIcon(icon, color: AppColors.ink, size: 22)),
             ),
             const SizedBox(width: 12),
             Expanded(

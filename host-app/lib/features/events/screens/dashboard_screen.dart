@@ -10,6 +10,7 @@ import '../../auth/auth_provider.dart';
 import '../events_provider.dart';
 import '../../../core/widgets/coach_tour.dart';
 import '../../plus/new_album_sheet.dart';
+import '../../plus/plus_providers.dart' show collectionsProvider;
 import '../../plus/solo_screens.dart' show routeForEvent;
 import 'package:intl/intl.dart';
 
@@ -22,7 +23,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
-  int _tab = 0; // 0 = мои, 1 = приглашённые
+  int _tab = 0; // 0 = мои, 1 = приглашённые, 2 = все, 3 = мини-альбомы
   String _selectedFilter = 'all';
   String _searchQuery = '';
   DateTimeRange? _dateRange;
@@ -128,6 +129,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   String get _tabLabel => switch (_tab) {
         1 => 'Другие события',
         2 => 'Все альбомы',
+        3 => 'Мини-альбомы',
         _ => 'Мои альбомы',
       };
 
@@ -156,6 +158,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         _tabMenuItem(value: 0, label: 'Мои альбомы', icon: Icons.collections_bookmark_outlined),
         _tabMenuItem(value: 1, label: 'Другие события', icon: Icons.groups_outlined),
         _tabMenuItem(value: 2, label: 'Все альбомы', icon: Icons.dashboard_customize_outlined),
+        _tabMenuItem(value: 3, label: 'Мини-альбомы', icon: Icons.layers_outlined),
       ],
     );
     if (result != null && result != _tab) {
@@ -465,6 +468,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             if (_tab == 1) ...[
               // ─── Другие события ────────────────────────────────
               Expanded(child: _InvitedSection(filter: _selectedFilter)),
+            ] else if (_tab == 3) ...[
+              // ─── Мини-альбомы ──────────────────────────────────
+              Expanded(child: _MinisSection(query: _searchQuery)),
             ] else ...[
             // ─── Мои альбомы ────────────────────────────────────
             const SizedBox(height: 8),
@@ -530,9 +536,148 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           ],
         ),
       ),
-      floatingActionButton: _tab != 1 ? eventsAsync.valueOrNull?.isNotEmpty == true ? const _CreateAlbumFab() : null : null,
+      floatingActionButton: _tab == 3 || (_tab != 1 && eventsAsync.valueOrNull?.isNotEmpty == true) ? const _CreateAlbumFab() : null,
       floatingActionButtonLocation: const _CreateAlbumFabLocation(),
       // bottomNavigationBar is provided by MainShell (StatefulShellRoute).
+    );
+  }
+}
+
+// ─── Мини-альбомы во вкладке «Альбомы» ─────────────────────────────────────────
+
+class _MinisSection extends ConsumerWidget {
+  final String query;
+  const _MinisSection({required this.query});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(collectionsProvider);
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.amber)),
+      error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(collectionsProvider)),
+      data: (data) {
+        final all = (data['collections'] as List? ?? const []).cast<Map>();
+        final q = query.trim().toLowerCase();
+        final list = q.isEmpty ? all : all.where((c) => (c['title'] as String? ?? '').toLowerCase().contains(q)).toList();
+        return RefreshIndicator(
+          color: AppColors.amber,
+          backgroundColor: AppColors.paper,
+          onRefresh: () async {
+            ref.invalidate(collectionsProvider);
+            await ref.read(collectionsProvider.future);
+          },
+          child: list.isEmpty
+              ? LayoutBuilder(
+                  builder: (ctx, c) => SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: SizedBox(
+                      height: c.maxHeight,
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Text(all.isEmpty ? 'Мини-альбомов пока нет' : 'Ничего не найдено',
+                                style: GoogleFonts.playfairDisplay(fontSize: 22, fontWeight: FontWeight.w600, color: AppColors.ink)),
+                            const SizedBox(height: 8),
+                            Text(
+                              all.isEmpty ? 'Соберите лучшие кадры из разных альбомов в одну подборку.' : 'Попробуйте другое название.',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.manrope(fontSize: 14, height: 1.45, color: AppColors.ink3),
+                            ),
+                            if (all.isEmpty) ...[
+                              const SizedBox(height: 18),
+                              SizedBox(
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: () => context.push('/collections/create'),
+                                  child: const Text('Создать мини-альбом'),
+                                ),
+                              ),
+                            ],
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                  itemCount: list.length,
+                  itemBuilder: (ctx, i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: AspectRatio(aspectRatio: 16 / 11, child: _MiniCard(col: list[i])),
+                  ),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _MiniCard extends StatelessWidget {
+  final Map col;
+  const _MiniCard({required this.col});
+
+  @override
+  Widget build(BuildContext context) {
+    final cover = col['cover_url'] as String?;
+    final previews = (col['preview_urls'] as List?)?.cast<String>() ?? const <String>[];
+    final count = col['items_count'] as int? ?? 0;
+    Widget img(String u) => CachedNetworkImage(imageUrl: u, cacheKey: Uri.parse(u).path, fit: BoxFit.cover, fadeInDuration: Duration.zero);
+    return GestureDetector(
+      onTap: () => context.push('/collections/${col['id']}'),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x1E1A1714)),
+          boxShadow: const [BoxShadow(color: Color(0x0D1A1714), blurRadius: 10, offset: Offset(0, 3))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11.5),
+          child: Stack(fit: StackFit.expand, children: [
+            if (cover != null)
+              img(cover)
+            else if (previews.length > 1)
+              GridView.count(
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 2,
+                crossAxisSpacing: 2,
+                children: [for (final u in previews.take(4)) img(u)],
+              )
+            else if (previews.length == 1)
+              img(previews.first)
+            else
+              Container(color: AppColors.paper3),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xB3000000)], stops: [0.4, 1]),
+              ),
+            ),
+            Positioned(
+              top: 12, left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.32), borderRadius: BorderRadius.circular(999)),
+                child: const Text('МИНИ-АЛЬБОМ',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.2, color: Colors.white)),
+              ),
+            ),
+            Positioned(
+              left: 14, right: 14, bottom: 12,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(col['title'] as String? ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.ptSerif(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+                const SizedBox(height: 2),
+                Text('$count кадров', style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xCCFFFFFF))),
+              ]),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }

@@ -11,14 +11,25 @@ class BrandIcon extends StatelessWidget {
   final double stroke;
   final Color ink;
   final Color accent;
+
+  /// Одноцветный режим (для строк списков): всё рисуется цветом [color].
   const BrandIcon(
     this.name, {
     super.key,
     this.size = 24,
-    this.stroke = 1.6,
+    this.stroke = 1.8,
     this.ink = AppColors.ink,
     this.accent = AppColors.amber,
   });
+
+  const BrandIcon.mono(
+    this.name, {
+    super.key,
+    this.size = 24,
+    this.stroke = 1.8,
+    Color color = AppColors.amber,
+  })  : ink = color,
+        accent = color;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +37,30 @@ class BrandIcon extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(painter: _BrandIconPainter(name, stroke, ink, accent)),
+    );
+  }
+}
+
+/// Material-иконка, выровненная по оптическому размеру (таблица kIconNorm из шрифта):
+/// иначе «скачать» выглядит мельче «настроек» при одинаковом size.
+class UiIcon extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color? color;
+  const UiIcon(this.icon, {super.key, this.size = 24, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final n = kIconNorm[icon.codePoint];
+    final child = Icon(icon, size: size, color: color);
+    if (n == null) return SizedBox(width: size, height: size, child: child);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Transform.translate(
+        offset: Offset(n[1] * size, n[2] * size),
+        child: Transform.scale(scale: n[0], child: child),
+      ),
     );
   }
 }
@@ -98,6 +133,20 @@ class _BrandIconPainter extends CustomPainter {
       switch (kind) {
         case 'accent':
           canvas.drawPath(path, Paint()..color = accent..style = PaintingStyle.fill..isAntiAlias = true);
+        case 'badge':
+          canvas.drawPath(path, Paint()..color = accent..style = PaintingStyle.fill..isAntiAlias = true);
+        case 'white':
+          canvas.drawPath(path, Paint()..color = Colors.white..style = PaintingStyle.fill..isAntiAlias = true);
+        case 'whiteStroke':
+          canvas.drawPath(
+            path,
+            Paint()
+              ..color = Colors.white
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = stroke
+              ..strokeCap = StrokeCap.round
+              ..isAntiAlias = true,
+          );
         case 'ink':
           canvas.drawPath(path, Paint()..color = ink..style = PaintingStyle.fill..isAntiAlias = true);
         default:

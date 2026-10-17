@@ -567,6 +567,8 @@ class Collection(Base):
     title: Mapped[str] = mapped_column(String(80), nullable=False)
     # Открытая ссылка на подборку (включается владельцем отдельно).
     public_share_token: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
+    # Обложка подборки: S3-ключ (загруженное фото или копия выбранного кадра).
+    cover_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

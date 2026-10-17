@@ -11,7 +11,7 @@ import { EventTour } from '../tours'
 import { useGalleryUpload } from '../components/useGalleryUpload'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEvent, useMe } from '../queries'
-import { BrandIcon, CenterSpinner, copyText, DarkroomCard, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, copyText, DarkroomCard, ErrorBox, Icon, icons, li, shareLink, Sheet, Spinner, toast, TopBar } from '../ui'
 
 function Metric({ value, label }: { value: string | number; label: string }) {
   return (
@@ -225,7 +225,7 @@ export default function EventScreen() {
           <div className="host-card">
             <Row tour="qr" icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
             {(e.status === 'active' || e.status === 'completed') && (
-              <Row icon={<BrandIcon name="gallery" size={24} />} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
+              <Row icon={li('gallery')} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
             )}
             {e.status === 'active' && <Row tour="camera" icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
             <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />

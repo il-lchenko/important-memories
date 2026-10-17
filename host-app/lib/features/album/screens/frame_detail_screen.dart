@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/api_client.dart';
 import '../../../utils/safe_download.dart';
 import '../../../core/tokens.dart';
+import '../../../core/widgets/brand_icon.dart';
 import '../../events/events_provider.dart';
 import '../album_provider.dart';
 
@@ -685,24 +686,24 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
                       children: [
                         if (canEdit)
                           _ActionBtn(
-                            icon: Icons.rotate_right,
+                            icon: 'rotate',
                             onTap: () => _rotate(serverRotation),
                           ),
                         _ActionBtn(
-                          icon: Icons.ios_share,
+                          icon: 'share',
                           onTap: frame['full_url'] != null
                               ? () => _sharePhoto(frame['full_url'] as String)
                               : null,
                         ),
                         _ActionBtn(
-                          icon: Icons.download_outlined,
+                          icon: 'download',
                           onTap: frame['full_url'] != null
                               ? () => _savePhoto(frame['full_url'] as String)
                               : null,
                         ),
                         if (canEdit)
                           _ActionBtn(
-                            icon: Icons.delete_outline,
+                            icon: 'trash',
                             red: true,
                             onTap: _deleting ? null : () => _deleteFrame(frameId, total),
                           ),
@@ -1037,7 +1038,8 @@ class _FullFrameState extends State<_FullFrame> {
 }
 
 class _ActionBtn extends StatelessWidget {
-  final IconData icon;
+  /// Имя линейной иконки из единого набора (rotate, share, download, trash).
+  final String icon;
   final bool red;
   final VoidCallback? onTap;
   const _ActionBtn({required this.icon, this.red = false, this.onTap});
@@ -1055,7 +1057,7 @@ class _ActionBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.line),
           ),
-          child: Icon(icon, size: 26, color: red ? AppColors.shutter : AppColors.ink),
+          child: Center(child: BrandIcon.mono(icon, size: 26, stroke: 1.7, color: red ? AppColors.shutter : AppColors.ink)),
         ),
       ),
     );

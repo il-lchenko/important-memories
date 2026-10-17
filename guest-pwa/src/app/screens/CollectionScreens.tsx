@@ -3,10 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
 import { Lightbox, type LightboxFrame } from '../components/Lightbox'
+import { Row } from '../components/Row'
+import { CoverPrompt, CoverSheet, useCover } from '../components/Cover'
 import { PublicLinkSheet } from '../components/PublicLink'
 import { formatShortDate } from '../format'
 import { qk, useCollection, useEvents, useInvitedEvents } from '../queries'
-import { CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, Spinner, toast, TopBar } from '../ui'
 
 type CFrame = Schemas['CollectionFrameOut']
 
@@ -52,6 +54,8 @@ export function CollectionScreen() {
   const [open, setOpen] = useState<number | null>(null)
   const [renameSheet, setRenameSheet] = useState(false)
   const [shareSheet, setShareSheet] = useState(false)
+  const [coverSheet, setCoverSheet] = useState(false)
+  const cover = useCover(id, 'collection')
   const [deleteSheet, setDeleteSheet] = useState(false)
   const [title, setTitle] = useState('')
 
@@ -89,14 +93,35 @@ export function CollectionScreen() {
 
   return (
     <>
-      <TopBar back="/app" title={c.title} kicker={`Мини-альбом · ${items.length} из ${c.frames_limit}`}
-        right={(
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="host-icon-btn" aria-label="Поделиться подборкой" onClick={() => setShareSheet(true)}><Icon d={icons.share} /></button>
-            <button className="host-icon-btn" aria-label="Настройки подборки" onClick={() => { setTitle(c.title); setRenameSheet(true) }}><Icon d={icons.settings} /></button>
-          </div>
-        )} />
+      <TopBar back="/app" title={c.title} kicker="Мини-альбом" />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="host-cover">
+          {c.cover_url && <img src={c.cover_url} alt="" />}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 45%, rgba(0,0,0,.53))' }} />
+          {c.cover_url ? (
+            <div style={{ position: 'absolute', top: 12, right: 12 }}>
+              <button className="host-glass host-glass-pill" disabled={cover.pending} aria-label="Сменить обложку" onClick={() => setCoverSheet(true)}>
+                {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={22} light /><span>Обложка</span></>}
+              </button>
+            </div>
+          ) : (
+            <button className="host-cover-cta" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
+              {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={26} light /><span>Добавить обложку</span></>}
+            </button>
+          )}
+        </div>
+        {!c.cover_url && items.length > 0 && (
+          <CoverPrompt eventId={id} framesCount={items.length} api={cover} onOpen={() => setCoverSheet(true)} firstFrameId={items[0]?.id} />
+        )}
+        <CoverSheet eventId={id} open={coverSheet} onClose={() => setCoverSheet(false)} framesCount={items.length} hasCover={!!c.cover_url} api={cover}
+          frames={items.map((f) => ({ id: f.id, thumb: f.thumbnail_url ?? f.preview_url ?? f.full_url }))} />
+
+        <div className="host-card host-metrics">
+          <div style={{ flex: 1, textAlign: 'center', padding: '12px 4px' }}><div className="host-mono" style={{ fontSize: 24 }}>{items.length}</div><div className="host-edge" style={{ fontSize: 11, marginTop: 2 }}>кадров</div></div>
+          <div style={{ flex: 1, textAlign: 'center', padding: '12px 4px' }}><div className="host-mono" style={{ fontSize: 24 }}>{c.frames_limit}</div><div className="host-edge" style={{ fontSize: 11, marginTop: 2 }}>максимум</div></div>
+          <div style={{ flex: 1, textAlign: 'center', padding: '12px 4px' }}><div className="host-mono" style={{ fontSize: 24 }}>{formatShortDate(c.created_at)}</div><div className="host-edge" style={{ fontSize: 11, marginTop: 2 }}>создан</div></div>
+        </div>
+
         <button className="btn" disabled={items.length >= c.frames_limit} onClick={() => navigate(`/app/collections/${id}/add`)}>
           <Icon d={icons.plus} /> Добавить кадры
         </button>
@@ -118,6 +143,12 @@ export function CollectionScreen() {
             </button>
           ))}
         </div>
+
+        <div className="host-card">
+          <Row icon={icons.share} label="Поделиться подборкой" hint="Открытая ссылка для просмотра" onClick={() => setShareSheet(true)} />
+          <Row icon={icons.settings} label="Настройки" hint="Название подборки" onClick={() => { setTitle(c.title); setRenameSheet(true) }} />
+          <Row icon={icons.trash} label="Удалить подборку" danger onClick={() => setDeleteSheet(true)} />
+        </div>
       </main>
 
       {open !== null && (
@@ -133,7 +164,6 @@ export function CollectionScreen() {
         <button className="btn" style={{ marginTop: 14 }} disabled={rename.isPending || title.trim().length < 1} onClick={() => rename.mutate()}>
           {rename.isPending ? <Spinner /> : 'Сохранить название'}
         </button>
-        <button className="btn-danger" style={{ marginTop: 10 }} onClick={() => { setRenameSheet(false); setDeleteSheet(true) }}>Удалить подборку</button>
       </Sheet>
       <Sheet open={deleteSheet} onClose={() => setDeleteSheet(false)} title="Удалить подборку?">
         <p className="host-muted" style={{ marginBottom: 16 }}>Сами кадры останутся в своих альбомах, пропадёт только подборка.</p>

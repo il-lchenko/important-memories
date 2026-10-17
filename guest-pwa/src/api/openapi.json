@@ -3707,6 +3707,161 @@
         }
       }
     },
+    "/api/v1/collections/{collection_id}/cover": {
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Upload Cover",
+        "operationId": "collections_upload_cover",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_collections_upload_cover"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Clear Cover",
+        "operationId": "collections_clear_cover",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{collection_id}/cover/from-frame": {
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Cover From Frame",
+        "operationId": "collections_cover_from_frame",
+        "security": [
+          {
+            "HostBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Collection Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionCoverFromFrameIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/subscription": {
       "get": {
         "tags": [
@@ -4514,6 +4669,20 @@
         ],
         "title": "AvatarPresignOut"
       },
+      "Body_collections_upload_cover": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_collections_upload_cover"
+      },
       "Body_events_upload_cover": {
         "properties": {
           "file": {
@@ -4622,6 +4791,20 @@
           "amount_kopecks"
         ],
         "title": "CheckoutOut"
+      },
+      "CollectionCoverFromFrameIn": {
+        "properties": {
+          "frame_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Frame Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_id"
+        ],
+        "title": "CollectionCoverFromFrameIn"
       },
       "CollectionCreateIn": {
         "properties": {
@@ -4775,6 +4958,17 @@
             "type": "integer",
             "title": "Frames Limit"
           },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
+          },
           "unavailable_count": {
             "type": "integer",
             "title": "Unavailable Count",
@@ -4818,6 +5012,17 @@
             "type": "array",
             "title": "Preview Urls",
             "default": []
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url"
           }
         },
         "type": "object",

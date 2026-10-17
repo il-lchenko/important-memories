@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ZoomPan } from '../../features/album/ZoomPan'
-import { Icon, icons } from '../ui'
+import { BrandIcon } from '../ui'
 
 export interface LightboxFrame {
   id: string
@@ -34,8 +34,8 @@ export function Lightbox({ frames, index, onIndex, onClose, onRemove }: {
 
   if (!frame) return null
   const barBtn = {
-    width: 40, height: 40, border: '1px solid rgba(240,230,210,.5)', background: 'transparent',
-    color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 2,
+    width: 44, height: 44, border: '1px solid rgba(240,230,210,.26)', background: 'rgba(255,255,255,.07)', padding: 0,
+    color: '#F0E6D2', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
   } as const
   const sideways = frame.rotation % 180 !== 0
   const imgStyle = {
@@ -46,12 +46,12 @@ export function Lightbox({ frames, index, onIndex, onClose, onRemove }: {
   return (
     <div className="darkroom" role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 'calc(10px + env(safe-area-inset-top)) 12px 8px' }}>
-        <button style={barBtn} aria-label="Закрыть" onClick={onClose}><Icon d={icons.close} /></button>
+        <button style={barBtn} aria-label="Закрыть" onClick={onClose}><BrandIcon name="close" size={22} mono /></button>
         <div style={{ flex: 1, textAlign: 'center', fontSize: 12, letterSpacing: '.14em', color: 'rgba(240,230,210,.6)' }}>
           {index + 1} / {frames.length}
         </div>
-        <a style={{ ...barBtn, textDecoration: 'none' }} aria-label="Скачать оригинал" href={frame.full} target="_blank" rel="noreferrer" download><Icon d={icons.download} /></a>
-        {onRemove && <button style={barBtn} aria-label="Убрать" onClick={() => onRemove(frame)}><Icon d={icons.trash} /></button>}
+        <a style={{ ...barBtn, textDecoration: 'none' }} aria-label="Скачать оригинал" href={frame.full} target="_blank" rel="noreferrer" download><BrandIcon name="download" size={22} mono /></a>
+        {onRemove && <button style={barBtn} aria-label="Убрать" onClick={() => onRemove(frame)}><BrandIcon name="trash" size={22} mono /></button>}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative', padding: '0 8px' }}>
@@ -66,8 +66,8 @@ export function Lightbox({ frames, index, onIndex, onClose, onRemove }: {
             </div>
           )}
         </ZoomPan>
-        {index > 0 && <button style={{ ...barBtn, position: 'absolute', left: 12, top: '50%' }} aria-label="Предыдущий" onClick={() => onIndex(index - 1)}><Icon d={icons.back} /></button>}
-        {index < frames.length - 1 && <button style={{ ...barBtn, position: 'absolute', right: 12, top: '50%' }} aria-label="Следующий" onClick={() => onIndex(index + 1)}><Icon d={icons.chevron} /></button>}
+        {index > 0 && <button style={{ ...barBtn, position: 'absolute', left: 12, top: '50%' }} aria-label="Предыдущий" onClick={() => onIndex(index - 1)}><BrandIcon name="back" size={22} mono /></button>}
+        {index < frames.length - 1 && <button style={{ ...barBtn, position: 'absolute', right: 12, top: '50%' }} aria-label="Следующий" onClick={() => onIndex(index + 1)}><BrandIcon name="next" size={22} mono /></button>}
       </div>
 
       <div style={{ padding: '10px 20px calc(16px + env(safe-area-inset-bottom))', textAlign: 'center', minHeight: 56 }}>

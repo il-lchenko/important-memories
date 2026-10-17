@@ -6,6 +6,7 @@ import '../../../core/tokens.dart';
 import '../memories_provider.dart';
 import '../widgets/memory_blocks.dart';
 import '../../plus/collections_screens.dart';
+import '../../plus/plus_providers.dart' show collectionsProvider;
 
 /// Раздел «Кадры» — авто-подборки из альбомов юзера.
 /// Поддерживает поиск по названию + фильтр по типу события.
@@ -123,44 +124,63 @@ class _MemoriesScreenState extends ConsumerState<MemoriesScreen> {
                       ],
                     ),
             ),
-            const MiniAlbumsStrip(),
+            // Подборки прокручиваются вместе со списком, как истории: уходят при прокрутке вниз
+            // и возвращаются, когда вернёмся к верху экрана.
             Expanded(
-              child: blocksAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2),
-                ),
-                error: (e, _) => _ErrorState(onRetry: () => ref.invalidate(memoriesProvider)),
-                data: (blocks) {
-                  if (blocks.isEmpty) return const _EmptyState();
-                  final filtered = blocks.where(_matchesFilters).toList();
-                  if (filtered.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Text(
-                          _query.isNotEmpty
-                              ? 'Ничего не найдено по «$_query»'
-                              : 'Нет подборок этого типа',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.ink3),
-                        ),
-                      ),
-                    );
-                  }
-                  return RefreshIndicator(
-                    color: AppColors.amber,
-                    backgroundColor: AppColors.paper,
-                    onRefresh: () async {
-                      ref.invalidate(memoriesProvider);
-                      await ref.read(memoriesProvider.future);
-                    },
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: filtered.length,
-                      itemBuilder: (ctx, i) => MemoryBlockWidget(block: filtered[i]),
-                    ),
-                  );
+              child: RefreshIndicator(
+                color: AppColors.amber,
+                backgroundColor: AppColors.paper,
+                onRefresh: () async {
+                  ref.invalidate(collectionsProvider);
+                  ref.invalidate(memoriesProvider);
+                  await ref.read(memoriesProvider.future);
                 },
+                child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    const SliverToBoxAdapter(child: MiniAlbumsStrip()),
+                    ...blocksAsync.when(
+                      loading: () => [
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: CircularProgressIndicator(color: AppColors.amber, strokeWidth: 2)),
+                        ),
+                      ],
+                      error: (e, _) => [
+                        SliverFillRemaining(hasScrollBody: false, child: _ErrorState(onRetry: () => ref.invalidate(memoriesProvider))),
+                      ],
+                      data: (blocks) {
+                        if (blocks.isEmpty) {
+                          return [const SliverFillRemaining(hasScrollBody: false, child: _EmptyState())];
+                        }
+                        final filtered = blocks.where(_matchesFilters).toList();
+                        if (filtered.isEmpty) {
+                          return [
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Text(
+                                    _query.isNotEmpty ? 'Ничего не найдено по «$_query»' : 'Нет подборок этого типа',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.manrope(fontSize: 14, color: AppColors.ink3),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ];
+                        }
+                        return [
+                          SliverList.builder(
+                            itemCount: filtered.length,
+                            itemBuilder: (ctx, i) => MemoryBlockWidget(block: filtered[i]),
+                          ),
+                        ];
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

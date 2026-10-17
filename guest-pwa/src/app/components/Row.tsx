@@ -7,7 +7,7 @@ export function Row({ icon, label, hint, to, onClick, danger, value, tour }: {
 }) {
   const inner = (
     <>
-      {icon && <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex' }}>{typeof icon === 'string' ? <Icon d={icon} size={20} /> : icon}</span>}
+      {icon && <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex', width: 28, justifyContent: 'center', flexShrink: 0 }}>{typeof icon === 'string' ? <Icon d={icon} size={20} /> : icon}</span>}
       <span style={{ flex: 1, color: danger ? 'var(--shutter)' : 'inherit' }}>
         {label}
         {hint && <span className="host-muted" style={{ display: 'block', fontSize: 12, marginTop: 1 }}>{hint}</span>}

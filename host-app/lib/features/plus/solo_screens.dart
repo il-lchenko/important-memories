@@ -402,9 +402,9 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
                   ),
                   child: Column(children: [
                     Row(children: [
-                      _Metric('$frames', 'кадров'),
-                      _Metric(film, 'плёнка'),
-                      _Metric(_fmtDate(event['expires_at'] as String?), 'хранится до'),
+                      PlusMetric('$frames', 'кадров'),
+                      PlusMetric(film, 'плёнка'),
+                      PlusMetric(_fmtDate(event['expires_at'] as String?), 'хранится до'),
                     ]),
                     if (ent != null) ...[
                       const SizedBox(height: 16),
@@ -427,23 +427,23 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
                   ]),
                 ),
                 const SizedBox(height: 16),
-                _Rows([
-                  _RowData(Icons.photo_camera_outlined, 'Снять кадр',
+                PlusRows([
+                  PlusRowData(Icons.photo_camera_outlined, 'Снять кадр',
                       left != null && left <= 0 ? 'Лимит кадров на месяц исчерпан' : 'Плёночная камера',
                       () => _openCamera(shortCode)),
-                  _RowData(Icons.photo_library_outlined, 'Добавить фото из галереи',
+                  PlusRowData(Icons.photo_library_outlined, 'Добавить фото из галереи',
                       'Кнопка «Из галереи» под затвором камеры', () => _openCamera(shortCode), brand: 'gallery'),
-                  _RowData(Icons.auto_stories_outlined, 'Открыть альбом', 'Все кадры',
+                  PlusRowData(Icons.auto_stories_outlined, 'Открыть альбом', 'Все кадры',
                       () => context.push('/events/${widget.eventId}/album')),
-                  _RowData(Icons.ios_share, 'Поделиться альбомом', 'Открытая ссылка для просмотра',
+                  PlusRowData(Icons.ios_share, 'Поделиться альбомом', 'Открытая ссылка для просмотра',
                       () => showPublicLinkSheet(context, base: 'events/${widget.eventId}', title: title,
                           note: 'Любой, у кого есть ссылка, увидит все кадры альбома. Вы отвечаете за её распространение.')),
-                  _RowData(Icons.download_outlined, _downloading ? 'Собираем архив…' : 'Скачать все фото',
+                  PlusRowData(Icons.download_outlined, _downloading ? 'Собираем архив…' : 'Скачать все фото',
                       'ZIP со всеми кадрами', _downloadAll),
-                  _RowData(Icons.lock_clock_outlined, 'Продлить хранение', 'Альбом останется доступен дольше',
+                  PlusRowData(Icons.lock_clock_outlined, 'Продлить хранение', 'Альбом останется доступен дольше',
                       () => context.push('/extend/${widget.eventId}')),
-                  _RowData(Icons.tune_outlined, 'Настройки', 'Название и плёнка', () => _settings(title, settings['lut_preset'] as String?)),
-                  _RowData(Icons.delete_outline, 'Удалить альбом', null, _delete, danger: true),
+                  PlusRowData(Icons.tune_outlined, 'Настройки', 'Название и плёнка', () => _settings(title, settings['lut_preset'] as String?)),
+                  PlusRowData(Icons.delete_outline, 'Удалить альбом', null, _delete, danger: true),
                 ]),
               ],
             );
@@ -454,10 +454,10 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
   }
 }
 
-class _Metric extends StatelessWidget {
+class PlusMetric extends StatelessWidget {
   final String value;
   final String label;
-  const _Metric(this.value, this.label);
+  const PlusMetric(this.value, this.label, {super.key});
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -472,19 +472,19 @@ class _Metric extends StatelessWidget {
       );
 }
 
-class _RowData {
+class PlusRowData {
   final IconData icon;
   final String title;
   final String? hint;
   final VoidCallback onTap;
   final bool danger;
   final String? brand;
-  const _RowData(this.icon, this.title, this.hint, this.onTap, {this.danger = false, this.brand});
+  const PlusRowData(this.icon, this.title, this.hint, this.onTap, {this.danger = false, this.brand});
 }
 
-class _Rows extends StatelessWidget {
-  final List<_RowData> rows;
-  const _Rows(this.rows);
+class PlusRows extends StatelessWidget {
+  final List<PlusRowData> rows;
+  const PlusRows(this.rows, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -500,10 +500,14 @@ class _Rows extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 child: Row(children: [
-                  if (rows[i].brand != null)
-                    BrandIcon(rows[i].brand!, size: 26)
-                  else
-                    Icon(rows[i].icon, color: rows[i].danger ? AppColors.shutter : AppColors.amber, size: 22),
+                  SizedBox(
+                    width: 28,
+                    child: Center(
+                      child: rows[i].brand != null
+                          ? BrandIcon.mono(rows[i].brand!, size: 24, color: AppColors.amber)
+                          : UiIcon(rows[i].icon, color: rows[i].danger ? AppColors.shutter : AppColors.amber, size: 24),
+                    ),
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

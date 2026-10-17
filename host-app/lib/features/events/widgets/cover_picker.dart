@@ -16,18 +16,22 @@ class CoverChoice {
   const CoverChoice(this.kind, [this.frameId]);
 }
 
+/// Кадр для выбора обложки (миниатюра и id), когда кадры берутся не из альбома события.
+typedef CoverFrame = ({String id, String url});
+
 Future<CoverChoice?> showCoverSheet(
   BuildContext context, {
   required String eventId,
   required int framesCount,
   required bool hasCover,
+  List<CoverFrame>? frames,
 }) {
   return showModalBottomSheet<CoverChoice>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.paper,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-    builder: (ctx) => _CoverSheet(eventId: eventId, framesCount: framesCount, hasCover: hasCover),
+    builder: (ctx) => _CoverSheet(eventId: eventId, framesCount: framesCount, hasCover: hasCover, frames: frames),
   );
 }
 
@@ -35,7 +39,8 @@ class _CoverSheet extends StatefulWidget {
   final String eventId;
   final int framesCount;
   final bool hasCover;
-  const _CoverSheet({required this.eventId, required this.framesCount, required this.hasCover});
+  final List<CoverFrame>? frames;
+  const _CoverSheet({required this.eventId, required this.framesCount, required this.hasCover, this.frames});
 
   @override
   State<_CoverSheet> createState() => _CoverSheetState();
@@ -95,7 +100,7 @@ class _CoverSheetState extends State<_CoverSheet> {
                 Text('Выберите кадр', style: GoogleFonts.playfairDisplay(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.ink)),
               ]),
               const SizedBox(height: 8),
-              SizedBox(height: MediaQuery.of(context).size.height * 0.5, child: _FramesGrid(eventId: widget.eventId)),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.5, child: _FramesGrid(eventId: widget.eventId, list: widget.frames)),
             ] else ...[
               Text(widget.hasCover ? 'Сменить обложку' : 'Обложка альбома',
                   style: GoogleFonts.playfairDisplay(fontSize: 26, fontWeight: FontWeight.w600, color: AppColors.ink)),
@@ -117,32 +122,35 @@ class _CoverSheetState extends State<_CoverSheet> {
 
 class _FramesGrid extends ConsumerWidget {
   final String eventId;
-  const _FramesGrid({required this.eventId});
+  final List<CoverFrame>? list;
+  const _FramesGrid({required this.eventId, this.list});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (list != null) return _grid(context, [for (final f in list!) {'id': f.id, 'thumbnail_url': f.url}]);
     final async = ref.watch(albumFramesProvider(eventId));
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.amber)),
       error: (e, _) => Center(child: Text(extractUserMessage(e))),
-      data: (a) {
-        final frames = (a['items'] as List).cast<Map>();
-        return GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4),
-          itemCount: frames.length,
-          itemBuilder: (_, i) {
-            final f = frames[i];
-            final url = (f['thumbnail_url'] ?? f['preview_url'] ?? f['full_url']) as String?;
-            return GestureDetector(
-              onTap: () => Navigator.pop(context, CoverChoice('frame', f['id'] as String)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: url == null
-                    ? Container(color: AppColors.paper3)
-                    : CachedNetworkImage(imageUrl: url, cacheKey: Uri.parse(url).path, fit: BoxFit.cover, fadeInDuration: Duration.zero),
-              ),
-            );
-          },
+      data: (a) => _grid(context, (a['items'] as List).cast<Map>()),
+    );
+  }
+
+  Widget _grid(BuildContext context, List<Map> frames) {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisSpacing: 4, crossAxisSpacing: 4),
+      itemCount: frames.length,
+      itemBuilder: (_, i) {
+        final f = frames[i];
+        final url = (f['thumbnail_url'] ?? f['preview_url'] ?? f['full_url']) as String?;
+        return GestureDetector(
+          onTap: () => Navigator.pop(context, CoverChoice('frame', f['id'] as String)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: url == null
+                ? Container(color: AppColors.paper3)
+                : CachedNetworkImage(imageUrl: url, cacheKey: Uri.parse(url).path, fit: BoxFit.cover, fadeInDuration: Duration.zero),
+          ),
         );
       },
     );
