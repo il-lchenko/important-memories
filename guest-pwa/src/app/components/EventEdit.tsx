@@ -4,9 +4,10 @@ import { apiErrorMessage, hostApi, type EventOut } from '../api/hostClient'
 import { EVENT_TYPE_LABELS, FILM_LABELS, formatDateTime } from '../format'
 import { qk } from '../queries'
 import { icons, Sheet, Spinner, toast } from '../ui'
+import { FilmPicker } from './FilmPicker'
+import { FramesSlider } from './FramesSlider'
+import { DateTimeField } from './pickers'
 import { Row } from './Row'
-
-const FRAME_STEPS = [6, 12, 18, 24, 30]
 
 /** ISO → значение для datetime-local в часовом поясе устройства. */
 export function toLocalInput(iso?: string | null): string {
@@ -66,8 +67,6 @@ export function EventEdit({ e }: { e: EventOut }) {
     patchEvent.mutate({ reveal_mode: 'delayed', reveal_at: at.toISOString() })
   }
 
-  const frameSteps = FRAME_STEPS.includes(frames) ? FRAME_STEPS : [...FRAME_STEPS, frames].sort((a, b) => a - b)
-
   return (
     <>
       <Row icon={icons.settings} label="Название" hint={e.title} onClick={() => open('title')} />
@@ -105,7 +104,7 @@ export function EventEdit({ e }: { e: EventOut }) {
 
       <Sheet open={which === 'start'} onClose={() => setWhich(null)} title="Начало съёмки">
         <p className="host-muted" style={{ marginBottom: 12 }}>Гости смогут снимать, начиная с этого времени.</p>
-        <input className="input-field" type="datetime-local" value={start} onChange={(ev) => setStart(ev.target.value)} />
+        <DateTimeField value={start} onChange={setStart} max={new Date(Date.now() + 730 * 86400000)} placeholder="Выберите дату и время" />
         <button className="btn" style={{ marginTop: 16 }} disabled={busy || !start} onClick={() => patchEvent.mutate({ start_at: new Date(start).toISOString() })}>{busy ? <Spinner /> : 'Сохранить'}</button>
       </Sheet>
 
@@ -117,7 +116,7 @@ export function EventEdit({ e }: { e: EventOut }) {
         {timer ? (
           <>
             <p className="host-muted" style={{ marginBottom: 12 }}>В это время съёмка закончится, а альбом откроется гостям.</p>
-            <input className="input-field" type="datetime-local" value={reveal} onChange={(ev) => setReveal(ev.target.value)} />
+            <DateTimeField value={reveal} onChange={setReveal} min={new Date()} max={new Date(Date.now() + 730 * 86400000)} placeholder="Выберите дату и время" />
           </>
         ) : (
           <p className="host-muted">Альбом откроется, когда вы нажмёте «Открыть альбом сейчас».</p>
@@ -126,22 +125,13 @@ export function EventEdit({ e }: { e: EventOut }) {
       </Sheet>
 
       <Sheet open={which === 'film'} onClose={() => setWhich(null)} title="Плёнка">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {Object.entries(FILM_LABELS).map(([k, f]) => (
-            <button key={k} onClick={() => setFilm(k as typeof film)} className="host-card host-row"
-              style={{ border: film === k ? '1.5px solid var(--amber)' : '1.5px solid transparent', borderRadius: 16 }}>
-              <span style={{ flex: 1 }}>{f.name}</span>
-              <span className="host-edge">{f.short}</span>
-            </button>
-          ))}
-        </div>
+        <FilmPicker value={film} onChange={setFilm} />
         <button className="btn" style={{ marginTop: 16 }} disabled={busy} onClick={() => patchSettings.mutate({ lut_preset: film })}>{busy ? <Spinner /> : 'Сохранить'}</button>
       </Sheet>
 
       <Sheet open={which === 'frames'} onClose={() => setWhich(null)} title="Кадров на гостя">
-        <div className="host-scroll-x" style={{ marginBottom: 12 }}>
-          {frameSteps.map((n) => <button key={n} className="host-chip" data-active={frames === n} onClick={() => setFrames(n)}>{n}</button>)}
-        </div>
+        <FramesSlider value={Math.min(Math.max(frames, 6), 30)} onChange={setFrames} />
+        <div style={{ height: 12 }} />
         <p className="host-muted">До 30 кадров входит в тариф. Больше можно докупить в разделе «Тариф».</p>
         <button className="btn" style={{ marginTop: 16 }} disabled={busy} onClick={() => patchSettings.mutate({ frames_per_guest: frames })}>{busy ? <Spinner /> : 'Сохранить'}</button>
       </Sheet>

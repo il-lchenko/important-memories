@@ -6,12 +6,14 @@ import { PayButtons, PromoField, type PromoState } from '../components/PayBlock'
 import { EVENT_TYPE_LABELS, FILM_LABELS, formatDate, rubles } from '../format'
 import { payCheckout } from '../payments'
 import { qk, useEntitlements, usePricing } from '../queries'
+import { FilmPicker } from '../components/FilmPicker'
+import { FramesSlider } from '../components/FramesSlider'
+import { DateTimeField } from '../components/pickers'
 import { Icon, icons, Spinner, toast } from '../ui'
 
 type Pricing = Schemas['PricingOut']
 
 const STEPS = ['Название', 'Кадры', 'Начало', 'Проявка', 'Плёнка', 'Смета'] as const
-const FRAME_STOPS = [6, 12, 18, 24, 30]
 const GUEST_STOPS = [5, 10, 25, 50, 75, 100, 150, 175, 200, 250]
 const PLAN_BY_GUESTS: Record<number, Schemas['Plan']> = {
   5: 'free', 10: 'p10', 25: 'p25', 50: 'p50', 75: 'p75', 100: 'p100', 150: 'p150', 175: 'p175', 200: 'p200', 250: 'p250',
@@ -65,7 +67,7 @@ export default function CreateEventScreen() {
   const pricing = usePricing()
   const entitlements = useEntitlements()
   const [step, setStep] = useState(0)
-  const [d, setD] = useState<Draft>({ title: '', eventType: 'wedding', frames: 30, startAt: '', revealAt: '', film: 'portra400', uploads: false })
+  const [d, setD] = useState<Draft>({ title: '', eventType: 'wedding', frames: 30, startAt: '', revealAt: '', film: 'original', uploads: false })
   const [guests, setGuests] = useState(5)
   const [promo, setPromo] = useState<PromoState | null>(null)
   const [busy, setBusy] = useState(false)
@@ -160,16 +162,7 @@ export default function CreateEventScreen() {
         {step === 1 && (
           <>
             <p className="host-muted">Сколько кадров может снять каждый гость, как на плёнке: чем меньше, тем ценнее каждый.</p>
-            <div className="host-card" style={{ padding: 20 }}>
-              <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 56, fontWeight: 600, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{d.frames}</div>
-              <div className="host-muted" style={{ textAlign: 'center', marginBottom: 14 }}>кадров на гостя</div>
-              <input type="range" min={0} max={FRAME_STOPS.length - 1} step={1} value={FRAME_STOPS.indexOf(d.frames)}
-                aria-label="Кадров на гостя" style={{ width: '100%', accentColor: 'var(--amber)' }}
-                onChange={(e) => set('frames', FRAME_STOPS[Number(e.target.value)])} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                {FRAME_STOPS.map((f) => <span key={f} className="host-muted" style={{ fontSize: 12 }}>{f}</span>)}
-              </div>
-            </div>
+            <FramesSlider value={d.frames} onChange={(n) => set('frames', n)} />
             <p className="host-muted" style={{ fontSize: 13 }}>
               Больше 30 кадров можно добавить позже в настройках альбома: +{rubles(pricing.data?.frames.price_per_guest_kopecks ?? 1000)} за каждого гостя.
             </p>
@@ -180,7 +173,7 @@ export default function CreateEventScreen() {
           <>
             <p className="host-muted">Когда гости смогут начать снимать. Если пропустить, съёмка откроется сразу после запуска.</p>
             <Field label="Начало съёмки">
-              <input className="input-field" type="datetime-local" value={d.startAt} onChange={(e) => set('startAt', e.target.value)} />
+              <DateTimeField value={d.startAt} onChange={(v) => set('startAt', v)} min={new Date(Date.now() - 5 * 60000)} max={new Date(Date.now() + 365 * 86400000)} placeholder="Выберите дату и время" />
             </Field>
             {d.startAt && <button className="btn-ghost btn-sm" onClick={() => set('startAt', '')}>Пропустить шаг</button>}
           </>
@@ -190,7 +183,7 @@ export default function CreateEventScreen() {
           <>
             <p className="host-muted">Когда кадры «проявятся» и станут видны всем. Если пропустить, вы откроете альбом вручную.</p>
             <Field label="Время проявки">
-              <input className="input-field" type="datetime-local" value={d.revealAt} onChange={(e) => set('revealAt', e.target.value)} />
+              <DateTimeField value={d.revealAt} onChange={(v) => set('revealAt', v)} min={new Date()} max={new Date(Date.now() + 365 * 86400000)} placeholder="Выберите дату и время" />
             </Field>
             {d.revealAt && <button className="btn-ghost btn-sm" onClick={() => set('revealAt', '')}>Пропустить шаг</button>}
           </>
@@ -198,17 +191,12 @@ export default function CreateEventScreen() {
 
         {step === 4 && (
           <>
-            <Field label="Плёнка">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {(Object.keys(FILM_LABELS) as Schemas['LutPreset'][]).map((f) => (
-                  <button key={f} className="host-card host-row" style={{ border: d.film === f ? '2px solid var(--amber)' : '2px solid transparent', borderRadius: 12 }}
-                    onClick={() => set('film', f)}>
-                    <span style={{ flex: 1, fontWeight: 600 }}>{FILM_LABELS[f].name}</span>
-                    <span className="host-muted" style={{ fontSize: 12 }}>{FILM_LABELS[f].short}</span>
-                  </button>
-                ))}
-              </div>
-            </Field>
+            <div>
+              <div className="host-kicker" style={{ marginBottom: 6 }}>Эстетика</div>
+              <h2 className="host-h2" style={{ marginBottom: 6 }}>Стиль плёнки</h2>
+              <p className="host-muted" style={{ marginBottom: 14 }}>Все фото гостей пройдут через один фильтр, выбирайте под настроение мероприятия.</p>
+              <FilmPicker value={d.film} onChange={(f) => set('film', f)} />
+            </div>
             <label className="host-card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600 }}>Загрузка из галереи</div>

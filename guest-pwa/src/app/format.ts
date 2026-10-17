@@ -12,12 +12,12 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   other: 'Другое',
 }
 
-export const FILM_LABELS: Record<string, { name: string; short: string }> = {
-  original: { name: 'Без фильтра', short: 'RAW' },
-  portra400: { name: 'Portra 400', short: 'P400' },
-  fuji400h: { name: 'Fuji 400H', short: 'F400H' },
-  cinestill: { name: 'Cinestill 800T', short: 'CST' },
-  ilford: { name: 'Ilford HP5+', short: 'B&W' },
+export const FILM_LABELS: Record<string, { name: string; short: string; desc: string }> = {
+  original: { name: 'Без фильтра', short: 'RAW', desc: 'Фото как снято · Без обработки' },
+  portra400: { name: 'Kodak Portra 400', short: 'P400', desc: 'Тёплые телесные тона · Лучше всего для свадеб' },
+  fuji400h: { name: 'Fuji 400H', short: 'F400H', desc: 'Холодные пастельные зелёные · Природа и портреты' },
+  cinestill: { name: 'Cinestill 800T', short: 'CST', desc: 'Неоновые красные · Ночные и городские сцены' },
+  ilford: { name: 'Ilford HP5+', short: 'B&W', desc: 'Ч/Б · Классика документальной съёмки' },
 }
 
 export const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {

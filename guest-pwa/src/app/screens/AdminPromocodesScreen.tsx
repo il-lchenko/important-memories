@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
+import { DateTimeField } from '../components/pickers'
 import { formatDate, rubles } from '../format'
 import { CenterSpinner, ErrorBox, Icon, icons, Sheet, Spinner, toast, TopBar } from '../ui'
 
@@ -92,7 +93,7 @@ export default function AdminPromocodesScreen() {
         <label className="host-field-label" htmlFor="pc-max" style={{ marginTop: 14 }}>Сколько раз можно применить (пусто: без лимита)</label>
         <input id="pc-max" className="input-field" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ''))} />
         <label className="host-field-label" htmlFor="pc-until" style={{ marginTop: 14 }}>Действует до (пусто: без срока)</label>
-        <input id="pc-until" className="input-field" type="date" value={until} onChange={(e) => setUntil(e.target.value)} />
+        <DateTimeField mode="date" value={until} onChange={setUntil} min={new Date()} max={new Date(Date.now() + 3 * 365 * 86400000)} placeholder="Без срока" ariaLabel="Действует до" clearable />
         <div className="host-field-label" style={{ marginTop: 14 }}>Где работает</div>
         <div className="host-scroll-x">
           {APPLIES.map(([k, label]) => <button key={k} className="host-chip" data-active={applies === k} onClick={() => setApplies(k)}>{label}</button>)}

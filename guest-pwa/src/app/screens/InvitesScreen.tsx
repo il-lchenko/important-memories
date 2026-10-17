@@ -90,7 +90,7 @@ export default function InvitesScreen() {
         <label className="host-field-label" htmlFor="inv-name">Как зовут гостя</label>
         <input id="inv-name" className="input-field" maxLength={60} placeholder="Например, Анна" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         <label className="host-field-label" htmlFor="inv-days" style={{ marginTop: 14 }}>Ссылка действует: {days} дн.</label>
-        <input id="inv-days" type="range" min={1} max={90} value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: '100%' }} />
+        <input id="inv-days" className="host-range" type="range" min={1} max={90} step={1} value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ ['--pct' as string]: `${((days - 1) / 89) * 100}%` }} />
         <button className="btn" style={{ marginTop: 18 }} disabled={create.isPending || name.trim().length < 1} onClick={() => create.mutate()}>
           {create.isPending ? <Spinner /> : 'Создать и скопировать ссылку'}
         </button>

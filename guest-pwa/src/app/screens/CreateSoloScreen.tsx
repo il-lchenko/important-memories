@@ -2,18 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type EventOut } from '../api/hostClient'
-import { FILM_LABELS } from '../format'
 import { qk, useEntitlements } from '../queries'
+import { FilmPicker, type FilmId } from '../components/FilmPicker'
 import { Spinner, toast, TopBar } from '../ui'
-
-const FILMS = ['portra400', 'fuji400h', 'cinestill', 'ilford', 'original'] as const
 
 export default function CreateSoloScreen() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const ent = useEntitlements().data
   const [title, setTitle] = useState('')
-  const [film, setFilm] = useState<(typeof FILMS)[number]>('portra400')
+  const [film, setFilm] = useState<FilmId>('original')
 
   const create = useMutation({
     mutationFn: async () => (await hostApi.post<EventOut>('/events/solo', { title: title.trim(), lut_preset: film })).data,
@@ -39,11 +37,7 @@ export default function CreateSoloScreen() {
 
         <div>
           <div className="host-field-label">Плёнка</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {FILMS.map((f) => (
-              <button key={f} className="host-chip" data-active={film === f} onClick={() => setFilm(f)}>{FILM_LABELS[f].name}</button>
-            ))}
-          </div>
+          <FilmPicker value={film} onChange={setFilm} />
         </div>
 
         {ent && (

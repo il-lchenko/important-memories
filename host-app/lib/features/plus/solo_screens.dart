@@ -17,12 +17,20 @@ import '../events/events_provider.dart';
 import 'plus_providers.dart';
 
 const _films = <(String, String)>[
+  ('original', 'Без фильтра'),
   ('portra400', 'Portra 400'),
   ('fuji400h', 'Fuji 400H'),
   ('cinestill', 'Cinestill 800T'),
   ('ilford', 'Ilford HP5+'),
-  ('original', 'Без фильтра'),
 ];
+
+const _filmDesc = <String, String>{
+  'original': 'Фото как снято · Без обработки',
+  'portra400': 'Тёплые телесные тона · Лучше всего для свадеб',
+  'fuji400h': 'Холодные пастельные зелёные · Природа и портреты',
+  'cinestill': 'Неоновые красные · Ночные и городские сцены',
+  'ilford': 'Ч/Б · Классика документальной съёмки',
+};
 
 TextStyle _display(double size, {FontWeight w = FontWeight.w600, Color color = AppColors.ink}) =>
     GoogleFonts.playfairDisplay(
@@ -57,7 +65,7 @@ class SoloCreateScreen extends ConsumerStatefulWidget {
 
 class _SoloCreateScreenState extends ConsumerState<SoloCreateScreen> {
   final _title = TextEditingController();
-  String _film = 'portra400';
+  String _film = 'original';
   bool _busy = false;
 
   @override
@@ -129,6 +137,9 @@ class _SoloCreateScreenState extends ConsumerState<SoloCreateScreen> {
                   onSelected: (_) => setState(() => _film = f.$1),
                 ),
             ]),
+            const SizedBox(height: 10),
+            Text(_filmDesc[_film] ?? '',
+                style: GoogleFonts.manrope(fontSize: 13, height: 1.4, color: AppColors.ink3)),
             const SizedBox(height: 22),
             if (left != null && perMonth != null)
               Container(

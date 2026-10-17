@@ -262,3 +262,77 @@
 .host-metrics > * { flex: 1; }
 .host-metrics > * + * { border-left: 1px solid var(--line); }
 .host-snap::-webkit-scrollbar { display: none; }
+
+/* ── Поле даты, календарь и часы (в стиле Material-диалогов приложения) ── */
+.host-date-field {
+  width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 14px;
+  font: inherit; font-size: 16px; color: var(--ink); cursor: pointer;
+}
+.host-date-field[data-empty='true'] { color: var(--ink-4); }
+.host-date-field:focus-visible { outline: none; border-color: var(--amber); }
+.host-date-field svg { color: var(--ink-3); flex-shrink: 0; }
+
+.host-dialog-backdrop {
+  position: fixed; inset: 0; z-index: 80; background: rgba(26, 23, 20, .5);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.host-dialog {
+  width: min(360px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto;
+  background: var(--paper); border-radius: 28px; padding: 20px 12px 8px;
+  box-shadow: 0 20px 60px -12px rgba(26, 23, 20, .45);
+}
+.host-dialog-head { padding: 0 12px 12px; }
+.host-dialog-title { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 600; letter-spacing: -.3px; margin-top: 10px; }
+.host-dialog-divider { height: 1px; background: var(--line); margin: 0 0 6px; }
+.host-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 8px 8px; }
+.host-text-btn {
+  background: none; border: none; cursor: pointer; padding: 10px 14px; border-radius: 20px;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--amber);
+}
+.host-text-btn:hover { background: rgba(201, 136, 30, .1); }
+.host-text-btn:disabled { color: var(--ink-4); cursor: not-allowed; }
+
+.host-cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 4px 12px; }
+.host-cal-month {
+  display: inline-flex; align-items: center; gap: 4px; background: none; border: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 700; color: var(--ink); padding: 8px 4px; border-radius: 12px;
+}
+.host-cal-arrow {
+  width: 40px; height: 40px; border: none; background: none; border-radius: 50%; cursor: pointer; color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.host-cal-arrow:hover { background: var(--paper-2); }
+.host-cal-arrow:disabled { color: var(--ink-4); opacity: .5; cursor: default; }
+.host-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px 0; padding: 0 4px; justify-items: center; }
+.host-cal-wd { height: 40px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.host-cal-day {
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid transparent; background: none; cursor: pointer;
+  font: inherit; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.host-cal-day:hover:not(:disabled) { background: var(--paper-2); }
+.host-cal-day[data-today='true'] { border-color: var(--amber); color: var(--amber); font-weight: 700; }
+.host-cal-day[data-sel='true'] { background: var(--amber); border-color: var(--amber); color: #fff; font-weight: 700; }
+.host-cal-day:disabled { color: var(--ink-4); opacity: .45; cursor: default; }
+.host-cal-years { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; max-height: 280px; overflow-y: auto; }
+.host-cal-years button { height: 40px; border: none; border-radius: 20px; background: none; cursor: pointer; font: inherit; font-size: 15px; color: var(--ink); }
+.host-cal-years button[data-on='true'] { background: var(--amber); color: #fff; font-weight: 700; }
+
+.host-time-head { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 12px; }
+.host-time-head span { font-size: 48px; font-weight: 600; color: var(--ink); }
+.host-time-head button {
+  width: 96px; height: 72px; border: none; border-radius: 14px; cursor: pointer; background: var(--paper-2);
+  font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.host-time-head button[data-on='true'] { background: rgba(201, 136, 30, .18); color: var(--amber); }
+.host-dial { display: block; width: 256px; max-width: 100%; margin: 12px auto 0; touch-action: none; cursor: pointer; user-select: none; }
+
+/* Ползунок кадров: янтарная нить и круглый бегунок, шаг в один кадр */
+.host-range { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; cursor: pointer; display: block; }
+.host-range::-webkit-slider-runnable-track { height: 2px; border-radius: 1px; background: linear-gradient(to right, var(--amber) var(--pct, 0%), var(--paper-3) var(--pct, 0%)); }
+.host-range::-moz-range-track { height: 2px; border-radius: 1px; background: var(--paper-3); }
+.host-range::-moz-range-progress { height: 2px; background: var(--amber); }
+.host-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--amber); border: none; box-shadow: 0 1px 4px rgba(26, 23, 20, .3); }
+.host-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--amber); border: none; box-shadow: 0 1px 4px rgba(26, 23, 20, .3); }
+.host-range:focus-visible { outline: none; }
+.host-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 5px rgba(201, 136, 30, .25); }

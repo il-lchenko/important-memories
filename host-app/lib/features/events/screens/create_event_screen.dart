@@ -28,7 +28,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   DateTime? _revealAt;
 
   // Шаг 5
-  String _film = 'portra400';
+  String _film = 'original';
   // Разрешить гостям загружать фото из галереи телефона (см. project_upload_from_gallery.md).
   // Default false — Хост осознанно включает.
   bool _uploadsEnabled = false;
