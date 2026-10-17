@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
@@ -9,10 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/api_client.dart';
+import '../../../utils/safe_download.dart';
 import '../../../core/tokens.dart';
 import '../../events/events_provider.dart';
 import '../album_provider.dart';
@@ -195,13 +194,17 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
 
   Future<void> _sharePhoto(String url) async {
     try {
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/im_frame.jpg';
-      await Dio().download(url, filePath);
-      await Share.shareXFiles(
-        [XFile(filePath, mimeType: 'image/jpeg')],
-        text: 'Кадр из ImpoMento',
-      );
+      final file = await downloadVerified(url);
+      try {
+        await Share.shareXFiles(
+          [XFile(file.path, mimeType: 'image/jpeg')],
+          text: 'Кадр из ImpoMento',
+        );
+      } finally {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -263,7 +266,11 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
     );
   }
 
+  bool _saving = false;
+
   Future<void> _savePhoto(String url) async {
+    if (_saving) return;
+    _saving = true;
     try {
       final hasAccess = await Gal.hasAccess(toAlbum: true);
       if (!hasAccess) {
@@ -273,13 +280,19 @@ class _FrameDetailScreenState extends ConsumerState<FrameDetailScreen> {
           return;
         }
       }
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/im_frame_save.jpg';
-      await Dio().download(url, filePath);
-      await Gal.putImage(filePath, album: 'Important Memories');
+      final file = await downloadVerified(url);
+      try {
+        await Gal.putImage(file.path, album: 'Important Memories');
+      } finally {
+        try {
+          await file.delete();
+        } catch (_) {}
+      }
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Сохранено в галерею')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Не удалось сохранить фото')));
+    } finally {
+      _saving = false;
     }
   }
 

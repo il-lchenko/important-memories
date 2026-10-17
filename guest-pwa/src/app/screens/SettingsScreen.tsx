@@ -45,7 +45,7 @@ export default function SettingsScreen() {
   const [title, setTitle] = useState('')
 
   const e = event.data
-  const completed = e?.status === 'completed' || e?.status === 'cancelled'
+  const completed = e?.status === 'completed' || e?.status === 'cancelled' || e?.kind === 'solo'
 
   const share = useQuery({
     queryKey: ['public-share', id],

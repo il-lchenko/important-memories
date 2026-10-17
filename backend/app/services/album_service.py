@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
 from app.domain.models import (
+    Collection,
+    CollectionItem,
     Event,
     EventSettings,
     EventStatus,
@@ -196,6 +198,71 @@ async def get_album(
     )
 
 
+def _public_visible(event: Event) -> bool:
+    """Открытая ссылка работает для завершённых событий и для соло-альбомов (гостей и проявки у них нет)."""
+    return event.kind == "solo" or event.status in (EventStatus.COMPLETED, EventStatus.CANCELLED)
+
+
+def _collection_frames_stmt(col: Collection):
+    """Кадры подборки для открытой ссылки: только из событий владельца и снятые им самим."""
+    return (
+        select(Frame, Guest.name, Guest.avatar_key)
+        .join(CollectionItem, CollectionItem.frame_id == Frame.id)
+        .join(Event, Event.id == Frame.event_id)
+        .outerjoin(Guest, Guest.id == Frame.guest_id)
+        .where(
+            CollectionItem.collection_id == col.id,
+            Frame.status == FrameStatus.UPLOADED,
+            Event.storage_purged_at.is_(None),
+            or_(Event.user_id == col.user_id, Guest.user_id == col.user_id),
+        )
+    )
+
+
+async def _collection_by_token(session: AsyncSession, token: str) -> Collection:
+    col = (await session.execute(select(Collection).where(Collection.public_share_token == token))).scalar_one_or_none()
+    if col is None:
+        raise NotFoundError("Album not found")
+    return col
+
+
+async def _get_public_collection(session: AsyncSession, token: str, *, cursor: str | None, limit: int) -> AlbumOut:
+    col = await _collection_by_token(session, token)
+    limit = max(1, min(limit, MAX_PAGE))
+    base = _collection_frames_stmt(col)
+    total_frames = int((await session.execute(select(func.count()).select_from(base.subquery()))).scalar_one())
+    stmt = base.order_by(Frame.captured_at.desc(), Frame.id.desc()).limit(limit + 1)
+    if cursor:
+        ts, fid = _decode_cursor(cursor)
+        stmt = stmt.where(or_(Frame.captured_at < ts, and_(Frame.captured_at == ts, Frame.id < fid)))
+    rows = list((await session.execute(stmt)).all())
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    items = [_to_frame_out(f, name, is_mine=False, guest_avatar_key=avatar) for f, name, avatar in rows]
+    next_cursor = _encode_cursor(rows[-1][0].captured_at, rows[-1][0].id) if has_more and rows else None
+    return AlbumOut(items=items, next_cursor=next_cursor, revealed=True, total_frames=total_frames, is_admin_preview=False, title_font=None)
+
+
+async def _get_public_collection_meta(session: AsyncSession, token: str) -> dict:
+    col = await _collection_by_token(session, token)
+    base = _collection_frames_stmt(col)
+    total_frames = int((await session.execute(select(func.count()).select_from(base.subquery()))).scalar_one())
+    first = (await session.execute(base.order_by(CollectionItem.position.asc(), Frame.captured_at.asc()).limit(1))).first()
+    cover_url = None
+    if first is not None:
+        key = first[0].preview_url or first[0].s3_key
+        cover_url = s3_client.presign_get(key, expires_in=_ALBUM_URL_TTL)
+    return {
+        "id": str(col.id),
+        "title": col.title,
+        "status": "completed",
+        "cover_url": cover_url,
+        "total_frames": total_frames,
+        "revealed": True,
+        "title_font": None,
+    }
+
+
 async def get_public_album(
     session: AsyncSession,
     public_share_token: str,
@@ -203,12 +270,12 @@ async def get_public_album(
     cursor: str | None = None,
     limit: int = DEFAULT_PAGE,
 ) -> AlbumOut:
-    """Read-only альбом по публичному share-токену. Работает только для COMPLETED/CANCELLED."""
+    """Read-only альбом по публичному share-токену: завершённое событие, соло-альбом или подборка."""
     stmt = select(Event).where(Event.public_share_token == public_share_token)
     event = (await session.execute(stmt)).scalar_one_or_none()
     if event is None:
-        raise NotFoundError("Album not found")
-    if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+        return await _get_public_collection(session, public_share_token, cursor=cursor, limit=limit)
+    if not _public_visible(event):
         # Токен есть, но статус изменили — не показываем чужим.
         raise NotFoundError("Album not found")
 
@@ -272,7 +339,9 @@ async def get_public_meta(
     """Meta альбома (title, cover, frame_count) для публичной ссылки."""
     stmt = select(Event).where(Event.public_share_token == public_share_token)
     event = (await session.execute(stmt)).scalar_one_or_none()
-    if event is None or event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+    if event is None:
+        return await _get_public_collection_meta(session, public_share_token)
+    if not _public_visible(event):
         raise NotFoundError("Album not found")
     total_frames = int((await session.execute(
         select(func.count(Frame.id)).where(

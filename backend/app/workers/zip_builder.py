@@ -21,7 +21,7 @@ async def build_zip(ctx: dict, event_id: str, job_id: str) -> dict:
     async with SessionLocal() as session:
         stmt = (
             select(Frame, Guest.name)
-            .join(Guest, Guest.id == Frame.guest_id)
+            .outerjoin(Guest, Guest.id == Frame.guest_id)
             .where(
                 Frame.event_id == event_uuid,
                 Frame.status == FrameStatus.UPLOADED,
@@ -44,7 +44,7 @@ async def build_zip(ctx: dict, event_id: str, job_id: str) -> dict:
                 logger.warning("zip_skip_frame", frame_id=str(frame.id), error=str(exc))
                 continue
             ext = frame.s3_key.rsplit(".", 1)[-1].lower() if "." in frame.s3_key else "jpg"
-            stem = _safe_name(guest_name)
+            stem = _safe_name(guest_name or "Гость")
             seen[stem] = seen.get(stem, 0) + 1
             # Разделяем camera и uploaded фото в подпапки — Хост видит источник контента.
             prefix = "uploaded/" if frame.source == FrameSource.UPLOAD else "camera/"

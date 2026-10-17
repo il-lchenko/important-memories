@@ -15,6 +15,8 @@ import '../../utils/guest_prefs.dart';
 import '../album/album_provider.dart';
 import '../events/events_provider.dart';
 import '../../core/widgets/brand_icon.dart';
+import '../events/widgets/cover_card.dart';
+import '../events/widgets/public_link_sheet.dart';
 import 'plus_providers.dart';
 
 const _films = <(String, String)>[
@@ -306,6 +308,60 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
     }
   }
 
+  Future<void> _settings(String currentTitle, String? currentFilm) async {
+    final ctrl = TextEditingController(text: currentTitle);
+    var film = currentFilm ?? 'original';
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('Настройки альбома', style: _display(24)),
+            const SizedBox(height: 14),
+            TextField(controller: ctrl, maxLength: 80, decoration: const InputDecoration(labelText: 'Название', counterText: '')),
+            const SizedBox(height: 10),
+            Text('ПЛЁНКА', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.5, color: AppColors.ink3)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final f in _films)
+                ChoiceChip(
+                  label: Text(f.$2, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: film == f.$1 ? AppColors.paper : AppColors.ink2)),
+                  selected: film == f.$1,
+                  showCheckmark: false,
+                  selectedColor: AppColors.ink,
+                  backgroundColor: AppColors.paper2,
+                  side: BorderSide.none,
+                  shape: const StadiumBorder(),
+                  onSelected: (_) => setSheet(() => film = f.$1),
+                ),
+            ]),
+            const SizedBox(height: 8),
+            Text(_filmDesc[film] ?? '', style: GoogleFonts.manrope(fontSize: 13, height: 1.4, color: AppColors.ink3)),
+            const SizedBox(height: 16),
+            SizedBox(height: AppSizes.buttonHeight, child: ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Сохранить'))),
+          ]),
+        ),
+      ),
+    );
+    final newTitle = ctrl.text.trim();
+    ctrl.dispose();
+    if (ok != true || !mounted) return;
+    try {
+      final dio = ref.read(dioProvider);
+      if (newTitle.isNotEmpty && newTitle != currentTitle) await dio.patch('events/${widget.eventId}', data: {'title': newTitle});
+      if (film != currentFilm) await dio.patch('events/${widget.eventId}/settings', data: {'lut_preset': film});
+      ref.invalidate(eventDetailProvider(widget.eventId));
+      ref.invalidate(eventsProvider);
+      _snack('Сохранено');
+    } catch (e) {
+      _snack(extractUserMessage(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final eventAsync = ref.watch(eventDetailProvider(widget.eventId));
@@ -330,6 +386,8 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
               children: [
                 Row(children: [_roundBack(context)]),
+                const SizedBox(height: 14),
+                EventCoverCard(eventId: widget.eventId, event: Map<String, dynamic>.from(event)),
                 const SizedBox(height: 18),
                 Text('СОЛО-АЛЬБОМ',
                     style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 1.5, color: AppColors.ink3)),
@@ -377,10 +435,14 @@ class _SoloDetailScreenState extends ConsumerState<SoloDetailScreen> {
                       'Кнопка «Из галереи» под затвором камеры', () => _openCamera(shortCode), brand: 'gallery'),
                   _RowData(Icons.auto_stories_outlined, 'Открыть альбом', 'Все кадры',
                       () => context.push('/events/${widget.eventId}/album')),
+                  _RowData(Icons.ios_share, 'Поделиться альбомом', 'Открытая ссылка для просмотра',
+                      () => showPublicLinkSheet(context, base: 'events/${widget.eventId}', title: title,
+                          note: 'Любой, у кого есть ссылка, увидит все кадры альбома. Вы отвечаете за её распространение.')),
                   _RowData(Icons.download_outlined, _downloading ? 'Собираем архив…' : 'Скачать все фото',
                       'ZIP со всеми кадрами', _downloadAll),
                   _RowData(Icons.lock_clock_outlined, 'Продлить хранение', 'Альбом останется доступен дольше',
                       () => context.push('/extend/${widget.eventId}')),
+                  _RowData(Icons.tune_outlined, 'Настройки', 'Название и плёнка', () => _settings(title, settings['lut_preset'] as String?)),
                   _RowData(Icons.delete_outline, 'Удалить альбом', null, _delete, danger: true),
                 ]),
               ],

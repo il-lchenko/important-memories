@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/tokens.dart';
 import '../events/events_provider.dart';
+import '../events/widgets/public_link_sheet.dart';
 import 'plus_providers.dart';
 
 TextStyle _display(double size, {FontWeight w = FontWeight.w600}) => GoogleFonts.playfairDisplay(
@@ -282,6 +283,10 @@ class _CollectionDetailScreenState extends ConsumerState<CollectionDetailScreen>
                 Row(children: [
                   _roundBtn(Icons.chevron_left, () => context.pop()),
                   const Spacer(),
+                  _roundBtn(Icons.ios_share, () => showPublicLinkSheet(context,
+                      base: 'collections/${widget.id}', title: col['title'] as String? ?? 'Подборка',
+                      note: 'По ссылке видны только кадры из ваших событий и снятые вами. Чужие кадры из альбомов, где вы были гостем, не показываются.')),
+                  const SizedBox(width: 8),
                   _roundBtn(Icons.more_horiz, () => _menu(Map<String, dynamic>.from(col))),
                 ]),
                 const SizedBox(height: 18),

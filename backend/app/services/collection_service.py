@@ -238,3 +238,33 @@ async def remove_item(session: AsyncSession, user_id: UUID, collection_id: UUID,
         if item.frame_id == frame_id:
             await session.delete(item)
     await session.commit()
+
+
+async def get_public_share(session: AsyncSession, user_id: UUID, collection_id: UUID) -> str | None:
+    return (await _owned(session, user_id, collection_id)).public_share_token
+
+
+async def enable_public_share(session: AsyncSession, user_id: UUID, collection_id: UUID) -> str:
+    from secrets import token_urlsafe
+
+    col = await _owned(session, user_id, collection_id)
+    if col.public_share_token is None:
+        col.public_share_token = token_urlsafe(24)
+        await session.commit()
+    return col.public_share_token
+
+
+async def regenerate_public_share(session: AsyncSession, user_id: UUID, collection_id: UUID) -> str:
+    from secrets import token_urlsafe
+
+    col = await _owned(session, user_id, collection_id)
+    col.public_share_token = token_urlsafe(24)
+    await session.commit()
+    return col.public_share_token
+
+
+async def disable_public_share(session: AsyncSession, user_id: UUID, collection_id: UUID) -> None:
+    col = await _owned(session, user_id, collection_id)
+    if col.public_share_token is not None:
+        col.public_share_token = None
+        await session.commit()

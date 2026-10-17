@@ -370,18 +370,29 @@ class _ScrimPainter extends CustomPainter {
     final cut = Path()..addRRect(RRect.fromRectAndRadius(hole, Radius.circular(radius)));
     canvas.drawPath(Path.combine(PathOperation.difference, full, cut), Paint()..color = dim);
     if (!ring) return;
+    // Только контуры без заливки и без MaskFilter: размытие на Impeller закрашивало
+    // внутренность рамки и перекрывало подсвеченный элемент.
+    const amber = Color(0xFFFFB347);
     final base = RRect.fromRectAndRadius(hole.inflate(3), Radius.circular(radius + 3));
+    for (final (extra, alpha) in [(6.0, 0.10), (3.0, 0.18)]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(hole.inflate(3 + extra / 2), Radius.circular(radius + 3 + extra / 2)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2 + extra
+          ..color = amber.withValues(alpha: alpha),
+      );
+    }
     canvas.drawRRect(base, Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
-      ..color = const Color(0xFFFFB347)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 5));
+      ..color = amber);
     final grow = Curves.easeOut.transform(pulse);
     final wave = RRect.fromRectAndRadius(hole.inflate(3 + 12 * grow), Radius.circular(radius + 3 + 12 * grow));
     canvas.drawRRect(wave, Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
-      ..color = const Color(0xFFFFB347).withValues(alpha: (1 - grow) * 0.9));
+      ..color = amber.withValues(alpha: (1 - grow) * 0.9));
   }
 
   @override
@@ -481,7 +492,8 @@ class _BadgePainter extends CustomPainter {
     canvas.translate(c.dx, c.dy);
     canvas.rotate(0.14 * t);
     canvas.translate(-c.dx, -c.dy);
-    canvas.drawCircle(c, 20, Paint()..color = const Color(0xFFFFB347).withValues(alpha: 0.28)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
+    canvas.drawCircle(c, 26, Paint()..color = const Color(0xFFFFB347).withValues(alpha: 0.10));
+    canvas.drawCircle(c, 20, Paint()..color = const Color(0xFFFFB347).withValues(alpha: 0.14));
     _SparkPaint(scale * 0.64).paint(canvas, size);
     canvas.restore();
   }

@@ -4,6 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 
 from app.api.deps import CurrentUserId, SessionDep
+from app.domain.schemas.events import PublicShareOut
 from app.domain.schemas.collections import (
     CollectionCreateIn,
     CollectionItemsIn,
@@ -59,4 +60,25 @@ async def remove_item(
     collection_id: UUID, frame_id: UUID, user_id: CurrentUserId, session: SessionDep
 ) -> Response:
     await collection_service.remove_item(session, user_id, collection_id, frame_id)
+    return Response(status_code=204)
+
+
+@router.get("/{collection_id}/public-share", response_model=PublicShareOut)
+async def get_public_share(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> PublicShareOut:
+    return PublicShareOut(public_share_token=await collection_service.get_public_share(session, user_id, collection_id))
+
+
+@router.post("/{collection_id}/public-share/enable", response_model=PublicShareOut)
+async def enable_public_share(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> PublicShareOut:
+    return PublicShareOut(public_share_token=await collection_service.enable_public_share(session, user_id, collection_id))
+
+
+@router.post("/{collection_id}/public-share/regenerate", response_model=PublicShareOut)
+async def regenerate_public_share(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> PublicShareOut:
+    return PublicShareOut(public_share_token=await collection_service.regenerate_public_share(session, user_id, collection_id))
+
+
+@router.delete("/{collection_id}/public-share", status_code=204)
+async def disable_public_share(collection_id: UUID, user_id: CurrentUserId, session: SessionDep) -> Response:
+    await collection_service.disable_public_share(session, user_id, collection_id)
     return Response(status_code=204)

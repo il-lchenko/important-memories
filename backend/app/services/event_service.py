@@ -519,7 +519,7 @@ async def enable_public_share(
     """Хост явно включает открытую ссылку. Действие фиксирует принятие
     ответственности за распространение (privacy v2.2 §10, оферта §7)."""
     event = await _load_owned(session, event_id, user_id)
-    if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+    if event.kind != EventKind.SOLO.value and event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
         raise ConflictError(
             "Открытая ссылка доступна после завершения альбома",
             details={"status": event.status.value},
@@ -545,7 +545,7 @@ async def regenerate_public_share(
     session: AsyncSession, user_id: UUID, event_id: UUID
 ) -> str:
     event = await _load_owned(session, event_id, user_id)
-    if event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
+    if event.kind != EventKind.SOLO.value and event.status not in (EventStatus.COMPLETED, EventStatus.CANCELLED):
         raise ConflictError(
             "Открытая ссылка доступна после завершения альбома",
             details={"status": event.status.value},

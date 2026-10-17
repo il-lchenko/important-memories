@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
 import { Lightbox, type LightboxFrame } from '../components/Lightbox'
+import { PublicLinkSheet } from '../components/PublicLink'
 import { formatShortDate } from '../format'
 import { qk, useCollection, useEvents, useInvitedEvents } from '../queries'
 import { CenterSpinner, ErrorBox, Icon, icons, Note, Sheet, Spinner, toast, TopBar } from '../ui'
@@ -50,6 +51,7 @@ export function CollectionScreen() {
   const col = useCollection(id)
   const [open, setOpen] = useState<number | null>(null)
   const [renameSheet, setRenameSheet] = useState(false)
+  const [shareSheet, setShareSheet] = useState(false)
   const [deleteSheet, setDeleteSheet] = useState(false)
   const [title, setTitle] = useState('')
 
@@ -88,7 +90,12 @@ export function CollectionScreen() {
   return (
     <>
       <TopBar back="/app" title={c.title} kicker={`Мини-альбом · ${items.length} из ${c.frames_limit}`}
-        right={<button className="host-icon-btn" aria-label="Настройки подборки" onClick={() => { setTitle(c.title); setRenameSheet(true) }}><Icon d={icons.settings} /></button>} />
+        right={(
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="host-icon-btn" aria-label="Поделиться подборкой" onClick={() => setShareSheet(true)}><Icon d={icons.share} /></button>
+            <button className="host-icon-btn" aria-label="Настройки подборки" onClick={() => { setTitle(c.title); setRenameSheet(true) }}><Icon d={icons.settings} /></button>
+          </div>
+        )} />
       <main className="host-main" style={{ paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <button className="btn" disabled={items.length >= c.frames_limit} onClick={() => navigate(`/app/collections/${id}/add`)}>
           <Icon d={icons.plus} /> Добавить кадры
@@ -117,6 +124,9 @@ export function CollectionScreen() {
         <Lightbox frames={lightFrames} index={Math.min(open, lightFrames.length - 1)} onIndex={setOpen} onClose={() => setOpen(null)}
           onRemove={(f) => removeItem.mutate(f.id)} />
       )}
+
+      <PublicLinkSheet base={`/collections/${id}`} title={c.title} open={shareSheet} onClose={() => setShareSheet(false)}
+        note="По ссылке видны только кадры из ваших событий и снятые вами. Чужие кадры из альбомов, где вы были гостем, не показываются." />
 
       <Sheet open={renameSheet} onClose={() => setRenameSheet(false)} title="Подборка">
         <input className="input-field" maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
