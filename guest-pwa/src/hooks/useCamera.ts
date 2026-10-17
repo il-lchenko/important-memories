@@ -266,10 +266,49 @@ export function useCamera() {
     })
   }, [])
 
+  /**
+   * Снимок из системной камеры телефона (input capture): качество и обработку даёт сама камера.
+   * Рисуем через <img>: браузер сам применяет ориентацию из EXIF, а перекодирование на canvas
+   * убирает из файла геометки и EXIF. Дальше только плёнка альбома и кодирование JPEG.
+   */
+  const processFile = useCallback(async (
+    file: File,
+    lutPreset: string = 'original',
+  ): Promise<{ blob: Blob; width: number; height: number } | null> => {
+    const url = URL.createObjectURL(file)
+    try {
+      const img = new Image()
+      img.src = url
+      await img.decode()
+      let w = img.naturalWidth
+      let h = img.naturalHeight
+      if (!w || !h) return null
+      const MAX_LONG_SIDE = 4000
+      const scale = Math.max(w, h) > MAX_LONG_SIDE ? MAX_LONG_SIDE / Math.max(w, h) : 1
+      w = Math.round(w * scale)
+      h = Math.round(h * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')!
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(img, 0, 0, w, h)
+      await applyFilmLUT(ctx, w, h, lutPreset)
+      return await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b ? { blob: b, width: w, height: h } : null), 'image/jpeg', 0.93)
+      })
+    } catch {
+      return null
+    } finally {
+      URL.revokeObjectURL(url)
+    }
+  }, [])
+
   useEffect(() => () => stop(), [stop])
 
   return {
-    videoRef, ready, error, start, stop, capture,
+    videoRef, ready, error, start, stop, capture, processFile,
     torchSupported, torchOn, setTorch,
     zoomSupported, minZoom, maxZoom, zoom, setZoom,
   }

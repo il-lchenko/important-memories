@@ -487,7 +487,7 @@ export default function CameraScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
   const navigate = useNavigate()
   const {
-    videoRef, ready, error, start, capture, torchSupported, torchOn, setTorch,
+    videoRef, ready, error, start, capture, processFile, torchSupported, torchOn, setTorch,
     zoomSupported, minZoom, maxZoom, zoom, setZoom,
   } = useCamera()
   const online = useNetworkStatus()
@@ -509,6 +509,15 @@ export default function CameraScreen() {
   const uploadPromiseRef = useRef<Promise<{ ok: true; frameId: string } | { ok: false }> | null>(null)
   const previewItemRef = useRef<QueueItem | null>(null)
   const galleryInputRef = useRef<HTMLInputElement | null>(null)
+  const nativeInputRef = useRef<HTMLInputElement | null>(null)
+  // Режим съёмки: камера ImpoMento или системная камера телефона. Выбор гостя запоминается на устройстве.
+  const [nativeMode, setNativeMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('im_camera_native') === '1' } catch { return false }
+  })
+  const chooseNativeMode = (on: boolean) => {
+    setNativeMode(on)
+    try { localStorage.setItem('im_camera_native', on ? '1' : '0') } catch { /* без хранилища выбор не запоминается */ }
+  }
   const [batch, setBatch] = useState<{ total: number; done: number; failed: number } | null>(null)
   // Читаем uploads_enabled из event settings (обновляется при getSession).
   const [uploadsEnabled, setUploadsEnabled] = useState<boolean>(() => {
@@ -782,8 +791,28 @@ export default function CameraScreen() {
     setTimeout(() => setBatch(null), 1200)
   }, [uploadItem])
 
+  const onNativePick = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0]
+    ev.target.value = ''
+    if (!file) return
+    setShooting(true)
+    try {
+      const shot = await processFile(file, lutPreset)
+      if (!shot) return
+      const blobUrl = URL.createObjectURL(shot.blob)
+      setPendingShot({ blob: shot.blob, width: shot.width, height: shot.height, actualRatio: shot.width / shot.height, blobUrl })
+    } finally {
+      setShooting(false)
+    }
+  }
+
   const handleShutter = async () => {
     if (shooting) return
+    if (nativeMode) {
+      if (framesLeft === 0) return
+      nativeInputRef.current?.click()
+      return
+    }
     setShooting(true)
     try {
       if (flashOn && !torchSupported) {
@@ -1259,39 +1288,66 @@ export default function CameraScreen() {
           </div>
         </div>
 
-        {/* Gallery upload — тонкая кнопка под шаттером. Видна только если хост включил uploads_enabled. */}
-        {uploadsEnabled && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
-              multiple
-              hidden
-              onChange={onGalleryPick}
-            />
-            <button
-              onClick={() => galleryInputRef.current?.click()}
-              disabled={batch != null || framesLeft === 0}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '8px 16px', borderRadius: 999,
-                background: 'transparent',
-                border: '1px solid rgba(255,179,71,0.30)',
-                color: 'var(--dr-text)',
-                fontSize: 13, fontWeight: 500,
-                fontFamily: 'Inter, sans-serif',
-                cursor: batch != null || framesLeft === 0 ? 'not-allowed' : 'pointer',
-                opacity: batch != null || framesLeft === 0 ? 0.4 : 1,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 11.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L14 3.9a3.5 3.5 0 0 1 5 5L10.4 17.5a1.5 1.5 0 0 1-2.1-2.1L16 7.7"/>
-              </svg>
-              Загрузить из галереи
-            </button>
-          </div>
-        )}
+        {/* Выбор камеры и загрузка из галереи — тонкие кнопки под шаттером. */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '10px 0 6px', flexWrap: 'wrap' }}>
+          <input
+            ref={nativeInputRef}
+            type="file"
+            accept="image/*"
+            capture={facingMode === 'user' ? 'user' : 'environment'}
+            hidden
+            onChange={onNativePick}
+          />
+          <button
+            onClick={() => chooseNativeMode(!nativeMode)}
+            aria-pressed={nativeMode}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '8px 16px', borderRadius: 999,
+              background: 'transparent',
+              border: nativeMode ? '1.5px solid rgba(255,179,71,0.95)' : '1px solid rgba(255,179,71,0.30)',
+              color: nativeMode ? 'var(--dr-amber, #FFB347)' : 'var(--dr-text)',
+              fontSize: 13, fontWeight: 500, fontFamily: 'Inter, sans-serif', cursor: 'pointer',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="7" y="2" width="10" height="20" rx="2.5" /><path d="M11 18.5h2" />
+            </svg>
+            {nativeMode ? 'Камера телефона' : 'Камера ImpoMento'}
+          </button>
+          {uploadsEnabled && (
+            <>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+                multiple
+                hidden
+                onChange={onGalleryPick}
+              />
+              <button
+                onClick={() => galleryInputRef.current?.click()}
+                disabled={batch != null || framesLeft === 0}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '8px 16px', borderRadius: 999,
+                  background: 'transparent',
+                  border: '1px solid rgba(255,179,71,0.30)',
+                  color: 'var(--dr-text)',
+                  fontSize: 13, fontWeight: 500,
+                  fontFamily: 'Inter, sans-serif',
+                  cursor: batch != null || framesLeft === 0 ? 'not-allowed' : 'pointer',
+                  opacity: batch != null || framesLeft === 0 ? 0.4 : 1,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 11.5l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8L14 3.9a3.5 3.5 0 0 1 5 5L10.4 17.5a1.5 1.5 0 0 1-2.1-2.1L16 7.7"/>
+                </svg>
+                Из галереи
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {batch != null && (

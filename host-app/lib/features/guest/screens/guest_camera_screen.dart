@@ -176,6 +176,8 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
   // Хост разрешил загрузку из галереи? Читаем при _loadPrefs из session.
   bool _uploadsEnabled = false;
   bool _galleryOnlyMode = false;
+  // Режим съёмки: false — камера ImpoMento, true — системная камера телефона (выбор гостя, запоминается).
+  bool _nativeMode = false;
 
   // Hardware zoom — реальный zoom через камеру (не CSS-скейл).
   // Первые уровни на Android — оптика/hardware digital (лучше качество),
@@ -196,7 +198,13 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    _loadPrefs().then((_) => _initCamera());
+    _loadPrefs().then((_) {
+      _initCamera();
+      _recoverLostNativeShot();
+    });
+    SharedPreferences.getInstance().then((p) {
+      if (mounted) setState(() => _nativeMode = p.getBool('camera_native_mode') ?? false);
+    }).catchError((_) {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _showPendingToast());
     // Polling статуса каждые 15с: если event.status != active — уводим в альбом.
     _checkEventStatus();
@@ -507,7 +515,85 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
     super.dispose();
   }
 
+  Future<void> _setNativeMode(bool on) async {
+    setState(() => _nativeMode = on);
+    try {
+      (await SharedPreferences.getInstance()).setBool('camera_native_mode', on);
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+        on ? 'Снимаете в камере телефона: нажмите затвор, откроется обычная камера' : 'Снимаете в камере ImpoMento',
+        style: const TextStyle(fontFamily: 'Inter', fontSize: 13),
+      ),
+      backgroundColor: AppColors.dark3,
+      duration: const Duration(seconds: 2),
+    ));
+  }
+
+  /// Снимок в обычной камере телефона. Качество и обработку даёт сама камера устройства,
+  /// мы применяем плёнку альбома и убираем из файла геометки и EXIF.
+  Future<void> _shootNative() async {
+    if (_isCapturing) return;
+    if (_framesRemaining <= 0) {
+      _showNoFrames();
+      return;
+    }
+    _isCapturing = true;
+    setState(() {});
+    XFile? file;
+    try {
+      final front = _cameras.isNotEmpty && _cameras[_camIdx].lensDirection == CameraLensDirection.front;
+      file = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: front ? CameraDevice.front : CameraDevice.rear,
+      );
+    } catch (e) {
+      _captureFailed(e);
+      return;
+    }
+    if (file == null) {
+      if (mounted) setState(() => _isCapturing = false);
+      return;
+    }
+    await _handleNativeFile(file);
+  }
+
+  Future<void> _handleNativeFile(XFile file) async {
+    final queueDio = ref.read(dioProvider);
+    try {
+      final capturedAtIso = DateTime.now().toUtc().toIso8601String();
+      final rawBytes = await file.readAsBytes();
+      HapticFeedback.mediumImpact();
+      await _afterCapture(
+        rawBytes: rawBytes,
+        capturedAtIso: capturedAtIso,
+        quarter: ref.read(deviceRotationProvider),
+        queueDio: queueDio,
+        native: true,
+      );
+    } catch (e) {
+      _captureFailed(e);
+    }
+  }
+
+  /// Android мог закрыть приложение, пока открыта системная камера: подбираем снимок после возврата.
+  Future<void> _recoverLostNativeShot() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final lost = await ImagePicker().retrieveLostData();
+      if (lost.isEmpty || lost.file == null || lost.type != RetrieveType.image) return;
+      if (!mounted || _framesRemaining <= 0) return;
+      _isCapturing = true;
+      await _handleNativeFile(lost.file!);
+    } catch (_) {}
+  }
+
   Future<void> _shoot() async {
+    if (_nativeMode) {
+      await _shootNative();
+      return;
+    }
     if (_isCapturing || !_initialized || _ctrl == null) return;
     if (_framesRemaining <= 0) {
       _showNoFrames();
@@ -535,7 +621,39 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       HapticFeedback.mediumImpact();
       unawaited(ctrl.unlockCaptureOrientation().catchError((_) {}));
       final rawBytes = await file.readAsBytes();
+      await _afterCapture(
+        rawBytes: rawBytes,
+        capturedAtIso: capturedAtIso,
+        quarter: quarter,
+        queueDio: queueDio,
+        native: false,
+      );
+    } catch (e) {
+      _captureFailed(e);
+    }
+  }
 
+  void _captureFailed(Object e) {
+    if (!mounted) return;
+    setState(() => _isCapturing = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(extractUserMessage(e)),
+        backgroundColor: AppColors.dark3,
+      ),
+    );
+  }
+
+  /// Кадр уже снят (встроенной или системной камерой): счётчик, превью, плёнка, очередь загрузки.
+  /// [native] — снято системной камерой телефона: ориентацию берём из EXIF, кадрирование не делаем.
+  Future<void> _afterCapture({
+    required Uint8List rawBytes,
+    required String capturedAtIso,
+    required int quarter,
+    required Dio queueDio,
+    required bool native,
+  }) async {
+    try {
       // Оптимистично уменьшаем счётчик.
       final newRemaining = (_framesRemaining - 1).clamp(0, 999);
       await GuestPrefs.setFramesRemainingFor(widget.eventId, newRemaining);
@@ -547,7 +665,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       // Ratio определяем по ориентации устройства + aspect mode, уточним после обработки.
       final screenSize0 = MediaQuery.of(context).size;
       final screenRatio0 = screenSize0.width / screenSize0.height;
-      final rawRatio = _aspectMode == _AspectMode.ratio34
+      final rawRatio = native
+          ? 3.0 / 4.0
+          : _aspectMode == _AspectMode.ratio34
           ? (_quarterIsLandscape(quarter) ? 4.0 / 3.0 : 3.0 / 4.0)
           : (_quarterIsLandscape(quarter) ? 1 / screenRatio0 : screenRatio0);
       // uploadCompleter — Future создаётся СРАЗУ, чтобы CaptionScreen/VoiceRecordScreen
@@ -565,7 +685,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
         _framesRemaining = newRemaining;
         _preview = _PreviewData(
           captureId: captureId,
-          bytes: rawBytes,
+          // У снимка системной камеры ориентация лежит в EXIF, а Image.memory её игнорирует:
+          // до готовой обработки показываем пустой кадр.
+          bytes: native ? null : rawBytes,
           ratio: rawRatio,
           frameNum: frameNum,
           status: _UploadStatus.pending,
@@ -581,8 +703,10 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       // В full — используем соотношение экрана устройства.
       final screenSize = MediaQuery.of(context).size;
       final screenRatio = screenSize.width / screenSize.height;
-      double targetRatio;
-      if (_aspectMode == _AspectMode.ratio34) {
+      double? targetRatio;
+      if (native) {
+        targetRatio = null; // системная камера: кадр сохраняется целиком, как снят
+      } else if (_aspectMode == _AspectMode.ratio34) {
         targetRatio = _quarterIsLandscape(quarter) ? 4.0 / 3.0 : 3.0 / 4.0;
       } else {
         targetRatio = _quarterIsLandscape(quarter) ? 1 / screenRatio : screenRatio;
@@ -592,7 +716,9 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
       // превью (~0.5с). Запускаем параллельно с full-обработкой, не ждём результат —
       // кто первым обновит _preview, тот и покажется. Full всегда больше по bytes →
       // _runFastPreview не перепишет его если уже пришёл.
-      unawaited(_runFastPreview(rawBytes, _lutPreset, captureId, targetRatio));
+      if (!native && targetRatio != null) {
+        unawaited(_runFastPreview(rawBytes, _lutPreset, captureId, targetRatio));
+      }
 
       // Обрабатываем в фоне (film filter + EXIF-ориентация + кроп до targetRatio).
       // maxSize 4000 → сохраняем ~12MP (полный размер камеры), чтобы при скачивании
@@ -603,7 +729,7 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
           'bytes': rawBytes,
           'preset': _lutPreset,
           'maxSize': 4000,
-          'targetRatio': targetRatio,
+          if (targetRatio != null) 'targetRatio': targetRatio,
         },
       );
       final processed = result['bytes'] as Uint8List;
@@ -1266,33 +1392,33 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
             },
           ),
 
-          // Кнопка «Из галереи» — тонкая, поверх низа камеры, только если Хост разрешил.
+          // Нижний ряд: выбор камеры (ImpoMento или системная) и «Из галереи», если Хост разрешил.
           // Позиционируется чуть выше safe-area, не мешает шаттеру.
-          if (_uploadsEnabled && _preview == null && _batchState == null)
+          if (_preview == null && _batchState == null)
             Positioned(
               left: 0, right: 0,
               bottom: MediaQuery.of(context).padding.bottom + 4,
               child: SafeArea(
                 top: false,
-                child: Center(
-                  child: TextButton.icon(
-                    onPressed: _framesRemaining <= 0 ? null : _pickFromGallery,
-                    icon: const Icon(Icons.attach_file, size: 14),
-                    label: const Text('Из галереи'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.drText,
-                      textStyle: const TextStyle(
-                        fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500,
-                      ),
-                      // Тёмная подложка: на светлой сцене белый текст без неё не виден.
-                      backgroundColor: Colors.black.withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                        side: BorderSide(color: AppColors.drAmber.withValues(alpha: 0.55)),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _BottomPill(
+                      icon: _nativeMode ? Icons.phone_android : Icons.camera_alt_outlined,
+                      label: _nativeMode ? 'Камера телефона' : 'Камера ImpoMento',
+                      active: _nativeMode,
+                      onTap: () => _setNativeMode(!_nativeMode),
                     ),
-                  ),
+                    if (_uploadsEnabled) ...[
+                      const SizedBox(width: 8),
+                      _BottomPill(
+                        icon: Icons.attach_file,
+                        label: 'Из галереи',
+                        active: false,
+                        onTap: _framesRemaining <= 0 ? null : _pickFromGallery,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -1344,6 +1470,34 @@ class _GuestCameraScreenState extends ConsumerState<GuestCameraScreen>
 // Preview data
 // ─────────────────────────────────────────────────────────────────────────────
 enum _UploadStatus { pending, ok, failed }
+
+class _BottomPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+  const _BottomPill({required this.icon, required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 14),
+      label: Text(label),
+      style: TextButton.styleFrom(
+        foregroundColor: active ? AppColors.drAmber : AppColors.drText,
+        textStyle: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w500),
+        // Тёмная подложка: на светлой сцене белый текст без неё не виден.
+        backgroundColor: Colors.black.withValues(alpha: 0.5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide(color: AppColors.drAmber.withValues(alpha: active ? 0.95 : 0.55), width: active ? 1.5 : 1),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      ),
+    );
+  }
+}
 
 class _PreviewData {
   final Uint8List? bytes;
