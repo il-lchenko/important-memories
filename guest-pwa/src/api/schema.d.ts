@@ -611,6 +611,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/cover/from-frame": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cover From Frame */
+        post: operations["events_cover_from_frame"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/download": {
         parameters: {
             query?: never;
@@ -1598,6 +1615,11 @@ export interface components {
             /** Needs Accept */
             needs_accept: boolean;
         };
+        /** CoverFromFrameIn */
+        CoverFromFrameIn: {
+            /** Frame Id */
+            frame_id?: string | null;
+        };
         /** DeviceOut */
         DeviceOut: {
             /**
@@ -2254,6 +2276,11 @@ export interface components {
             frames_used: number;
             /** Frames Remaining */
             frames_remaining: number;
+            /**
+             * Is Owner
+             * @default false
+             */
+            is_owner: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4275,6 +4302,41 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_events_upload_cover"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    events_cover_from_frame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverFromFrameIn"];
             };
         };
         responses: {

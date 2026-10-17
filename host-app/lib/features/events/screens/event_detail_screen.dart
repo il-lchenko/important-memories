@@ -13,6 +13,7 @@ import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../album/album_provider.dart';
 import '../events_provider.dart';
+import '../widgets/cover_picker.dart';
 import '../widgets/join_stats_card.dart';
 import '../widgets/pin_card.dart';
 
@@ -25,6 +26,7 @@ class EventDetailScreen extends ConsumerWidget {
     final eventAsync = ref.watch(eventDetailProvider(eventId));
 
     return eventAsync.when(
+      skipLoadingOnReload: true,
       loading: () => Scaffold(
         backgroundColor: AppColors.paper,
         body: const Center(child: CircularProgressIndicator(color: AppColors.amber)),
@@ -143,8 +145,37 @@ class _CoverSection extends ConsumerStatefulWidget {
   ConsumerState<_CoverSection> createState() => _CoverSectionState();
 }
 
-class _CoverSectionState extends ConsumerState<_CoverSection> {
+class _CoverSectionState extends ConsumerState<_CoverSection> with WidgetsBindingObserver {
   bool _uploadingCover = false;
+  Timer? _poll;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Провайдер деталей живёт долго: при входе и возврате с камеры обновляем число кадров,
+    // чтобы после первого снимка сразу предложить сделать его обложкой.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ref.invalidate(eventDetailProvider(widget.eventId));
+    });
+    _poll = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted && widget.event['cover_url'] == null && !_uploadingCover) {
+        ref.invalidate(eventDetailProvider(widget.eventId));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) ref.invalidate(eventDetailProvider(widget.eventId));
+  }
 
   void _shareAlbum() {
     final shortCode = widget.event['short_code'] as String? ?? '';
@@ -154,24 +185,53 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
     Share.share('Посмотри наш альбом «$title»!\n$guestBase/g/$shortCode', subject: title);
   }
 
-  Future<void> _uploadCover() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    if (file == null || !mounted) return;
+  Future<void> _run(Future<void> Function() job) async {
     setState(() => _uploadingCover = true);
     try {
-      final bytes = await file.readAsBytes();
-      final dio = ref.read(dioProvider);
-      final formData = dio_pkg.FormData.fromMap({
-        'file': dio_pkg.MultipartFile.fromBytes(bytes, filename: 'cover.jpg'),
-      });
-      await dio.post('events/${widget.eventId}/cover', data: formData);
+      await job();
       ref.invalidate(eventDetailProvider(widget.eventId));
       ref.invalidate(eventsProvider);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(extractUserMessage(e))));
     } finally {
       if (mounted) setState(() => _uploadingCover = false);
+    }
+  }
+
+  Future<void> _fromGallery() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    if (file == null || !mounted) return;
+    await _run(() async {
+      final bytes = await file.readAsBytes();
+      final formData = dio_pkg.FormData.fromMap({
+        'file': dio_pkg.MultipartFile.fromBytes(bytes, filename: 'cover.jpg', contentType: dio_pkg.DioMediaType('image', 'jpeg')),
+      });
+      await ref.read(dioProvider).post('events/${widget.eventId}/cover', data: formData);
+    });
+  }
+
+  Future<void> _fromFrame(String? frameId) => _run(() async {
+        await ref.read(dioProvider).post('events/${widget.eventId}/cover/from-frame', data: {'frame_id': frameId});
+      });
+
+  int get _framesCount => widget.event['frames_count'] as int? ?? 0;
+
+  Future<void> _openCoverSheet() async {
+    final choice = await showCoverSheet(
+      context,
+      eventId: widget.eventId,
+      framesCount: _framesCount,
+      hasCover: widget.event['cover_url'] != null,
+    );
+    if (choice == null || !mounted) return;
+    switch (choice.kind) {
+      case 'gallery':
+        await _fromGallery();
+      case 'first':
+        await _fromFrame(null);
+      case 'frame':
+        await _fromFrame(choice.frameId);
     }
   }
 
@@ -231,6 +291,8 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
                     ),
                   ),
                 ],
+                if (coverUrl == null)
+                  Center(child: _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet, label: 'Добавить обложку', big: true)),
                 // Vignette
                 Container(
                   decoration: const BoxDecoration(
@@ -258,11 +320,8 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
                         children: [
                           _GlassBtn(icon: Icons.ios_share, size: 20, onTap: _shareAlbum),
                           const SizedBox(width: 8),
-                          _GlassBtn(
-                            icon: _uploadingCover ? Icons.hourglass_bottom : Icons.add_photo_alternate_outlined,
-                            size: 20,
-                            onTap: _uploadingCover ? () {} : _uploadCover,
-                          ),
+                          if (coverUrl != null)
+                            _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet),
                         ],
                       ),
                     ],
@@ -312,6 +371,15 @@ class _CoverSectionState extends ConsumerState<_CoverSection> {
             ),
           ),
         ),
+        if (coverUrl == null && status != 'cancelled')
+          CoverPromptCard(
+            eventId: widget.eventId,
+            framesCount: _framesCount,
+            busy: _uploadingCover,
+            onGallery: _fromGallery,
+            onFirstFrame: () => _fromFrame(null),
+            onMore: _openCoverSheet,
+          ),
         // ── Info section below cover ────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
@@ -939,6 +1007,37 @@ class _SheetAction extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CoverPill extends StatelessWidget {
+  final bool busy;
+  final VoidCallback onTap;
+  final String label;
+  final bool big;
+  const _CoverPill({required this.busy, required this.onTap, this.label = 'Обложка', this.big = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: busy ? null : onTap,
+      child: Container(
+        height: big ? 48 : 36,
+        padding: EdgeInsets.symmetric(horizontal: big ? 20 : 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: big ? 0.32 : 0.25),
+          borderRadius: BorderRadius.circular(24),
+          border: big ? Border.all(color: Colors.white.withValues(alpha: 0.45)) : null,
+        ),
+        child: busy
+            ? const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+            : Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.add_photo_alternate_outlined, color: Colors.white, size: big ? 22 : 19),
+                const SizedBox(width: 8),
+                Text(label, style: GoogleFonts.manrope(fontSize: big ? 15 : 13, fontWeight: FontWeight.w700, color: Colors.white)),
+              ]),
       ),
     );
   }

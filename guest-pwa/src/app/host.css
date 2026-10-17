@@ -336,3 +336,14 @@
 .host-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--amber); border: none; box-shadow: 0 1px 4px rgba(26, 23, 20, .3); }
 .host-range:focus-visible { outline: none; }
 .host-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 5px rgba(201, 136, 30, .25); }
+
+/* Обложка: заметные кнопки добавления и смены */
+.host-glass-pill { width: auto; padding: 0 14px 0 10px; gap: 6px; border-radius: 19px; font: inherit; font-size: 13px; font-weight: 700; }
+.host-cover-cta {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+  display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 20px; border-radius: 24px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .45); background: rgba(255, 255, 255, .18); color: #fff;
+  font: inherit; font-size: 15px; font-weight: 700; white-space: nowrap; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+}
+.host-cover-cta:active { transform: translate(-50%, -50%) scale(.97); }

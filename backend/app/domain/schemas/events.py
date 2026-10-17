@@ -158,6 +158,11 @@ class EventSettingsUpdateIn(BaseModel):
         return v
 
 
+class CoverFromFrameIn(BaseModel):
+    # None: взять самый первый снятый кадр альбома.
+    frame_id: UUID | None = None
+
+
 class EventRenameIn(BaseModel):
     title: str = Field(min_length=1, max_length=80)
 

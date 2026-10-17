@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from secrets import token_urlsafe
@@ -669,6 +670,43 @@ async def clear_uploads_window(
         await session.commit()
 
 
+_COVER_MAX_BYTES = 20 * 1024 * 1024
+_COVER_MAX_SIDE = 2000
+
+
+def _normalize_cover(data: bytes, rotation: int = 0) -> bytes:
+    """Обложка всегда JPEG до 2000 px по длинной стороне: ровный размер, учтён поворот и EXIF."""
+    from PIL import Image, ImageOps
+
+    try:
+        img = Image.open(BytesIO(data))
+        img = ImageOps.exif_transpose(img)
+        img = img.convert("RGB")
+    except Exception as exc:  # noqa: BLE001
+        raise ConflictError("Не удалось прочитать изображение") from exc
+    if rotation:
+        img = img.rotate(-rotation, expand=True)
+    img.thumbnail((_COVER_MAX_SIDE, _COVER_MAX_SIDE), Image.Resampling.LANCZOS)
+    out = BytesIO()
+    img.save(out, format="JPEG", quality=90, optimize=True)
+    return out.getvalue()
+
+
+async def _store_cover(session: AsyncSession, event: Event, jpeg: bytes) -> EventOut:
+    # Уникальный ключ на каждую загрузку: клиенты кэшируют картинки по пути,
+    # и при постоянном cover.jpg новая обложка не показывалась.
+    key = f"events/{event.id}/cover-{token_urlsafe(8)}.jpg"
+    s3_client.upload_bytes(key, jpeg, "image/jpeg")
+
+    previous = event.cover_url
+    # Храним только S3-ключ — клиенту отдадим свежий presign в _to_out.
+    event.cover_url = key
+    await session.commit()
+    if previous and not previous.startswith("http") and previous != key:
+        s3_client.delete_object(previous)
+    return _to_out(event)
+
+
 async def upload_cover(
     session: AsyncSession,
     user_id: UUID,
@@ -676,26 +714,40 @@ async def upload_cover(
     data: bytes,
     content_type: str,
 ) -> EventOut:
-    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+    # Некоторые клиенты (Dio) шлют файл как application/octet-stream: тип проверяем по содержимому.
+    if content_type not in {"image/jpeg", "image/png", "image/webp", "application/octet-stream", ""}:
         raise ConflictError("Unsupported image type; use JPEG, PNG, or WebP")
-    if len(data) > 10 * 1024 * 1024:
-        raise ConflictError("Cover image too large", details={"max_bytes": 10 * 1024 * 1024})
+    if len(data) > _COVER_MAX_BYTES:
+        raise ConflictError("Cover image too large", details={"max_bytes": _COVER_MAX_BYTES})
 
     event = await _load_owned(session, event_id, user_id)
+    jpeg = await asyncio.to_thread(_normalize_cover, data)
+    return await _store_cover(session, event, jpeg)
 
-    ext = {"image/png": "png", "image/webp": "webp"}.get(content_type, "jpg")
-    # Уникальный ключ на каждую загрузку: клиенты кэшируют картинки по пути,
-    # и при постоянном cover.jpg новая обложка не показывалась.
-    key = f"events/{event_id}/cover-{token_urlsafe(8)}.{ext}"
-    s3_client.upload_bytes(key, data, content_type)
 
-    previous = event.cover_url
-    # Храним только S3-ключ — клиенту отдадим свежий presign в _to_out.
-    event.cover_url = key
-    await session.commit()
-    if previous and not previous.startswith("http") and previous != key:
-        try:
-            s3_client.delete_object(previous)
-        except Exception:
-            pass
-    return _to_out(event)
+async def set_cover_from_frame(
+    session: AsyncSession, user_id: UUID, event_id: UUID, frame_id: UUID | None
+) -> EventOut:
+    """Обложка из кадра альбома: указанного или самого первого снятого."""
+    from sqlalchemy import select
+
+    from app.domain.models import Frame, FrameStatus
+
+    event = await _load_owned(session, event_id, user_id)
+    stmt = select(Frame).where(
+        Frame.event_id == event_id,
+        Frame.status == FrameStatus.UPLOADED,
+        Frame.deleted_at.is_(None),
+    )
+    if frame_id is not None:
+        stmt = stmt.where(Frame.id == frame_id)
+    else:
+        stmt = stmt.order_by(Frame.captured_at.asc())
+    frame = (await session.execute(stmt.limit(1))).scalar_one_or_none()
+    if frame is None:
+        raise NotFoundError("Нет подходящих кадров для обложки")
+
+    key = frame.preview_url or frame.s3_key
+    raw = await asyncio.to_thread(s3_client.download_bytes, key)
+    jpeg = await asyncio.to_thread(_normalize_cover, raw, frame.rotation or 0)
+    return await _store_cover(session, event, jpeg)

@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type EventOut, type Schemas } from '../api/hostClient'
 import {
   EVENT_TYPE_LABELS, FILM_LABELS, STATUS_META, albumOpenable, formatDate, formatDateTime, formatShortDate, guestLink,
 } from '../format'
+import { CoverPrompt, CoverSheet, useCover } from '../components/Cover'
 import { Row } from '../components/Row'
 import { useGalleryUpload } from '../components/useGalleryUpload'
 import { startOwnerCamera } from '../ownerCamera'
@@ -91,7 +92,6 @@ export default function EventScreen() {
   const [revealSheet, setRevealSheet] = useState(false)
   const [deleteSheet, setDeleteSheet] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = () => { void qc.invalidateQueries({ queryKey: qk.event(id) }); void qc.invalidateQueries({ queryKey: qk.events }) }
   const reveal = useMutation({
@@ -109,15 +109,8 @@ export default function EventScreen() {
     onSuccess: () => { void qc.invalidateQueries({ queryKey: qk.events }); navigate('/app', { replace: true }) },
     onError: (e) => { setDeleteSheet(false); toast(apiErrorMessage(e)) },
   })
-  const cover = useMutation({
-    mutationFn: async (file: File) => {
-      const form = new FormData()
-      form.append('file', file)
-      return (await hostApi.post<EventOut>(`/events/${id}/cover`, form)).data
-    },
-    onSuccess: (data) => { qc.setQueryData(qk.event(id), data); void qc.invalidateQueries({ queryKey: qk.events }); toast('Обложка обновлена') },
-    onError: (e) => toast(apiErrorMessage(e)),
-  })
+  const cover = useCover(id)
+  const [coverSheet, setCoverSheet] = useState(false)
 
   const downloadAll = async () => {
     setDownloading(true)
@@ -173,17 +166,22 @@ export default function EventScreen() {
             <div style={{ position: 'absolute', top: 12, left: 12, right: 12, display: 'flex', justifyContent: 'space-between' }}>
               <button className="host-glass" aria-label="Назад" onClick={() => navigate('/app')}><Icon d={icons.back} /></button>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="host-glass" aria-label={e.cover_url ? 'Сменить обложку' : 'Добавить обложку'} disabled={cover.isPending} onClick={() => fileRef.current?.click()}>
-                  {cover.isPending ? <Spinner /> : <Icon d={icons.addPhoto} />}
-                </button>
+                {e.cover_url && (
+                  <button className="host-glass host-glass-pill" aria-label="Сменить обложку" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
+                    {cover.pending ? <Spinner /> : <><Icon d={icons.addPhoto} size={20} /><span>Обложка</span></>}
+                  </button>
+                )}
                 <button className="host-glass" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
               </div>
             </div>
             <div style={{ position: 'absolute', left: 14, bottom: 14 }}>
               <span className="host-badge" style={{ color: meta.color }}>{meta.label}</span>
             </div>
-            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden
-              onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ''; if (f) cover.mutate(f) }} />
+            {!e.cover_url && (
+              <button className="host-cover-cta" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
+                {cover.pending ? <Spinner /> : <><Icon d={icons.addPhoto} size={22} /><span>Добавить обложку</span></>}
+              </button>
+            )}
           </div>
           <div style={{ padding: '14px 4px 0' }}>
             <h1 className="host-title" style={{ fontWeight: 500, fontSize: 28, letterSpacing: '-.5px' }}>{e.title}</h1>
@@ -193,6 +191,11 @@ export default function EventScreen() {
             </div>
           </div>
         </div>
+
+        {!e.cover_url && e.status !== 'cancelled' && (
+          <CoverPrompt eventId={id} framesCount={e.frames_count ?? 0} api={cover} onOpen={() => setCoverSheet(true)} />
+        )}
+        <CoverSheet eventId={id} open={coverSheet} onClose={() => setCoverSheet(false)} framesCount={e.frames_count ?? 0} hasCover={!!e.cover_url} api={cover} />
 
         <div className="host-card host-metrics">
           <Metric value={`${e.guests_count ?? 0}/${s.max_guests}`} label="гостей" />

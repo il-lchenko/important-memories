@@ -239,6 +239,7 @@ const server = http.createServer(async (req, res) => {
     if (sub === '/download' && m === 'POST') return json(res, 202, { job_id: 'job1', status: 'pending' })
     if (sub.startsWith('/download/')) return json(res, 200, { job_id: 'job1', status: 'ready', download_url: 'http://localhost/archive.zip', frame_count: state.frames[ev.id].length })
     if (sub === '/cover' && m === 'POST') { ev.cover_url = svg('Новая обложка', 120, 800, 450); return json(res, 200, ev) }
+    if (sub === '/cover/from-frame' && m === 'POST') { ev.cover_url = svg('Первый кадр', 30 + Math.floor(Math.random() * 200), 800, 450); return json(res, 200, ev) }
     if (sub === '/album') {
       const items = state.frames[ev.id].filter((f) => !f.deleted)
       return json(res, 200, { items, next_cursor: null, revealed: true, total_frames: items.length, is_admin_preview: false, title_font: ev.settings.title_font })

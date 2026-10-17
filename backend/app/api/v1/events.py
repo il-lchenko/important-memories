@@ -9,6 +9,7 @@ from app.core.errors import AuthError, NotFoundError
 from app.domain.schemas.album import AlbumOut
 from app.domain.schemas.archives import ArchiveJobOut
 from app.domain.schemas.events import (
+    CoverFromFrameIn,
     EventCreateIn,
     EventOut,
     EventRenameIn,
@@ -464,6 +465,16 @@ async def upload_cover(
     return await event_service.upload_cover(
         session, user_id, event_id, data, file.content_type or "image/jpeg"
     )
+
+
+@router.post("/{event_id}/cover/from-frame", response_model=EventOut)
+async def cover_from_frame(
+    event_id: UUID,
+    payload: CoverFromFrameIn,
+    user_id: CurrentUserId,
+    session: SessionDep,
+) -> EventOut:
+    return await event_service.set_cover_from_frame(session, user_id, event_id, payload.frame_id)
 
 
 @router.post("/{event_id}/download", response_model=ArchiveJobOut, status_code=202)
