@@ -117,7 +117,7 @@ function Viewer({ eventId, frames, index, onIndex, onClose, total }: {
         <div style={{ flex: 1, textAlign: 'center', fontSize: 12, letterSpacing: '.14em', color: 'rgba(240,230,210,.6)' }}>
           КАДР {index + 1} ИЗ {total}
         </div>
-        <button style={barBtn} aria-label="Повернуть" onClick={doRotate}><Icon d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" /></button>
+        <button style={barBtn} aria-label="Повернуть" onClick={doRotate}><Icon d={icons.rotate} /></button>
         <a style={{ ...barBtn, textDecoration: 'none' }} aria-label="Скачать оригинал" href={frame.full_url} target="_blank" rel="noreferrer" download><Icon d={icons.download} /></a>
         <button style={barBtn} aria-label="Удалить кадр" onClick={() => setConfirmDelete(true)}><Icon d={icons.trash} /></button>
       </div>

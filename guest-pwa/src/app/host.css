@@ -103,28 +103,32 @@
 /* ── Нижняя навигация ── */
 .host-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  background: var(--paper); border-top: 1px solid var(--line);
-  padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
-  display: flex; justify-content: space-around; align-items: flex-end;
+  background: var(--paper);
+  box-shadow: 0 -3px 6px rgba(0, 0, 0, .05);
+  padding: 6px 16px calc(8px + env(safe-area-inset-bottom));
+  display: flex; justify-content: space-around; align-items: flex-start;
 }
 .host-tab {
-  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 8px 0 2px; color: var(--ink-3); text-decoration: none;
-  font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 600;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 2px 4px; color: var(--ink-3); text-decoration: none;
+  font-family: 'Manrope', sans-serif; font-size: 11.5px; font-weight: 500; letter-spacing: .1px;
 }
-.host-tab[aria-current='page'] { color: var(--amber); }
+.host-tab-dot { width: 5px; height: 5px; border-radius: 50%; margin-bottom: 2px; background: transparent; }
+.host-tab-dot[data-on='true'] { background: var(--amber); }
+.host-tab[aria-current='page'] { color: var(--ink); font-weight: 700; }
 .host-fab {
-  width: 58px; height: 58px; border-radius: 50%; margin-top: -26px;
+  position: fixed; z-index: 31; right: 20px; bottom: calc(76px + env(safe-area-inset-bottom));
+  width: 60px; height: 60px; border-radius: 50%;
   background: var(--amber); color: #fff; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8px 20px -6px rgba(201, 136, 30, .6);
+  box-shadow: 0 4px 18px -3px rgba(201, 136, 30, .45), 0 3px 8px rgba(0, 0, 0, .16);
 }
 .host-fab:active { transform: scale(.94); }
 
 /* ── Боковое меню (десктоп) ── */
 .host-sidebar { display: none; }
 @media (min-width: 1024px) {
-  .host-tabbar { display: none; }
+  .host-tabbar, .host-fab { display: none; }
   .host-sidebar {
     display: flex; flex-direction: column; gap: 4px;
     position: fixed; top: 0; bottom: 0; left: 0; width: 240px;
@@ -257,3 +261,4 @@
 .host-metrics { display: flex; }
 .host-metrics > * { flex: 1; }
 .host-metrics > * + * { border-left: 1px solid var(--line); }
+.host-snap::-webkit-scrollbar { display: none; }

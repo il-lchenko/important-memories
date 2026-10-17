@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../core/tokens.dart';
+import '../../core/widgets/brand_icon.dart';
 import '../payments/utils/idempotency_key.dart';
 import 'plus_providers.dart';
 
@@ -135,8 +136,8 @@ class _PlusScreenState extends ConsumerState<PlusScreen> with WidgetsBindingObse
         padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Padding(
-            padding: EdgeInsets.only(top: 2),
-            child: Icon(Icons.check_circle_outline, size: 18, color: AppColors.amber),
+            padding: EdgeInsets.only(top: 3),
+            child: SparkMark(size: 15),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: GoogleFonts.manrope(fontSize: 14, height: 1.45, color: AppColors.ink))),
@@ -229,6 +230,19 @@ class _PlusScreenState extends ConsumerState<PlusScreen> with WidgetsBindingObse
                       fontSize: 32, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.4,
                     )),
                 const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(color: AppColors.paper2, borderRadius: BorderRadius.circular(20)),
+                  child: Row(children: [
+                    const BrandIcon('plus', size: 56),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text('Больше места для личных альбомов, подборки без границ и оформление, которого нет у других.',
+                          style: GoogleFonts.manrope(fontSize: 13.5, height: 1.5, color: AppColors.ink3)),
+                    ),
+                  ]),
+                ),
                 if (isPlus)
                   Container(
                     padding: const EdgeInsets.all(16),

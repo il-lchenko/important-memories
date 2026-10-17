@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/tokens.dart';
+import '../../core/widgets/brand_icon.dart';
 
 /// Выбор, что создать: событие с гостями, соло-альбом или подборку (мини-альбом).
 Future<void> showNewAlbumSheet(BuildContext context) {
@@ -36,19 +37,19 @@ Future<void> showNewAlbumSheet(BuildContext context) {
             ),
             const SizedBox(height: 14),
             _Choice(
-              icon: Icons.groups_outlined,
+              icon: 'event',
               title: 'Событие с гостями',
               text: 'Свадьба, день рождения, корпоратив. Гости снимают по QR-коду.',
               onTap: () { Navigator.of(ctx).pop(); context.push('/events/create'); },
             ),
             _Choice(
-              icon: Icons.photo_camera_outlined,
+              icon: 'solo',
               title: 'Соло-альбом',
               text: 'Личный альбом без гостей: путешествие, отпуск, дневник.',
               onTap: () { Navigator.of(ctx).pop(); context.push('/solo/create'); },
             ),
             _Choice(
-              icon: Icons.auto_awesome_mosaic_outlined,
+              icon: 'mini',
               title: 'Мини-альбом',
               text: 'Подборка лучших кадров из ваших альбомов, без копий файлов.',
               onTap: () { Navigator.of(ctx).pop(); context.push('/collections/create'); },
@@ -61,7 +62,7 @@ Future<void> showNewAlbumSheet(BuildContext context) {
 }
 
 class _Choice extends StatelessWidget {
-  final IconData icon;
+  final String icon;
   final String title;
   final String text;
   final VoidCallback onTap;
@@ -86,10 +87,11 @@ class _Choice extends StatelessWidget {
               Container(
                 width: 46, height: 46,
                 decoration: BoxDecoration(
-                  color: AppColors.amber.withValues(alpha: 0.12),
+                  color: AppColors.paper2,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: AppColors.amber, size: 24),
+                alignment: Alignment.center,
+                child: BrandIcon(icon, size: 34),
               ),
               const SizedBox(width: 14),
               Expanded(

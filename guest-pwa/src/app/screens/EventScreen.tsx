@@ -174,7 +174,7 @@ export default function EventScreen() {
               <button className="host-glass" aria-label="Назад" onClick={() => navigate('/app')}><Icon d={icons.back} /></button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="host-glass" aria-label={e.cover_url ? 'Сменить обложку' : 'Добавить обложку'} disabled={cover.isPending} onClick={() => fileRef.current?.click()}>
-                  {cover.isPending ? <Spinner /> : <Icon d="M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M12 9v.01" />}
+                  {cover.isPending ? <Spinner /> : <Icon d={icons.addPhoto} />}
                 </button>
                 <button className="host-glass" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
               </div>

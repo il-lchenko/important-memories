@@ -4,12 +4,12 @@ import { apiErrorMessage, hostApi } from '../api/hostClient'
 import { formatDate, rubles } from '../format'
 import { paySubscription, goToPayment } from '../payments'
 import { qk, usePricing, useSubscription } from '../queries'
-import { CenterSpinner, ErrorBox, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, ErrorBox, Spark, Spinner, toast, TopBar } from '../ui'
 
 function Feature({ children }: { children: ReactNode }) {
   return (
     <div style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)', lineHeight: 1.45 }}>
-      <span style={{ color: 'var(--amber-2)' }}>▸</span><span>{children}</span>
+      <span style={{ paddingTop: 3 }}><Spark size={15} /></span><span>{children}</span>
     </div>
   )
 }
@@ -77,6 +77,11 @@ export default function PlusScreen() {
             </div>
           </div>
         )}
+
+        <div className="host-card" style={{ padding: '20px 18px', display: 'flex', alignItems: 'center', gap: 16, background: 'var(--paper-2)' }}>
+          <BrandIcon name="plus" size={56} />
+          <div className="host-muted" style={{ lineHeight: 1.5 }}>Больше места для личных альбомов, подборки без границ и оформление, которого нет у других.</div>
+        </div>
 
         <div className="host-card" style={{ padding: 16 }}>
           <div className="host-edge">Что входит</div>

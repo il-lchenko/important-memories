@@ -1,38 +1,79 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { brandIcons, materialPaths } from './iconData'
 
-export function Icon({ d, size = 20, stroke = 1.8 }: { d: string; size?: number; stroke?: number }) {
+export function Icon({ d, size = 20 }: { d: string; size?: number; stroke?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
       <path d={d} />
     </svg>
   )
 }
 
+/** Фирменный значок ImpoMento: ink-штрихи плюс янтарная искра. */
+export function BrandIcon({ name, size = 24, stroke = 1.6 }: { name: keyof typeof brandIcons; size?: number; stroke?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      {brandIcons[name].map((l, i) => {
+        if (l.kind === 'accent') return <path key={i} d={l.d} fill="var(--amber)" />
+        if (l.kind === 'ink') return <path key={i} d={l.d} fill="var(--ink)" />
+        return <path key={i} d={l.d} stroke="var(--ink)" strokeOpacity={l.kind === 'soft' ? 0.3 : 1} strokeWidth={stroke} />
+      })}
+    </svg>
+  )
+}
+
+/** Маркер списков: маленькая янтарная искра. */
+export function Spark({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M12 2Q14 10 22 12Q14 14 12 22Q10 14 2 12Q10 10 12 2Z" fill="var(--amber)" />
+    </svg>
+  )
+}
+
+/** Кнопка «новый альбом»: значок «Альбомы» с плюсом в круге (на янтарном фоне). */
+export function AlbumPlusIcon({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <path d={materialPaths.auto_stories} fill="#fff" transform="translate(-1.2 -1.6) scale(1.02)" />
+      <circle cx="18.6" cy="18.6" r="5.7" fill="var(--amber)" />
+      <circle cx="18.6" cy="18.6" r="4.5" fill="#fff" />
+      <path d="M18.6 16.3v4.6M16.3 18.6h4.6" stroke="var(--amber)" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** Значки взяты из шрифта Material, как в приложении (Flutter Icons.*). */
 export const icons = {
-  back: 'M15 18l-6-6 6-6',
-  close: 'M18 6 6 18M6 6l12 12',
-  plus: 'M12 5v14M5 12h14',
-  albums: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5',
-  frames: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z',
-  profile: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
-  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
-  qr: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20v.01M17 17h4v4',
-  share: 'M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M16 6l-4-4-4 4M12 2v13',
-  copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
-  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
-  chevron: 'M9 18l6-6-6-6',
-  roll: 'M3 7h18v12H3zM3 11h18M7 7v12M17 7v12',
-  calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
-  camera: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-  users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
-  download: 'M12 4v12M6 12l6 6 6-6M4 21h16',
-  trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',
-  mail: 'M4 4h16v16H4zM4 6l8 7 8-7',
-  lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
-  link: 'M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7',
-  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  back: materialPaths.chevron_left,
+  close: materialPaths.close,
+  plus: materialPaths.add,
+  albums: materialPaths.auto_stories_outlined,
+  albumsOn: materialPaths.auto_stories,
+  frames: materialPaths.camera_roll_outlined,
+  framesOn: materialPaths.camera_roll,
+  profile: materialPaths.account_circle_outlined,
+  profileOn: materialPaths.account_circle,
+  person: materialPaths.person_outline,
+  search: materialPaths.search,
+  qr: materialPaths.qr_code_2,
+  share: materialPaths.ios_share,
+  copy: materialPaths.copy_outlined,
+  settings: materialPaths.tune_outlined,
+  chevron: materialPaths.chevron_right,
+  roll: materialPaths.camera_roll_outlined,
+  calendar: materialPaths.calendar_today_outlined,
+  camera: materialPaths.camera_alt_outlined,
+  users: materialPaths.people_outline,
+  download: materialPaths.download_outlined,
+  trash: materialPaths.delete_outline,
+  mail: materialPaths.mail_outline,
+  lock: materialPaths.lock_open_outlined,
+  link: materialPaths.link,
+  logout: materialPaths.logout,
+  rotate: materialPaths.rotate_right,
+  addPhoto: materialPaths.add_photo_alternate_outlined,
 }
 
 export function Spinner({ style }: { style?: CSSProperties }) {

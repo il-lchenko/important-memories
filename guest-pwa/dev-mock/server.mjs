@@ -125,9 +125,10 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { valid: false, discount_kopecks: 0, error: 'Промокод не найден' })
   }
   if (path === '/memories/') {
-    return json(res, 200, { blocks: state.events.filter((e) => e.status !== 'draft').map((e) => ({
-      type: 'grid_6', kind: 'single', title: e.title, date_iso: e.start_at, albums_count: 1, event_id: e.id, event_ids: [e.id],
-      event_type: e.event_type, thumbs: state.frames[e.id].slice(0, 6).map((f) => ({ url: f.thumbnail_url, event_id: e.id, frame_id: f.id, rotation: 0 })),
+    const kinds = ['tilted', 'collage_a', 'collage_b', 'collage_d', 'collage_e', 'grid_6']
+    return json(res, 200, { blocks: state.events.filter((e) => e.status !== 'draft').map((e, i) => ({
+      type: kinds[i % kinds.length], kind: 'single', title: e.title, date_iso: e.start_at, albums_count: 1, event_id: e.id, event_ids: [e.id],
+      event_type: e.event_type, thumbs: [...state.frames[e.id], ...state.frames[e.id]].slice(0, 12).map((f) => ({ url: f.thumbnail_url, event_id: e.id, frame_id: f.id, rotation: 0 })),
     })) })
   }
   if (path === '/events/solo' && m === 'POST') {

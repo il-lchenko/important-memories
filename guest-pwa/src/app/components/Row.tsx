@@ -1,12 +1,13 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon, icons } from '../ui'
 
 export function Row({ icon, label, hint, to, onClick, danger, value }: {
-  icon: string; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean; value?: string
+  icon?: string | ReactNode; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean; value?: string
 }) {
   const inner = (
     <>
-      <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex' }}><Icon d={icon} size={20} /></span>
+      {icon && <span style={{ color: danger ? 'var(--shutter)' : 'var(--amber)', display: 'flex' }}>{typeof icon === 'string' ? <Icon d={icon} size={20} /> : icon}</span>}
       <span style={{ flex: 1, color: danger ? 'var(--shutter)' : 'inherit' }}>
         {label}
         {hint && <span className="host-muted" style={{ display: 'block', fontSize: 12, marginTop: 1 }}>{hint}</span>}

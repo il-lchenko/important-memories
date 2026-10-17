@@ -1391,21 +1391,22 @@ class _CreateAlbumFab extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            const Icon(Icons.collections_bookmark_outlined, size: 28, color: Colors.white),
+            const Padding(
+              padding: EdgeInsets.only(right: 3, bottom: 2),
+              child: Icon(Icons.auto_stories, size: 32, color: Colors.white),
+            ),
             Positioned(
               right: 10,
               bottom: 10,
               child: Container(
-                width: 14,
-                height: 14,
+                width: 19,
+                height: 19,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: AppColors.amber.withValues(alpha: 0.4), blurRadius: 2),
-                  ],
+                  border: Border.all(color: AppColors.amber, width: 2.5),
                 ),
-                child: const Icon(Icons.add, size: 10, color: AppColors.amber, weight: 700),
+                child: const Icon(Icons.add, size: 13, color: AppColors.amber),
               ),
             ),
           ],

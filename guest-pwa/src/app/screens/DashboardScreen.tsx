@@ -23,7 +23,7 @@ function StatusStamp({ status }: { status: string }) {
 function Meta({ guests, frames, date }: { guests?: number; frames: number; date?: string | null }) {
   return (
     <>
-      {guests !== undefined && <span><Icon d={icons.profile} size={16} />{guests}</span>}
+      {guests !== undefined && <span><Icon d={icons.person} size={16} />{guests}</span>}
       <span className="hot"><Icon d={icons.roll} size={16} />{frames}</span>
       {date && <span><Icon d={icons.calendar} size={16} />{date}</span>}
     </>

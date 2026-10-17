@@ -6,7 +6,7 @@ import { uploadPutBlob } from '../../api/client'
 import { Row } from '../components/Row'
 import { formatDate, rubles } from '../format'
 import { qk, useMe, useSubscription } from '../queries'
-import { CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
+import { BrandIcon, CenterSpinner, copyText, ErrorBox, Icon, icons, Sheet, shareLink, Spinner, toast, TopBar } from '../ui'
 
 async function resizeToSquareJpeg(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
@@ -167,15 +167,15 @@ export default function ProfileScreen() {
         </Section>
 
         <Section title="Подписка">
-          <Row icon={icons.frames} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
+          <Row icon={<BrandIcon name="plus" size={24} />} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
         </Section>
 
         <Section title="Прочее">
-          <Row icon={icons.albums} label="Как это работает" hint="Вопросы и ответы" onClick={() => window.open('/about.html', '_blank', 'noopener')} />
-          <Row icon={icons.lock} label="Оферта и политика" onClick={() => window.open('/offer.html', '_blank', 'noopener')} />
-          {u.is_admin && <Row icon={icons.lock} label="Промокоды" hint="Создание и удаление, только для администраторов" onClick={() => navigate('/app/admin/promocodes')} />}
+          <Row label="Как это работает" hint="Вопросы и ответы" onClick={() => window.open('/about.html', '_blank', 'noopener')} />
+          <Row label="Оферта и политика" onClick={() => window.open('/offer.html', '_blank', 'noopener')} />
+          {u.is_admin && <Row label="Промокоды" hint="Создание и удаление, только для администраторов" onClick={() => navigate('/app/admin/promocodes')} />}
           <Row icon={icons.logout} label="Выйти" onClick={() => goToLogin()} />
-          <Row icon={icons.trash} label="Удалить аккаунт" danger onClick={() => { setConfirmText(''); setDeleteSheet(true) }} />
+          <Row label="Удалить аккаунт" danger onClick={() => { setConfirmText(''); setDeleteSheet(true) }} />
         </Section>
       </main>
 

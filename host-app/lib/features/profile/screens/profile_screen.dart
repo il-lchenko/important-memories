@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
+import '../../../core/widgets/brand_icon.dart';
 import '../../auth/auth_provider.dart';
 import '../../events/events_provider.dart';
 
@@ -95,6 +96,7 @@ class ProfileScreen extends ConsumerWidget {
 
             const _SectionTitle('Подписка'),
             _NavRow(
+              leading: const BrandIcon('plus', size: 28),
               label: 'ImpoMento Плюс',
               desc: 'Соло-альбомы, подборки, больше возможностей',
               onTap: () => context.push('/plus'),
@@ -339,7 +341,8 @@ class _NavRow extends StatelessWidget {
   final String label;
   final String desc;
   final VoidCallback onTap;
-  const _NavRow({required this.label, required this.desc, required this.onTap});
+  final Widget? leading;
+  const _NavRow({required this.label, required this.desc, required this.onTap, this.leading});
 
   @override
   Widget build(BuildContext context) {
@@ -354,6 +357,7 @@ class _NavRow extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 12)],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
