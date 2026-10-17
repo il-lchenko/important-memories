@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, goToLogin, hostApi, type Schemas } from '../api/hostClient'
 import { uploadPutBlob } from '../../api/client'
+import { resetTours } from '../components/Tour'
+import { InstallGuide } from '../install'
 import { Row } from '../components/Row'
 import { formatDate, rubles } from '../format'
 import { qk, useMe, useSubscription } from '../queries'
@@ -44,6 +46,7 @@ export default function ProfileScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [nameSheet, setNameSheet] = useState(false)
+  const [installSheet, setInstallSheet] = useState(false)
   const [name, setName] = useState('')
   const [deleteSheet, setDeleteSheet] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -170,6 +173,11 @@ export default function ProfileScreen() {
           <Row icon={<BrandIcon name="plus" size={24} />} label="ImpoMento Плюс" hint={plusHint} onClick={() => navigate('/app/plus')} />
         </Section>
 
+        <Section title="Приложение">
+          <Row label="Установить на телефон" hint="Значок на экране, запуск без адресной строки" onClick={() => setInstallSheet(true)} />
+          <Row label="Показать подсказки заново" hint="Короткая экскурсия по разделам" onClick={() => { resetTours(); navigate('/app') }} />
+        </Section>
+
         <Section title="Прочее">
           <Row label="Как это работает" hint="Вопросы и ответы" onClick={() => window.open('/about.html', '_blank', 'noopener')} />
           <Row label="Оферта и политика" onClick={() => window.open('/offer.html', '_blank', 'noopener')} />
@@ -178,6 +186,10 @@ export default function ProfileScreen() {
           <Row label="Удалить аккаунт" danger onClick={() => { setConfirmText(''); setDeleteSheet(true) }} />
         </Section>
       </main>
+
+      <Sheet open={installSheet} onClose={() => setInstallSheet(false)} title="Установка на телефон">
+        <InstallGuide />
+      </Sheet>
 
       <Sheet open={nameSheet} onClose={() => setNameSheet(false)} title="Ваше имя">
         <input className="input-field" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} autoFocus />

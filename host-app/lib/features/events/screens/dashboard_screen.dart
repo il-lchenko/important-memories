@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/tokens.dart';
 import '../../auth/auth_provider.dart';
 import '../events_provider.dart';
+import '../../../core/widgets/coach_tour.dart';
 import '../../plus/new_album_sheet.dart';
 import '../../plus/solo_screens.dart' show routeForEvent;
 import 'package:intl/intl.dart';
@@ -32,8 +33,57 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   // Периодическая инвалидация — статусы событий могут меняться на бэкенде
   // (auto_complete по end_at), а провайдер keepAlive: true — сам не обновится.
   Timer? _refreshTimer;
+  bool _tourChecked = false;
 
   static const _collapseThreshold = 16.0;
+
+  /// Первый вход: короткая экскурсия по главному экрану.
+  Future<void> _maybeTour() async {
+    if (await tourSeen('albums')) return;
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted || _isSearching) return;
+    await showCoachTour(context, [
+      const CoachStep(
+        kind: CoachKind.welcome,
+        title: 'Добро пожаловать в ImpoMento',
+        text: 'Одноразовая камера для праздников. Гости снимают по QR-коду, а все кадры собираются в одном альбоме. Покажем, где что находится.',
+      ),
+      CoachStep(
+        target: TourKeys.fab,
+        title: 'Новый альбом',
+        text: 'Здесь всё начинается. Выберите: событие с гостями, личный соло-альбом или подборку лучших кадров.',
+      ),
+      CoachStep(
+        target: TourKeys.header,
+        title: 'Ваши альбомы',
+        text: 'Название раздела переключает «Мои альбомы» и альбомы, где вы гость. Рядом фильтр по статусу и поиск.',
+      ),
+      CoachStep(
+        target: TourKeys.framesTab,
+        title: 'Кадры',
+        text: 'Лучшие кадры из всех ваших альбомов собираются здесь сами. Из них можно составить мини-альбомы.',
+      ),
+      CoachStep(
+        target: TourKeys.profileTab,
+        title: 'Профиль',
+        text: 'Подписка «Плюс», промокоды, приглашение друзей и настройки аккаунта. Подсказки можно включить снова.',
+      ),
+      CoachStep(
+        kind: CoachKind.finish,
+        title: 'Как это работает',
+        points: const [
+          'Создайте событие и выберите плёнку.',
+          'Покажите гостям QR-код. Они снимают в браузере, без установки.',
+          'Откройте альбом после проявки: все кадры в одном месте.',
+        ],
+        ctaLabel: 'Создать альбом',
+        onCta: () {
+          if (mounted) showNewAlbumSheet(context);
+        },
+      ),
+    ]);
+    await markTourSeen('albums');
+  }
 
   @override
   void initState() {
@@ -309,6 +359,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
+    if (!_tourChecked && eventsAsync.hasValue) {
+      _tourChecked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeTour());
+    }
     final userAsync = ref.watch(currentUserProvider);
     final isAdmin = userAsync.valueOrNull?['is_admin'] == true;
 
@@ -361,7 +415,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       onFilters: _openFiltersSheet,
                       hasActiveFilter: _dateRange != null,
                     )
-                  : Row(
+                  : KeyedSubtree(
+                      key: TourKeys.header,
+                      child: Row(
                       children: [
                         Expanded(
                           child: GestureDetector(
@@ -403,7 +459,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                           ),
                         ),
                       ],
-                    ),
+                    )),
             ),
 
             if (_tab == 1) ...[
@@ -1172,7 +1228,9 @@ class _EmptyState extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
-          child: GestureDetector(
+          child: KeyedSubtree(
+            key: TourKeys.fab,
+            child: GestureDetector(
             onTap: onTap,
             child: Container(
               width: double.infinity,
@@ -1200,7 +1258,7 @@ class _EmptyState extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+          )),
         ),
       ],
     );
@@ -1367,7 +1425,9 @@ class _CreateAlbumFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return KeyedSubtree(
+      key: TourKeys.fab,
+      child: GestureDetector(
       onTap: () => showNewAlbumSheet(context),
       child: Container(
         width: 60, height: 60,
@@ -1412,7 +1472,7 @@ class _CreateAlbumFab extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

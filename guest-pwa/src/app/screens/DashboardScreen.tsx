@@ -1,3 +1,4 @@
+import { AlbumsTour } from '../tours'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { EventOut, InvitedEventOut, Schemas } from '../api/hostClient'
@@ -98,9 +99,10 @@ export default function DashboardScreen() {
 
   return (
     <>
+      <AlbumsTour ready={!loading && !error} />
       <TopBar title="Мои альбомы" kicker={me.data?.is_admin ? 'Админ-режим · платежи в обход' : undefined} />
       <main className="host-main">
-        <div className="host-scroll-x" style={{ padding: '16px 0 10px' }}>
+        <div className="host-scroll-x" data-tour="filters" style={{ padding: '16px 0 10px' }}>
           {([['mine', 'События'], ['solo', 'Соло'], ['minis', 'Подборки'], ['invited', 'Я гость'], ['all', 'Все']] as const).map(([k, label]) => (
             <button key={k} className="host-chip" data-active={scope === k} onClick={() => setScope(k)}>{label}</button>
           ))}

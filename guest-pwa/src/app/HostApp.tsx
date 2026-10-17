@@ -20,8 +20,14 @@ import ProgressScreen from './screens/ProgressScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import PaymentReturnScreen from './screens/PaymentReturnScreen'
 import QrScreen from './screens/QrScreen'
+import { captureInstallPrompt } from './install'
 import { TopBar } from './ui'
 import './host.css'
+
+captureInstallPrompt()
+
+// Установленное приложение организатора открывается сразу на разделе /app, а не на странице входа для гостей.
+document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.setAttribute('href', '/host-manifest.json')
 
 const queryClient = new QueryClient({
   defaultOptions: {

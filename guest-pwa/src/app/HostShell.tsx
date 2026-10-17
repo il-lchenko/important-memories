@@ -12,9 +12,9 @@ export function RequireHost({ children }: { children: React.ReactNode }) {
 }
 
 const TABS = [
-  { to: '/app', label: 'Альбомы', icon: icons.albums, iconOn: icons.albumsOn, end: true },
-  { to: '/app/memories', label: 'Кадры', icon: icons.frames, iconOn: icons.framesOn, end: false },
-  { to: '/app/profile', label: 'Профиль', icon: icons.profile, iconOn: icons.profileOn, end: false },
+  { to: '/app', label: 'Альбомы', icon: icons.albums, iconOn: icons.albumsOn, end: true, tour: undefined as string | undefined },
+  { to: '/app/memories', label: 'Кадры', icon: icons.frames, iconOn: icons.framesOn, end: false, tour: 'tab-frames' },
+  { to: '/app/profile', label: 'Профиль', icon: icons.profile, iconOn: icons.profileOn, end: false, tour: 'tab-profile' },
 ]
 
 /** Экраны с нижней навигацией (вкладки). Внутренние экраны события — без неё. */
@@ -29,11 +29,11 @@ export function TabsShell() {
           Impo<span style={{ color: 'var(--amber)' }}>Mento</span>
         </div>
         {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end}>
+          <NavLink key={t.to} to={t.to} end={t.end} data-tour={t.tour}>
             {({ isActive }) => (<><Icon d={isActive ? t.iconOn : t.icon} size={22} /> {t.label}</>)}
           </NavLink>
         ))}
-        <button className="btn btn-sm" style={{ marginTop: 16 }} onClick={() => navigate('/app/new')}>
+        <button className="btn btn-sm" style={{ marginTop: 16 }} data-tour="new" onClick={() => navigate('/app/new')}>
           <AlbumPlusIcon size={22} /> Новый альбом
         </button>
       </nav>
@@ -41,13 +41,13 @@ export function TabsShell() {
         <Outlet />
       </div>
       {onAlbums && (
-        <button className="host-fab" aria-label="Новый альбом" onClick={() => navigate('/app/new')}>
+        <button className="host-fab" aria-label="Новый альбом" data-tour="new" onClick={() => navigate('/app/new')}>
           <AlbumPlusIcon size={34} />
         </button>
       )}
       <nav className="host-tabbar" aria-label="Разделы">
         {TABS.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end} className="host-tab">
+          <NavLink key={t.to} to={t.to} end={t.end} className="host-tab" data-tour={t.tour}>
             {({ isActive }) => (
               <>
                 <span className="host-tab-dot" data-on={isActive} />

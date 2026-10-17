@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon, icons } from '../ui'
 
-export function Row({ icon, label, hint, to, onClick, danger, value }: {
-  icon?: string | ReactNode; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean; value?: string
+export function Row({ icon, label, hint, to, onClick, danger, value, tour }: {
+  icon?: string | ReactNode; label: string; hint?: string; to?: string; onClick?: () => void; danger?: boolean; value?: string; tour?: string
 }) {
   const inner = (
     <>
@@ -17,6 +17,6 @@ export function Row({ icon, label, hint, to, onClick, danger, value }: {
     </>
   )
   return to
-    ? <Link to={to} className="host-row">{inner}</Link>
-    : <button className="host-row" onClick={onClick}>{inner}</button>
+    ? <Link to={to} className="host-row" data-tour={tour}>{inner}</Link>
+    : <button className="host-row" onClick={onClick} data-tour={tour}>{inner}</button>
 }

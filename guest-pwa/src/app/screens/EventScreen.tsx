@@ -7,6 +7,7 @@ import {
 } from '../format'
 import { CoverPrompt, CoverSheet, useCover } from '../components/Cover'
 import { Row } from '../components/Row'
+import { EventTour } from '../tours'
 import { useGalleryUpload } from '../components/useGalleryUpload'
 import { startOwnerCamera } from '../ownerCamera'
 import { qk, useEvent, useMe } from '../queries'
@@ -167,18 +168,18 @@ export default function EventScreen() {
               <button className="host-glass" aria-label="Назад" onClick={() => navigate('/app')}><Icon d={icons.back} /></button>
               <div style={{ display: 'flex', gap: 8 }}>
                 {e.cover_url && (
-                  <button className="host-glass host-glass-pill" aria-label="Сменить обложку" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
+                  <button className="host-glass host-glass-pill" data-tour="cover" aria-label="Сменить обложку" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
                     {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={22} light /><span>Обложка</span></>}
                   </button>
                 )}
-                <button className="host-glass" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
+                <button className="host-glass" data-tour="settings" aria-label="Настройки альбома" onClick={() => navigate(`/app/events/${id}/settings`)}><Icon d={icons.settings} /></button>
               </div>
             </div>
             <div style={{ position: 'absolute', left: 14, bottom: 14 }}>
               <span className="host-badge" style={{ color: meta.color }}>{meta.label}</span>
             </div>
             {!e.cover_url && (
-              <button className="host-cover-cta" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
+              <button className="host-cover-cta" data-tour="cover" disabled={cover.pending} onClick={() => setCoverSheet(true)}>
                 {cover.pending ? <Spinner /> : <><BrandIcon name="cover" size={26} light /><span>Добавить обложку</span></>}
               </button>
             )}
@@ -192,6 +193,7 @@ export default function EventScreen() {
           </div>
         </div>
 
+        <EventTour ready={!event.isLoading} draft={e.status === 'draft'} />
         {!e.cover_url && e.status !== 'cancelled' && (
           <CoverPrompt eventId={id} framesCount={e.frames_count ?? 0} api={cover} onOpen={() => setCoverSheet(true)} />
         )}
@@ -205,7 +207,7 @@ export default function EventScreen() {
         </div>
 
         {e.status === 'draft' && (
-          <DarkroomCard
+          <div data-tour="launch"><DarkroomCard
             kicker="Черновик · ещё не запущено"
             title={isFreePlan ? 'Плёнка заряжена, осталось запустить' : 'Осталось оплатить и запустить'}
             stages={[{ label: 'Создано', state: 'done' }, { label: isFreePlan ? 'Запуск' : 'Оплата', state: 'now' }, { label: 'Съёмка', state: 'next' }]}
@@ -216,19 +218,19 @@ export default function EventScreen() {
             {isFreePlan
               ? <button className="btn" disabled={activate.isPending} onClick={() => activate.mutate()}>{activate.isPending ? <Spinner /> : 'Запустить бесплатно'}</button>
               : <button className="btn" onClick={payNow}>Оплатить и запустить</button>}
-          </DarkroomCard>
+          </DarkroomCard></div>
         )}
 
         {e.status !== 'draft' && e.status !== 'cancelled' && (
           <div className="host-card">
-            <Row icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
+            <Row tour="qr" icon={icons.qr} label="QR-код для гостей" hint="Покажите на экране или отправьте" to={`/app/events/${id}/qr`} />
             {(e.status === 'active' || e.status === 'completed') && (
               <Row icon={<BrandIcon name="gallery" size={24} />} label={gallery.busy ? `Добавляем фото: ${gallery.progress ?? ''}` : 'Добавить фото из галереи'} hint="Ваши снимки появятся в альбоме с плёночным фильтром" onClick={gallery.pick} />
             )}
-            {e.status === 'active' && <Row icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
+            {e.status === 'active' && <Row tour="camera" icon={icons.camera} label="Снять кадр" hint="Вы тоже можете снимать в этом альбоме" onClick={() => void shoot()} />}
             <Row icon={icons.albums} label="Открыть альбом" hint={openable ? 'Все кадры гостей' : s.reveal_at ? `Откроется ${formatDateTime(s.reveal_at)}` : 'Пока закрыт для просмотра'} onClick={openAlbum} />
             {e.status === 'active' && <Row icon={icons.users} label="Гости и ход съёмки" to={`/app/events/${id}/progress`} />}
-            {e.status === 'active' && <Row icon={icons.camera} label="Открыть альбом сейчас" hint="Завершить съёмку и проявить кадры" onClick={() => setRevealSheet(true)} />}
+            {e.status === 'active' && <Row tour="reveal" icon={icons.camera} label="Открыть альбом сейчас" hint="Завершить съёмку и проявить кадры" onClick={() => setRevealSheet(true)} />}
             <Row icon={icons.mail} label="Пригласить лично" hint="Персональная ссылка для гостя" to={`/app/events/${id}/invites`} />
             <Row icon={icons.download} label={downloading ? 'Собираем архив…' : 'Скачать все фото'} hint="ZIP со всеми кадрами" onClick={() => { if (!downloading) void downloadAll() }} />
           </div>

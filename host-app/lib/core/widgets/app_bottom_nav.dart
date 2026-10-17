@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../tokens.dart';
+import 'coach_tour.dart';
 
 /// Shared bottom navigation bar. Used in `MainShell` (StatefulShellRoute).
 /// The `onTap` callback receives the tapped tab — the shell then calls
@@ -38,20 +39,24 @@ class AppBottomNav extends StatelessWidget {
             isActive: active == AppNavTab.albums,
             onTap: () => _handleTap(context, AppNavTab.albums),
           ),
-          _NavItem(
+          KeyedSubtree(
+            key: TourKeys.framesTab,
+            child: _NavItem(
             icon: Icons.camera_roll_outlined,
             iconActive: Icons.camera_roll,
             label: 'Кадры',
             isActive: active == AppNavTab.memories,
             onTap: () => _handleTap(context, AppNavTab.memories),
-          ),
-          _NavItem(
+          )),
+          KeyedSubtree(
+            key: TourKeys.profileTab,
+            child: _NavItem(
             icon: Icons.account_circle_outlined,
             iconActive: Icons.account_circle,
             label: 'Профиль',
             isActive: active == AppNavTab.profile,
             onTap: () => _handleTap(context, AppNavTab.profile),
-          ),
+          )),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/api_client.dart';
 import '../../../core/tokens.dart';
 import '../../../core/widgets/brand_icon.dart';
+import '../../../core/widgets/coach_tour.dart';
 import '../../auth/auth_provider.dart';
 import '../../events/events_provider.dart';
 
@@ -100,6 +101,16 @@ class ProfileScreen extends ConsumerWidget {
               label: 'ImpoMento Плюс',
               desc: 'Соло-альбомы, подборки, больше возможностей',
               onTap: () => context.push('/plus'),
+            ),
+
+            const _SectionTitle('Приложение'),
+            _NavRow(
+              label: 'Показать подсказки заново',
+              desc: 'Короткая экскурсия по разделам',
+              onTap: () async {
+                await resetTours();
+                if (context.mounted) context.go('/dashboard');
+              },
             ),
 
             const _SectionTitle('Друзья и промокоды'),

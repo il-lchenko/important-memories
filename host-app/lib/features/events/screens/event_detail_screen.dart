@@ -14,6 +14,7 @@ import '../../../core/tokens.dart';
 import '../../album/album_provider.dart';
 import '../events_provider.dart';
 import '../../../core/widgets/brand_icon.dart';
+import '../../../core/widgets/coach_tour.dart';
 import '../widgets/cover_picker.dart';
 import '../widgets/join_stats_card.dart';
 import '../widgets/pin_card.dart';
@@ -158,12 +159,48 @@ class _CoverSectionState extends ConsumerState<_CoverSection> with WidgetsBindin
     // чтобы после первого снимка сразу предложить сделать его обложкой.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.invalidate(eventDetailProvider(widget.eventId));
+      _maybeTour();
     });
     _poll = Timer.periodic(const Duration(seconds: 20), (_) {
       if (mounted && widget.event['cover_url'] == null && !_uploadingCover) {
         ref.invalidate(eventDetailProvider(widget.eventId));
       }
     });
+  }
+
+  /// Первое открытие события: где обложка, QR, проявка и настройки.
+  Future<void> _maybeTour() async {
+    if (!await tourSeen('albums') || await tourSeen('event')) return;
+    await Future<void>.delayed(const Duration(milliseconds: 900));
+    if (!mounted) return;
+    final status = widget.event['status'] as String? ?? 'draft';
+    const cover = CoachStep(
+      title: 'Обложка',
+      text: 'Загрузите фото, возьмите первый кадр или выберите из снятых. Обложку можно сменить в любой момент.',
+    );
+    CoachStep withTarget(CoachStep s, GlobalKey k) => CoachStep(target: k, title: s.title, text: s.text);
+    const settings = CoachStep(title: 'Настройки', text: 'Плёнка, время проявки, число гостей и кадров, ссылка для просмотра.');
+    await showCoachTour(context, [
+      withTarget(cover, TourKeys.eventCover),
+      CoachStep(
+        target: TourKeys.eventQr,
+        title: 'QR-код для гостей',
+        text: 'Покажите его на празднике. Гости сканируют код и снимают на ваш альбом, ничего устанавливать не нужно.',
+      ),
+      CoachStep(
+        target: TourKeys.eventAlbum,
+        title: 'Открыть альбом',
+        text: 'Все кадры гостей в одном месте. До проявки гости чужие кадры не видят, а вы видите сразу.',
+      ),
+      if (status == 'active')
+        CoachStep(
+          target: TourKeys.eventReveal,
+          title: 'Проявка',
+          text: 'Откройте альбом гостям вручную или задайте таймер. После проявки съёмка заканчивается.',
+        ),
+      withTarget(settings, TourKeys.eventSettings),
+    ]);
+    await markTourSeen('event');
   }
 
   @override
@@ -293,7 +330,7 @@ class _CoverSectionState extends ConsumerState<_CoverSection> with WidgetsBindin
                   ),
                 ],
                 if (coverUrl == null)
-                  Center(child: _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet, label: 'Добавить обложку', big: true)),
+                  Center(child: KeyedSubtree(key: TourKeys.eventCover, child: _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet, label: 'Добавить обложку', big: true))),
                 // Vignette
                 Container(
                   decoration: const BoxDecoration(
@@ -322,7 +359,7 @@ class _CoverSectionState extends ConsumerState<_CoverSection> with WidgetsBindin
                           _GlassBtn(icon: Icons.ios_share, size: 20, onTap: _shareAlbum),
                           const SizedBox(width: 8),
                           if (coverUrl != null)
-                            _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet),
+                            KeyedSubtree(key: TourKeys.eventCover, child: _CoverPill(busy: _uploadingCover, onTap: _openCoverSheet)),
                         ],
                       ),
                     ],
@@ -1246,7 +1283,9 @@ class _ActionList extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
+          KeyedSubtree(
+            key: TourKeys.eventQr,
+            child: GestureDetector(
             onTap: () => context.push('/events/$eventId/qr'),
             child: Container(
               height: 56,
@@ -1274,10 +1313,12 @@ class _ActionList extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
+          )),
           const SizedBox(height: 10),
           // Открыть альбом — умная проверка проявки
-          GestureDetector(
+          KeyedSubtree(
+            key: TourKeys.eventAlbum,
+            child: GestureDetector(
             onTap: () => _onTapOpenAlbum(context, event, eventId),
             child: Container(
               height: 56,
@@ -1296,7 +1337,7 @@ class _ActionList extends ConsumerWidget {
                 ],
               ),
             ),
-          ),
+          )),
           const SizedBox(height: 12),
           _ActionRow(
             icon: Icons.people_outline,
@@ -1305,12 +1346,14 @@ class _ActionList extends ConsumerWidget {
             onTap: () => context.push('/events/$eventId/progress'),
           ),
           if (status == 'active')
-            _ActionRow(
+            KeyedSubtree(
+              key: TourKeys.eventReveal,
+              child: _ActionRow(
               icon: Icons.lock_open_outlined,
               title: 'Открытие',
               meta: _revealMeta(settings),
               onTap: () => _showRevealSheet(context, eventId, settings),
-            ),
+            )),
           if (status == 'draft')
             _DevActivateRow(eventId: eventId, ref: ref),
           _ActionRow(
@@ -1319,7 +1362,9 @@ class _ActionList extends ConsumerWidget {
             meta: 'Именные ссылки в обход PIN',
             onTap: () => context.push('/events/$eventId/invites'),
           ),
-          _ActionRow(
+          KeyedSubtree(
+            key: TourKeys.eventSettings,
+            child: _ActionRow(
             icon: Icons.tune_outlined,
             title: 'Настройки',
             meta: 'Плёнка, название, расписание',
@@ -1329,7 +1374,7 @@ class _ActionList extends ConsumerWidget {
               isScrollControlled: true,
               builder: (_) => _SettingsSheet(eventId: eventId, event: event),
             ),
-          ),
+          )),
           _DownloadRow(eventId: eventId),
         ],
       ),
