@@ -155,7 +155,7 @@ export default function HostAlbumScreen() {
     queryFn: async ({ pageParam }) => (await hostApi.get<AlbumPage>(`/events/${id}/album`, { params: pageParam ? { cursor: pageParam } : {} })).data,
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   })
 
   const items = useMemo(() => album.data?.pages.flatMap((p) => p.items) ?? [], [album.data])

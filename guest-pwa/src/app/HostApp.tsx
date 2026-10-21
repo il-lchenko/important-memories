@@ -21,6 +21,7 @@ import SettingsScreen from './screens/SettingsScreen'
 import PaymentReturnScreen from './screens/PaymentReturnScreen'
 import QrScreen from './screens/QrScreen'
 import { captureInstallPrompt } from './install'
+import { stableStructuralSharing } from './stableUrls'
 import { TopBar } from './ui'
 import './host.css'
 
@@ -31,7 +32,7 @@ document.querySelector<HTMLLinkElement>('link[rel="manifest"]')?.setAttribute('h
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: true, staleTime: 15_000 },
+    queries: { retry: 1, refetchOnWindowFocus: true, staleTime: 15_000, structuralSharing: stableStructuralSharing },
   },
 })
 
