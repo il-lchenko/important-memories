@@ -1,57 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { publicApi } from '../../api/client'
 import type { Frame, AlbumOut, ViewMode } from './AlbumScreen'
+import { DesktopWall } from './wall/DesktopWalls'
+import { WallViewer } from './wall/WallViewer'
+import { useIsDesktop } from './wall/useWall'
 import {
   ViewSwitcher,
   GridFormatDialog,
   MagazineGrid,
   RetroLayout,
   PolaroidFeed,
-  UploadBadge,
 } from './AlbumScreen'
-
-const DESKTOP_BP = 1024
-
-function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia(`(min-width: ${DESKTOP_BP}px)`).matches,
-  )
-  useEffect(() => {
-    const mql = window.matchMedia(`(min-width: ${DESKTOP_BP}px)`)
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches)
-    if (mql.addEventListener) mql.addEventListener('change', handler)
-    else mql.addListener(handler)
-    return () => {
-      if (mql.removeEventListener) mql.removeEventListener('change', handler)
-      else mql.removeListener(handler)
-    }
-  }, [])
-  return isDesktop
-}
-
-function useContainerColumns(ref: React.RefObject<HTMLDivElement | null>): number {
-  const [cols, setCols] = useState(4)
-  useEffect(() => {
-    if (!ref.current) return
-    const el = ref.current
-    const ro = new ResizeObserver(() => {
-      const w = el.getBoundingClientRect().width
-      if (w >= 1600) setCols(5)
-      else if (w >= 1200) setCols(4)
-      else if (w >= 900) setCols(3)
-      else setCols(2)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [ref])
-  return cols
-}
 
 export default function PublicAlbumScreen() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const isDesktop = useIsDesktop()
+  const [params, setParams] = useSearchParams()
 
   const [meta, setMeta] = useState<{ title: string; id: string } | null>(null)
   const [frames, setFrames] = useState<Frame[]>([])
@@ -112,7 +78,24 @@ export default function PublicAlbumScreen() {
 
   const openFrame = (i: number) => {
     if (!frames[i]) return
+    if (isDesktop) { setParams({ f: frames[i].id }); return }
     navigate(`/a/${token}/f/${i}`, { state: { frames, totalFrames } })
+  }
+
+  const openId = params.get('f')
+  const openIndex = isDesktop && openId ? frames.findIndex((f) => f.id === openId) : -1
+
+  const loadMore = () => {
+    if (!nextCursor || loadingMore || !token) return
+    setLoadingMore(true)
+    publicApi.listFrames(token, nextCursor)
+      .then(({ data }) => {
+        const p = data as AlbumOut
+        setFrames((prev) => [...prev, ...p.items])
+        setNextCursor(p.next_cursor)
+      })
+      .catch((e) => console.error('public_album_page_failed', e))
+      .finally(() => setLoadingMore(false))
   }
 
   const shareLink = async () => {
@@ -157,6 +140,18 @@ export default function PublicAlbumScreen() {
         onOpenFrame={openFrame}
         onShare={shareLink}
         sentinelRef={sentinelRef}
+        overlay={openIndex >= 0 ? (
+          <WallViewer
+            frames={frames}
+            index={openIndex}
+            total={totalFrames}
+            shareTitle={meta?.title}
+            onIndex={(i) => setParams({ f: frames[i].id }, { replace: true })}
+            onClose={() => setParams({}, { replace: true })}
+            onNeedMore={loadMore}
+            onMore={() => navigate(`/a/${token}/f/${openIndex}`, { state: { frames, totalFrames } })}
+          />
+        ) : null}
       />
     )
   }
@@ -265,7 +260,7 @@ export default function PublicAlbumScreen() {
 
 export function DesktopAlbum({
   meta, frames, loading, loadingMore, totalFrames, authorCount, mode,
-  onModeChange, onOpenFrame, onShare, sentinelRef,
+  onModeChange, onOpenFrame, onShare, sentinelRef, overlay,
 }: {
   meta: { title: string; id: string } | null
   frames: Frame[]
@@ -278,6 +273,7 @@ export function DesktopAlbum({
   onOpenFrame: (i: number) => void
   onShare: () => void
   sentinelRef: React.RefObject<HTMLDivElement | null>
+  overlay?: React.ReactNode
 }) {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--paper)' }}>
@@ -308,9 +304,9 @@ export function DesktopAlbum({
 
       {/* Container */}
       <div style={{
-        maxWidth: 1400,
+        maxWidth: 1840,
         margin: '0 auto',
-        padding: '32px 48px 80px',
+        padding: '32px 56px 80px',
       }}>
         {/* Hero header */}
         <div style={{ marginBottom: 24 }}>
@@ -346,19 +342,7 @@ export function DesktopAlbum({
           </div>
         ) : (
           <>
-            {mode === 'magazine' && (
-              <DesktopMagazine frames={frames} onOpenFrame={onOpenFrame} />
-            )}
-            {mode === 'retro' && meta && (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <RetroLayout frames={frames} eventId={meta.id} onOpenFrame={onOpenFrame} />
-              </div>
-            )}
-            {mode === 'polaroid' && (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <PolaroidFeed frames={frames} onOpenFrame={onOpenFrame} />
-              </div>
-            )}
+            {meta && <DesktopWall mode={mode} frames={frames} eventId={meta.id} onOpenFrame={onOpenFrame} />}
             <div ref={sentinelRef} style={{ height: 1 }} />
             {loadingMore && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
@@ -368,112 +352,7 @@ export function DesktopAlbum({
           </>
         )}
       </div>
-    </div>
-  )
-}
-
-function DesktopMagazine({ frames, onOpenFrame }: {
-  frames: Frame[]; onOpenFrame: (i: number) => void;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const columns = useContainerColumns(containerRef)
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: `repeat(${columns}, 1fr)`,
-        gap: 16,
-      }}
-    >
-      {frames.map((frame, i) => (
-        <DesktopMagazineCard key={frame.id} frame={frame} onClick={() => onOpenFrame(i)} />
-      ))}
-    </div>
-  )
-}
-
-function DesktopMagazineCard({ frame, onClick }: {
-  frame: Frame; onClick: () => void;
-}) {
-  const [hover, setHover] = useState(false)
-  const src = frame.preview_url ?? frame.thumbnail_url ?? frame.full_url
-  const caption = (frame.caption ?? '').trim()
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        position: 'relative',
-        aspectRatio: '3 / 4',
-        borderRadius: 10,
-        overflow: 'hidden',
-        background: '#2a1a10',
-        cursor: 'pointer',
-        boxShadow: hover
-          ? '0 10px 28px -8px rgba(26,23,20,.28)'
-          : '0 3px 10px -2px rgba(26,23,20,.1)',
-        transform: hover ? 'translateY(-2px)' : 'translateY(0)',
-        transition: 'transform .18s ease, box-shadow .18s ease',
-        border: '0.5px solid var(--line)',
-      }}
-    >
-      <img
-        src={src}
-        alt=""
-        loading="lazy"
-        draggable={false}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          transform: hover ? 'scale(1.03)' : 'scale(1)',
-          transition: 'transform .25s ease',
-          display: 'block',
-          userSelect: 'none',
-        }}
-      />
-      {frame.source === 'upload' && <UploadBadge />}
-      <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0,
-        padding: '28px 14px 12px',
-        background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 100%)',
-        opacity: hover ? 1 : 0,
-        transition: 'opacity .18s ease',
-        pointerEvents: 'none',
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 8,
-      }}>
-        <div style={{
-          width: 28, height: 28, borderRadius: '50%',
-          flexShrink: 0,
-          background: frame.guest_avatar_url
-            ? `#2a1a10 center/cover no-repeat url(${frame.guest_avatar_url})`
-            : 'rgba(255,179,71,.18)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--dr-amber, #FFB347)',
-          fontFamily: 'Fraunces, serif', fontSize: 13, fontWeight: 600,
-          border: '1px solid rgba(255,255,255,.3)',
-        }}>
-          {!frame.guest_avatar_url && (frame.guest_name?.[0]?.toUpperCase() ?? '?')}
-        </div>
-        <div style={{
-          fontFamily: 'Caveat, cursive',
-                    fontSize: caption ? 20 : 18,
-          color: '#fff',
-          lineHeight: 1.2,
-          textShadow: '0 1px 4px rgba(0,0,0,.65)',
-          display: '-webkit-box',
-          WebkitBoxOrient: 'vertical' as const,
-          WebkitLineClamp: 2,
-          overflow: 'hidden',
-          flex: 1,
-        }}>
-          {caption || frame.guest_name}
-        </div>
-      </div>
+      {overlay}
     </div>
   )
 }

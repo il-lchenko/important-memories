@@ -2,6 +2,8 @@ import { useMemo, useRef } from 'react'
 import type { Frame, ViewMode } from './AlbumScreen'
 import { DesktopAlbum } from './PublicAlbumScreen'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { WallViewer } from './wall/WallViewer'
 
 const SAMPLE_IMAGES = [
   'https://images.unsplash.com/photo-1519741497674-611481863552?w=800',
@@ -53,28 +55,39 @@ const CAPTIONS = [
 ]
 
 export default function DevAlbumPreview() {
+  const [qs] = useSearchParams()
+  const n = Math.min(400, Math.max(1, Number(qs.get('n')) || SAMPLE_IMAGES.length))
+  const mix = qs.get('mix') === '1'
+  const SHAPES: [number, number][] = [[3, 4], [4, 3], [1, 1], [2, 3], [3, 4], [4, 5], [16, 9], [3, 4]]
   const frames: Frame[] = useMemo(
     () =>
-      SAMPLE_IMAGES.map((url, i) => ({
-        id: `f-${i}`,
-        guest_id: `g-${i % NAMES.length}`,
-        guest_name: NAMES[i % NAMES.length],
-        captured_at: new Date(Date.now() - i * 3600_000).toISOString(),
-        thumbnail_url: url,
-        preview_url: url,
-        full_url: url,
-        width: 800,
-        height: 1067,
-        is_mine: false,
-        caption: CAPTIONS[i] || undefined,
-        note: i === 0
-          ? 'Этот момент запомнил весь день. Жених нёс невесту на руках через пол-зала, а шары поднимались выше свечей. Казалось, время остановилось.'
-          : (i === 4 ? 'Папа говорил, что никогда не плачет на свадьбах. Соврал.' : null),
-        source: i === 2 || i === 7 ? 'upload' : 'camera',
-        guest_avatar_url: AVATARS[i % NAMES.length],
-      })),
-    [],
+      Array.from({ length: n }, (_, i) => {
+        const [sw, sh] = mix ? SHAPES[i % SHAPES.length] : [3, 4]
+        const w = sw * 260
+        const h = sh * 260
+        const url = mix || i >= SAMPLE_IMAGES.length ? `https://picsum.photos/seed/im${i}/${w}/${h}` : SAMPLE_IMAGES[i]
+        return {
+          id: `f-${i}`,
+          guest_id: `g-${i % NAMES.length}`,
+          guest_name: NAMES[i % NAMES.length],
+          captured_at: new Date(Date.now() - i * 3600_000).toISOString(),
+          thumbnail_url: url,
+          preview_url: url,
+          full_url: url,
+          width: w,
+          height: h,
+          is_mine: false,
+          caption: CAPTIONS[i % CAPTIONS.length] || undefined,
+          note: i === 0
+            ? 'Этот момент запомнил весь день. Жених нёс невесту на руках через пол-зала, а шары поднимались выше свечей. Казалось, время остановилось.'
+            : (i === 4 ? 'Папа говорил, что никогда не плачет на свадьбах. Соврал.' : null),
+          source: i % 9 === 2 ? 'upload' : 'camera',
+          guest_avatar_url: AVATARS[i % NAMES.length],
+        } as Frame
+      }),
+    [n, mix],
   )
+  const [openAt, setOpenAt] = useState<number | null>(null)
 
   const [mode, setMode] = useState<ViewMode>('magazine')
   const sentinel = useRef<HTMLDivElement>(null)
@@ -90,9 +103,10 @@ export default function DevAlbumPreview() {
       authorCount={uniqAuthors}
       mode={mode}
       onModeChange={setMode}
-      onOpenFrame={(i) => alert(`open frame ${i}`)}
+      onOpenFrame={(i) => setOpenAt(i)}
       onShare={() => alert('share (preview)')}
       sentinelRef={sentinel}
+      overlay={openAt !== null ? <WallViewer frames={frames} index={openAt} total={frames.length} onIndex={setOpenAt} onClose={() => setOpenAt(null)} /> : null}
     />
   )
 }

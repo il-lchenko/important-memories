@@ -4,6 +4,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiErrorMessage, hostApi, type Schemas } from '../api/hostClient'
 import { GridFormatDialog, MagazineGrid, PolaroidFeed, RetroLayout, ViewSwitcher, type Frame, type ViewMode } from '../../features/album/AlbumScreen'
+import { DesktopWall } from '../../features/album/wall/DesktopWalls'
+import { useIsDesktop } from '../../features/album/wall/useWall'
 import { formatDateTime } from '../format'
 import { qk, useEvent, useStyleLock } from '../queries'
 import { TITLE_FONTS, parseTitleFont, type TitleFont } from '../styles'
@@ -13,17 +15,6 @@ type AlbumPage = Schemas['AlbumOut']
 type AlbumFrame = Schemas['AlbumFrameOut']
 
 const toFrame = (f: AlbumFrame): Frame => ({ ...f, source: f.source === 'upload' ? 'upload' : 'camera' })
-
-function useIsDesktop() {
-  const [v, setV] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
-  useEffect(() => {
-    const m = window.matchMedia('(min-width: 1024px)')
-    const on = () => setV(m.matches)
-    m.addEventListener('change', on)
-    return () => m.removeEventListener('change', on)
-  }, [])
-  return v
-}
 
 /** Фото с поворотом: при 90/270 рамка остаётся прежней, картинка вписывается в повёрнутом виде.
  *  При увеличении поверх превью подгружается оригинал, чтобы разглядеть мелкие детали. */
@@ -201,7 +192,7 @@ export default function HostAlbumScreen() {
           <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 16 }}>Aa</span>
         </button>
       } />
-      <main className="host-main" style={{ paddingTop: 12 }}>
+      <main className="host-main" style={{ paddingTop: 12, maxWidth: desktop ? 1560 : undefined }}>
         {first?.is_admin_preview && (
           <div style={{ marginBottom: 12 }}><Note>Вы видите альбом раньше гостей: они увидят его после проявления.</Note></div>
         )}
@@ -220,7 +211,11 @@ export default function HostAlbumScreen() {
           </div>
         )}
 
-        {frames.length > 0 && (
+        {frames.length > 0 && desktop && (
+          <DesktopWall mode={mode} frames={frames} eventId={id} onOpenFrame={openAt} />
+        )}
+
+        {frames.length > 0 && !desktop && (
           <>
             {mode === 'magazine' && (
               <>

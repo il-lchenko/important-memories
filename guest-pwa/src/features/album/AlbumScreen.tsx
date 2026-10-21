@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, guestApi } from '../../api/client'
 import { useNetworkStatus } from '../../hooks/useNetworkStatus'
+import { DesktopWall } from './wall/DesktopWalls'
+import { WallViewer } from './wall/WallViewer'
+import { useIsDesktop } from './wall/useWall'
 
 export interface Frame {
   id: string
@@ -639,6 +642,8 @@ export default function AlbumScreen() {
   const { shortCode } = useParams<{ shortCode: string }>()
   const navigate = useNavigate()
   const online = useNetworkStatus()
+  const desktop = useIsDesktop()
+  const [params, setParams] = useSearchParams()
 
   const [frames, setFrames] = useState<Frame[]>([])
   const [loading, setLoading] = useState(true)
@@ -803,9 +808,21 @@ export default function AlbumScreen() {
   }, [nextCursor, loadingMore]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const openFrame = (index: number) => {
+    if (desktop && frames[index]) { setParams({ f: frames[index].id }); return }
     navigate(`/g/${shortCode}/f/${index}`, {
       state: { frames, totalFrames },
     })
+  }
+
+  const openId = params.get('f')
+  const openIndex = desktop && openId ? frames.findIndex((f) => f.id === openId) : -1
+
+  const loadMore = () => {
+    if (!nextCursor || loadingMore) return
+    setLoadingMore(true)
+    fetchPage(nextCursor)
+      .catch((e) => console.error('album_page_failed', e))
+      .finally(() => setLoadingMore(false))
   }
 
   return (
@@ -844,8 +861,9 @@ export default function AlbumScreen() {
         </div>
       )}
 
+      <div style={desktop ? { maxWidth: 1840, margin: '0 auto', padding: '10px 56px 0' } : undefined}>
       {/* Header */}
-      <div style={{ padding: '14px 24px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div style={{ padding: desktop ? '18px 0 8px' : '14px 24px 8px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
             fontFamily: 'Inter, sans-serif', fontSize: 11,
@@ -855,7 +873,7 @@ export default function AlbumScreen() {
             {kicker}
           </div>
           <h1 style={{
-            fontFamily: 'Fraunces, serif',             fontSize: 26, fontWeight: 500, margin: 0,
+            fontFamily: 'Fraunces, serif',             fontSize: desktop ? 'clamp(40px, 4.4vw, 64px)' : 26, fontWeight: 500, margin: 0,
             letterSpacing: '-.02em', lineHeight: 1.05, color: 'var(--ink)',
           }}>
             {eventName}
@@ -888,8 +906,8 @@ export default function AlbumScreen() {
       </div>
 
       {/* Mode switcher + grid format trigger */}
-      <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ padding: desktop ? '10px 0 14px' : '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, maxWidth: desktop ? 420 : undefined }}>
           <ViewSwitcher mode={mode} onChange={setMode} />
         </div>
         {mode === 'magazine' && (
@@ -935,19 +953,25 @@ export default function AlbumScreen() {
         </div>
       ) : (
         <>
-          {mode === 'magazine' && (
-            <MagazineGrid
-              frames={frames}
-              columns={columns}
-              onOpenFrame={openFrame}
-              onColumnsChange={setColumns}
-            />
-          )}
-          {mode === 'retro' && (
-            <RetroLayout frames={frames} eventId={eventId} onOpenFrame={openFrame} />
-          )}
-          {mode === 'polaroid' && (
-            <PolaroidFeed frames={frames} onOpenFrame={openFrame} />
+          {desktop ? (
+            <DesktopWall mode={mode} frames={frames} eventId={eventId || shortCode || ''} onOpenFrame={openFrame} />
+          ) : (
+            <>
+              {mode === 'magazine' && (
+                <MagazineGrid
+                  frames={frames}
+                  columns={columns}
+                  onOpenFrame={openFrame}
+                  onColumnsChange={setColumns}
+                />
+              )}
+              {mode === 'retro' && (
+                <RetroLayout frames={frames} eventId={eventId} onOpenFrame={openFrame} />
+              )}
+              {mode === 'polaroid' && (
+                <PolaroidFeed frames={frames} onOpenFrame={openFrame} />
+              )}
+            </>
           )}
 
           {/* Sentinel for infinite scroll */}
@@ -962,6 +986,8 @@ export default function AlbumScreen() {
           )}
         </>
       )}
+
+      </div>
 
       {showGridDialog && (
         <GridFormatDialog
@@ -1001,6 +1027,19 @@ export default function AlbumScreen() {
             </svg>
           </button>
         </>
+      )}
+
+      {openIndex >= 0 && (
+        <WallViewer
+          frames={frames}
+          index={openIndex}
+          total={totalFrames}
+          shareTitle={eventName}
+          onIndex={(i) => setParams({ f: frames[i].id }, { replace: true })}
+          onClose={() => setParams({}, { replace: true })}
+          onNeedMore={loadMore}
+          onMore={() => navigate(`/g/${shortCode}/f/${openIndex}`, { state: { frames, totalFrames } })}
+        />
       )}
 
       {/* Upload progress overlay */}
