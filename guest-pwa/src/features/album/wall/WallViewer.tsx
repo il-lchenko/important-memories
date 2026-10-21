@@ -32,6 +32,18 @@ function RotatedPhoto({ src, fullSrc, rotation }: { src: string; fullSrc: string
 
 const ico = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
 
+function useNarrow(): boolean {
+  const q = '(max-width: 899px)'
+  const [v, setV] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(q)
+    const on = () => setV(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return v
+}
+
 function fmtDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString('ru', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })
@@ -54,6 +66,7 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
   shareTitle?: string
 }) {
   const frame = frames[index]
+  const narrow = useNarrow()
   const stripRef = useRef<HTMLDivElement>(null)
   const [note, setNote] = useState<string | null>(null)
   const needMoreRef = useRef(onNeedMore)
@@ -137,11 +150,11 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
           КАДР {index + 1} ИЗ {Math.max(total, frames.length)}
         </div>
         <div style={{ flex: 1 }} />
-        <span style={{ font: '13px Inter, sans-serif', color: 'rgba(240,230,210,.55)' }}>← → листать · Esc закрыть</span>
+        {!narrow && <span style={{ font: '13px Inter, sans-serif', color: 'rgba(240,230,210,.55)' }}>← → листать · Esc закрыть</span>}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <div style={{ flex: 1, minWidth: 0, position: 'relative', padding: '0 12px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: narrow ? 'column' : 'row' }}>
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', padding: '0 12px' }}>
           <ZoomPan key={frame.id}>
             {(zoomed) => <RotatedPhoto src={frame.preview_url ?? frame.full_url} fullSrc={zoomed ? frame.full_url : null} rotation={rotation} />}
           </ZoomPan>
@@ -157,7 +170,9 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
           )}
         </div>
 
-        <aside style={{ width: 340, flexShrink: 0, padding: '8px 28px 20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <aside style={narrow
+          ? { flexShrink: 0, maxHeight: '38%', padding: '10px 18px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }
+          : { width: 340, flexShrink: 0, padding: '8px 28px 20px 12px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
               width: 44, height: 44, borderRadius: '50%', flexShrink: 0, border: '1px solid rgba(255,255,255,.3)',
@@ -171,13 +186,13 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
               <div style={{ font: '13px Inter, sans-serif', color: 'rgba(240,230,210,.6)', marginTop: 2 }}>{fmtDate(frame.captured_at)}</div>
             </div>
           </div>
-          {caption && <div style={{ font: '34px/1.15 Caveat, cursive', color: '#FFD9A0' }}>{caption}</div>}
+          {caption && <div style={{ font: `${narrow ? 26 : 34}px/1.15 Caveat, cursive`, color: '#FFD9A0' }}>{caption}</div>}
           {frame.note && <p style={{ margin: 0, font: '15px/1.55 Manrope, Inter, sans-serif', color: 'rgba(240,230,210,.88)' }}>{frame.note}</p>}
           {(frame as Frame & { voice_url?: string | null }).voice_url && (
             <audio controls src={(frame as Frame & { voice_url?: string | null }).voice_url ?? undefined} style={{ width: '100%' }} />
           )}
-          <div style={{ flex: 1 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {!narrow && <div style={{ flex: 1 }} />}
+          <div style={{ display: 'flex', flexDirection: narrow ? 'row' : 'column', flexWrap: 'wrap', gap: 10 }}>
             <a style={action} href={frame.full_url} target="_blank" rel="noreferrer" download>
               <svg {...ico}><path d="M12 4v11M7 11l5 5 5-5M5 20h14" /></svg>Скачать оригинал
             </a>
