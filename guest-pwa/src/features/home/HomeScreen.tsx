@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { hostTokens } from '../../app/api/hostClient'
 
 interface RecentEntry {
   shortCode: string
@@ -48,7 +49,10 @@ function normalizeCode(raw: string): string {
 
 export default function HomeScreen() {
   const [params] = useSearchParams()
-  if (isStandalone() && !params.has('guest')) return <Navigate to="/app" replace />
+  // Установленное приложение: организатор и новый пользователь попадают в /app,
+  // а гость без входа организатора видит список своих альбомов.
+  const asGuest = params.has('guest') || (!hostTokens.isLoggedIn() && loadRecent().length > 0)
+  if (isStandalone() && !asGuest) return <Navigate to="/app" replace />
   return <CodeEntry />
 }
 
