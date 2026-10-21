@@ -88,7 +88,7 @@ export function LoginScreen() {
         <a href="/privacy.html" target="_blank" rel="noreferrer">политику конфиденциальности</a>.
       </p>
       <div style={{ flex: 1 }} />
-      <a href="/join" className="host-muted" style={{ textAlign: 'center', fontSize: 14, marginTop: 32 }}>
+      <a href="/join?guest=1" className="host-muted" style={{ textAlign: 'center', fontSize: 14, marginTop: 32 }}>
         Я гость — ввести код альбома
       </a>
     </AuthLayout>

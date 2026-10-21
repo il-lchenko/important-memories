@@ -26,7 +26,7 @@
   (function(){
     var s = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
          || (window.navigator && window.navigator.standalone === true);
-    if (s) window.location.replace('/join');
+    if (s) window.location.replace('/app');
   })();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister() }) });

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 interface RecentEntry {
   shortCode: string
@@ -37,11 +37,22 @@ function statusBadge(status: string) {
   return { label: 'СКОРО', color: 'var(--amber)' }
 }
 
+function isStandalone(): boolean {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+}
+
 function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
 }
 
 export default function HomeScreen() {
+  const [params] = useSearchParams()
+  if (isStandalone() && !params.has('guest')) return <Navigate to="/app" replace />
+  return <CodeEntry />
+}
+
+function CodeEntry() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const recent = useMemo(loadRecent, [])
