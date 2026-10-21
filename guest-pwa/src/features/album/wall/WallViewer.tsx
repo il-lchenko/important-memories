@@ -56,6 +56,8 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
   const frame = frames[index]
   const stripRef = useRef<HTMLDivElement>(null)
   const [note, setNote] = useState<string | null>(null)
+  const needMoreRef = useRef(onNeedMore)
+  needMoreRef.current = onNeedMore
 
   const prev = () => { if (index > 0) onIndex(index - 1) }
   const next = () => { if (index < frames.length - 1) onIndex(index + 1) }
@@ -83,7 +85,7 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
   }, [])
 
   useEffect(() => {
-    if (index >= frames.length - 4) onNeedMore?.()
+    if (index >= frames.length - 4) needMoreRef.current?.()
     for (const f of [frames[index - 1], frames[index + 1]]) {
       const u = f?.preview_url ?? f?.full_url
       if (u) { const im = new Image(); im.src = u }
@@ -91,7 +93,7 @@ export function WallViewer({ frames, index, total, onIndex, onClose, onNeedMore,
     const strip = stripRef.current
     const cur = strip?.querySelector<HTMLElement>('[data-cur="1"]')
     if (strip && cur) strip.scrollTo({ left: cur.offsetLeft - strip.clientWidth / 2 + cur.clientWidth / 2, behavior: 'smooth' })
-  }, [index, frames, onNeedMore])
+  }, [index, frames.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!note) return

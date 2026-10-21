@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { hostTokens } from '../../app/api/hostClient'
 
@@ -45,6 +45,13 @@ function isStandalone(): boolean {
 
 function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+}
+
+/** Адрес «/» в браузере — это лендинг (about.html); сюда попадаем, только если service worker подменил страницу. */
+export function RootEntry() {
+  const standalone = isStandalone()
+  useEffect(() => { if (!standalone) window.location.replace('/about.html') }, [standalone])
+  return standalone ? <HomeScreen /> : null
 }
 
 export default function HomeScreen() {

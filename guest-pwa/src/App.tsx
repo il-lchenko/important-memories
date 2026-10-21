@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import HomeScreen from './features/home/HomeScreen'
+import HomeScreen, { RootEntry } from './features/home/HomeScreen'
 import LandingScreen from './features/landing/LandingScreen'
 import CameraScreen from './features/camera/CameraScreen'
 import AlbumScreen from './features/album/AlbumScreen'
@@ -50,7 +50,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"                                      element={<HomeScreen />} />
+        <Route path="/"                                      element={<RootEntry />} />
         <Route path="/join"                                  element={<HomeScreen />} />
         <Route path="/g/:shortCode"                          element={<LandingScreen />} />
         <Route path="/g/:shortCode/camera"                   element={<CameraScreen />} />

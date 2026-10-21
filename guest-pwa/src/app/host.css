@@ -377,3 +377,8 @@
 /* Заметка с искрой вместо цветной полосы */
 .host-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--paper-2); font-size: 13px; line-height: 1.5; }
 .host-note[data-tone='danger'] { background: rgba(213, 75, 61, .08); }
+
+/* Страницы с широкой стеной фото (альбом) */
+@media (min-width: 1024px) {
+  .host-wide .host-header-inner, .host-wide .host-main { max-width: 1480px; }
+}

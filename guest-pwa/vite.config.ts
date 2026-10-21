@@ -49,6 +49,8 @@ export default defineConfig({
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
+        // Без этого Workbox отдаёт precache-копию index.html на адрес «/», и вместо лендинга открывается приложение.
+        directoryIndex: null,
         // Исключаем файловые скачивания из SPA-фолбэка, иначе SW отдаёт
         // index.html вместо реального файла (баг: клик на /im.apk открывал landing).
         navigateFallbackDenylist: [/\.apk$/, /^\/api\//, /^\/s3\//, /^\/a\//, /\.html$/, /^\/$/],

@@ -186,13 +186,13 @@ export default function HostAlbumScreen() {
 
   const title = event.data?.title ?? 'Альбом'
   return (
-    <>
+    <div className="host-wide">
       <TopBar back={`/app/events/${id}`} title={title} right={
         <button className="host-icon-btn" aria-label="Шрифт названия" onClick={() => setFontSheet(true)}>
           <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 16 }}>Aa</span>
         </button>
       } />
-      <main className="host-main" style={{ paddingTop: 12, maxWidth: desktop ? 1560 : undefined }}>
+      <main className="host-main" style={{ paddingTop: 12 }}>
         {first?.is_admin_preview && (
           <div style={{ marginBottom: 12 }}><Note>Вы видите альбом раньше гостей: они увидят его после проявления.</Note></div>
         )}
@@ -255,6 +255,6 @@ export default function HostAlbumScreen() {
           ))}
         </div>
       </Sheet>
-    </>
+    </div>
   )
 }

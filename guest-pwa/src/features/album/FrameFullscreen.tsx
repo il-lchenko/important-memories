@@ -3,6 +3,7 @@ import { ZoomPan } from './ZoomPan'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReportModal from './ReportModal'
 import { guestApi } from '../../api/client'
+import { useIsDesktop } from './wall/useWall'
 
 interface Frame {
   id: string
@@ -52,6 +53,7 @@ function IcBtn({ onClick, children, disabled }: { onClick?: () => void; children
 export default function FrameFullscreen() {
   const { shortCode, token, frameIndex } = useParams<{ shortCode?: string; token?: string; frameIndex: string }>()
   const navigate = useNavigate()
+  const desktop = useIsDesktop()
   const { state } = useLocation() as { state: { frames: Frame[]; totalFrames: number } | null }
   // Публичный режим: открыт по /a/:token/f/:idx. Редактирование запрещено,
   // ротация работает только локально, кнопка «Жалоба» скрыта, «Скачать» и
@@ -220,7 +222,9 @@ export default function FrameFullscreen() {
   }
 
   return (
-    <div style={{ height: '100dvh', background: 'var(--dark)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100dvh', background: 'var(--dark)', display: 'flex', flexDirection: desktop ? 'row' : 'column' }}>
+      {/* На широком экране: фото слева, подпись и действия справа. На телефоне обёртки прозрачны для вёрстки. */}
+      <div style={desktop ? { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', paddingBottom: 20 } : { display: 'contents' }}>
 
       {/* Top bar */}
       <div style={{ paddingTop: 'max(env(safe-area-inset-top, 12px), 12px)', paddingLeft: 16, paddingRight: 16, paddingBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -319,6 +323,9 @@ export default function FrameFullscreen() {
         )}
 
       </div>
+      </div>
+
+      <div style={desktop ? { width: 400, flexShrink: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '84px 12px 8px', borderLeft: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.025)' } : { display: 'contents' }}>
 
       {/* Caption — сразу под фото, с воздухом. */}
       {frame.caption && (
@@ -443,6 +450,8 @@ export default function FrameFullscreen() {
         </button>
       ) : null}
 
+      {desktop && <div style={{ flex: 1 }} />}
+
       {/* Actions */}
       <div style={{ flexShrink: 0, padding: '8px 20px 30px', display: 'flex', justifyContent: 'space-around', background: 'var(--dark)' }}>
         {/* Rotate */}
@@ -490,6 +499,7 @@ export default function FrameFullscreen() {
             <span>Жалоба</span>
           </button>
         )}
+      </div>
       </div>
 
       {showReport && (
@@ -793,7 +803,7 @@ function RotatedImage({
             transition: 'transform 0.3s ease, width 0.2s ease, height 0.2s ease',
           }}
         >
-          <img src={src} alt="" draggable={false} style={{ width: '100%', height: '100%', display: 'block' }} />
+          <img src={src} alt="" draggable={false} style={{ width: '100%', height: '100%', display: 'block', objectFit: 'contain' }} />
           {fullSrc && (
             <img
               src={fullSrc}
@@ -801,7 +811,7 @@ function RotatedImage({
               draggable={false}
               onLoad={() => setFullLoaded(true)}
               style={{
-                position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block',
+                position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block', objectFit: 'contain',
                 opacity: fullLoaded ? 1 : 0, transition: 'opacity 0.2s ease',
               }}
             />

@@ -61,3 +61,5 @@
 @media (prefers-reduced-motion: reduce) {
   .wl-tile, .wl-tile img, .wl-scrap, .wl-pol { transition: none; }
 }
+
+.wl-tile:focus-visible, .wl-scrap:focus-visible, .wl-pol:focus-visible { outline: 3px solid var(--amber, #C9881E); outline-offset: 3px; }

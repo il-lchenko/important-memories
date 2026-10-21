@@ -10,6 +10,10 @@ interface WallProps {
   onOpenFrame: (i: number) => void
 }
 
+const keyOpen = (open: () => void) => (e: React.KeyboardEvent) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() }
+}
+
 function HoverInfo({ frame }: { frame: Frame }) {
   const caption = (frame.caption ?? '').trim()
   return (
@@ -34,7 +38,7 @@ function Mosaic({ frames, onOpenFrame }: WallProps) {
       {rows.map((row, ri) => (
         <div key={ri} className="wl-row" style={{ gap, marginBottom: gap }}>
           {row.tiles.map((t) => (
-            <div key={frames[t.i].id} className="wl-tile" style={{ width: t.w, height: t.h }} onClick={() => onOpenFrame(t.i)}>
+            <div key={frames[t.i].id} className="wl-tile" style={{ width: t.w, height: t.h }} role="button" tabIndex={0} aria-label={`Кадр ${t.i + 1}`} onClick={() => onOpenFrame(t.i)} onKeyDown={keyOpen(() => onOpenFrame(t.i))}>
               <WallImage frame={frames[t.i]} w={t.w} h={t.h} index={t.i} />
               {frames[t.i].source === 'upload' && <UploadBadge />}
               <HoverInfo frame={frames[t.i]} />
@@ -73,7 +77,7 @@ function Scrapbook({ frames, eventId, onOpenFrame }: WallProps) {
             const caption = (f.caption ?? '').trim()
             const style = { width: t.w, height: t.h, padding: pad, background: framed ? '#FBF8F0' : undefined, '--r': `${rot}deg`, '--dy': `${dy}px`, '--tr': `${(r() - 0.5) * 8}deg` } as CSSProperties
             return (
-              <div key={f.id} className="wl-scrap" style={style} onClick={() => onOpenFrame(t.i)}>
+              <div key={f.id} className="wl-scrap" style={style} role="button" tabIndex={0} aria-label={`Кадр ${t.i + 1}`} onClick={() => onOpenFrame(t.i)} onKeyDown={keyOpen(() => onOpenFrame(t.i))}>
                 <div className="wl-scrap-in" style={{ width: t.w - pad * 2, height: t.h - pad * 2 }}>
                   <WallImage frame={f} w={t.w - pad * 2} h={t.h - pad * 2} index={t.i} />
                   {f.source === 'upload' && <UploadBadge />}
@@ -138,7 +142,7 @@ function PolaroidTable({ frames, eventId, onOpenFrame }: WallProps) {
               const photoH = photoW / ratio
               const style = { width: p.cardW, marginLeft: p.ml, marginTop: p.mt, zIndex: p.z, '--r': `${p.rot}deg`, '--pin': p.pin ?? undefined } as CSSProperties
               return (
-                <div key={f.id} className="wl-pol" style={style} onClick={() => onOpenFrame(p.i)}>
+                <div key={f.id} className="wl-pol" style={style} role="button" tabIndex={0} aria-label={`Кадр ${p.i + 1}`} onClick={() => onOpenFrame(p.i)} onKeyDown={keyOpen(() => onOpenFrame(p.i))}>
                   <div style={{ padding: '14px 14px 0' }}>
                     <div className="wl-pol-photo" style={{ width: photoW, height: photoH }}>
                       <WallImage frame={f} w={photoW} h={photoH} index={p.i} />
