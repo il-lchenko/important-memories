@@ -114,6 +114,11 @@ class Event(Base):
     public_share_token: Mapped[str | None] = mapped_column(
         String(64), unique=True, nullable=True, index=True
     )
+    # По умолчанию на открытой ссылке нет имён гостей, подписей, заметок и голоса
+    # (так обещает политика конфиденциальности). Хост включает их отдельной галочкой.
+    public_share_texts: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     # Второй фактор входа. Если pin_enabled=True — гость должен ввести entry_pin
     # (4 цифры), чтобы создать/восстановить сессию. QR-код содержит ?p=PIN, чтобы
     # сканирование оставалось одношаговым; ручной ввод — двухшаговый (код → PIN).
@@ -633,3 +638,63 @@ class Subscription(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class JournalPost(Base):
+    """Личный пост дневника. Текст (заголовок, тело, теги) хранится зашифрованным."""
+    __tablename__ = "journal_posts"
+    __table_args__ = (
+        Index("ix_journal_posts_user_posted", "user_id", "posted_at"),
+        Index("ix_journal_posts_unlock", "unlock_at"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # post — обычная запись; letter — письмо в будущее (закрыто до unlock_at)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, default="post", server_default="post")
+    # Fernet-токен от JSON {"title","body","tags"}; открытого текста в базе нет.
+    payload_enc: Mapped[str] = mapped_column(String, nullable=False)
+    mood: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    posted_at: Mapped[datetime] = _ts()
+    # Пока now < unlock_at и blind_until_unlock, текст скрыт и от автора.
+    unlock_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    blind_until_unlock: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    # Для будущих сценариев (закрытый круг, ссылка). Сейчас только private.
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="private", server_default="private")
+    # Письмо об открытии уже отправлено (воркер идемпотентен).
+    notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    frames: Mapped[list["JournalPostFrame"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan", order_by="JournalPostFrame.position"
+    )
+
+
+class JournalPostFrame(Base):
+    """Кадр, прикреплённый к посту. Кадр удалён — прикрепление исчезает, пост остаётся."""
+    __tablename__ = "journal_post_frames"
+    __table_args__ = (
+        UniqueConstraint("post_id", "frame_id", name="uq_journal_post_frames_post_frame"),
+        Index("ix_journal_post_frames_frame", "frame_id"),
+    )
+
+    id: Mapped[UUID] = _uuid_pk()
+    post_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("journal_posts.id", ondelete="CASCADE"), nullable=False
+    )
+    frame_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("frames.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    post: Mapped[JournalPost] = relationship(back_populates="frames")
